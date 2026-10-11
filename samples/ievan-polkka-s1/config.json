@@ -1,0 +1,30 @@
+{
+  "population_size": 60,
+  "max_generations": 1000,
+  "stagnation_window": 100,
+  "mutation_rate": 0.01,
+  "elite_count": 2,
+  "phrase_length": 4,
+  "tempo_bpm": null,
+  "role_map": {},
+  "weights": {
+    "complementarity": 1.0,
+    "register": 1.0,
+    "coherence": 1.0,
+    "contrast": 1.0,
+    "bass_smoothness": 1.0,
+    "idiom": 1.0,
+    "fidelity": 0.5
+  },
+  "seed": 1,
+  "input_path": "data/leadsheets/ievan_polkka.abc",
+  "input_sha256": "3c8f7310aa018657c2133bd57b0943c42df23761952e2ff162077a5a70d7177b",
+  "git_commit": "41fbd3ee938d72f9c6a8f35950a224874949114f",
+  "git_dirty": true,
+  "created": "2026-10-11T22:30:30+00:00",
+  "run_id": "ievan_polkka-s1-95456f9f",
+  "best_fitness": 0.9294457052609227,
+  "stop_reason": "stagnation",
+  "generations": 550,
+  "audio": true
+}

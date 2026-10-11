@@ -1,0 +1,19 @@
+{
+  "population_size": 60,
+  "max_generations": 1000,
+  "stagnation_window": 100,
+  "mutation_rate": 0.01,
+  "elite_count": 2,
+  "phrase_length": 4,
+  "tempo_bpm": null,
+  "role_map": {},
+  "weights": {
+    "complementarity": 1.0,
+    "register": 1.0,
+    "coherence": 1.0,
+    "contrast": 1.0,
+    "bass_smoothness": 1.0,
+    "idiom": 1.0,
+    "fidelity": 0.5
+  }
+}

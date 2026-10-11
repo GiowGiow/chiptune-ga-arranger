@@ -35,6 +35,8 @@ Thumbs.db
 
 # Course material (the assignment statement is not ours to publish)
 tp1_geracao_musical_simbolica.pdf
+# Local link to the student's private literature library (third-party PDFs and notes)
+literature
 
 # Generated music: every run writes outputs/<run-id>/; curated pieces are copied to samples/
 outputs/
