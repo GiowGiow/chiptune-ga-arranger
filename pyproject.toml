@@ -5,7 +5,7 @@ description = "DCC831 (UFMG 2026/2) TP1: algorithmic music composition"
 authors = [
     { name = "Giovanni Martinelli", email = "giofmartinelli@gmail.com" }
 ]
-license = "MIT"
+license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
 requires-python = ">=3.12"
 dependencies = [

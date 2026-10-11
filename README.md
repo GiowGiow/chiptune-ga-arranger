@@ -77,6 +77,7 @@ To add a dependency, run `uv add <package>` (or `uv add --dev <package>`).
 
 ## License
 
-The code and documentation in this repository are released under the [MIT License](LICENSE).
+The code and documentation in this repository are released under the
+[GNU General Public License v3.0 or later](LICENSE).
 The ISMIR template files in `paper/` (style, bibliography style and example files) come from
 [ismir/paper_templates](https://github.com/ismir/paper_templates) and keep their original terms.
