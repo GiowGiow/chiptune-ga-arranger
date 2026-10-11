@@ -101,24 +101,46 @@ sudo apt install fluidsynth fluid-soundfont-gm ffmpeg
 
 ## Usage
 
-Arrange a lead sheet (the seed is required):
+Arrange an ABC lead sheet (the seed is required):
 
 ```bash
 uv run src/main.py arrange data/leadsheets/korobeiniki.abc --seed 1
 ```
 
+Arrange a multi-track MIDI song. The song is first reduced to a lead sheet:
+
+- the melody comes from the chosen track or tracks;
+- one chord is detected per half bar from the other tracks;
+- `midi.bars` picks an excerpt, and `midi.sections` marks where each part starts.
+
+```bash
+uv run src/main.py arrange data/raw/chiclete/voa_voa.mid --seed 1 \
+    --set midi.melody_track=3 --set 'midi.bars=[8,56]' \
+    --set 'midi.sections=[[0,"A"],[16,"Pre"],[32,"Chorus"]]'
+```
+
+MIDI files recorded live may not follow their own tempo. "Voa Voa" says 120 BPM but was played at
+about 110 BPM. When the drum hits do not fit the file's grid, the reader estimates the real beat
+grid from the drums (`midi.grid` is `"auto"` by default; `"file"` or `[bpm, downbeat_seconds]`
+force a grid).
+
 Each run writes `outputs/<input>-s<seed>-<config hash>/` with:
 
-- `piece.mid` and `piece.mp3`;
+- `piece.mid`;
+- `piece.mp3` (General MIDI timbres) and `piece-chip.mp3` (the project's NES chip synthesizer);
+  `--renderer gm|chip|both` picks the renderers, and `both` is the default;
+- `input.mid` and `input.mp3`: the input made audible for comparison;
 - `pianoroll.png` and `pianoroll.pdf`;
 - `evolution.csv`, `evolution.png` and `evolution.pdf`;
 - `metrics.json`;
 - `config.json`: the seed, every hyperparameter, the input hash, the git commit and the date.
 
-Copy a run to the curated samples, and its vector figures to `paper/figures/`:
+Copy a run to the curated samples (and its vector figures to `paper/figures/`), and render its
+"Bach Vision Test" style video (`piece.mp4`, with the chip audio):
 
 ```bash
 uv run src/main.py sample outputs/<run-id> <sample-name>
+uv run src/main.py video samples/<sample-name>
 ```
 
 Run the tests:
@@ -130,28 +152,41 @@ uv run pytest
 ## Reproducing the results
 
 Each sample was made by one `arrange` command and copied with `sample`. The same command
-rebuilds the same notes. The run folder name ends with the hash of the configuration: `95456f9f`
+rebuilds the same notes. The run folder name ends with the hash of the configuration: `220a0105`
 is the default configuration.
 
 ```bash
 uv run src/main.py arrange data/leadsheets/ievan_polkka.abc --seed 1
-uv run src/main.py sample outputs/ievan_polkka-s1-95456f9f ievan-polkka-s1
+uv run src/main.py sample outputs/ievan_polkka-s1-220a0105 ievan-polkka-s1
 ```
 
 ```bash
 uv run src/main.py arrange data/leadsheets/ievan_polkka.abc --seed 1 --set weights.contrast=0
-uv run src/main.py sample outputs/ievan_polkka-s1-175532e9 ievan-polkka-s1-contrast0
+uv run src/main.py sample outputs/ievan_polkka-s1-8e2f2e48 ievan-polkka-s1-contrast0
 ```
 
 ```bash
 uv run src/main.py arrange data/leadsheets/korobeiniki.abc --seed 1
-uv run src/main.py sample outputs/korobeiniki-s1-95456f9f korobeiniki-s1
+uv run src/main.py sample outputs/korobeiniki-s1-220a0105 korobeiniki-s1
 ```
 
 ```bash
 uv run src/main.py arrange data/leadsheets/korobeiniki.abc --seed 2
-uv run src/main.py sample outputs/korobeiniki-s2-95456f9f korobeiniki-s2
+uv run src/main.py sample outputs/korobeiniki-s2-220a0105 korobeiniki-s2
 ```
+
+The MIDI song needs its source file in `data/raw/chiclete/` (see "Inputs"):
+
+```bash
+uv run src/main.py arrange data/raw/chiclete/voa_voa.mid --seed 1 \
+    --set midi.melody_track=3 --set 'midi.bars=[8,56]' \
+    --set 'midi.sections=[[0,"A"],[16,"Pre"],[32,"Chorus"]]' \
+    --set max_generations=4000 --set stagnation_window=200
+uv run src/main.py sample outputs/voa_voa-s1-a4ef6256 voa-voa-s1
+```
+
+
+Videos: `uv run src/main.py video samples/<sample-name>` for each sample.
 
 The experiments of the abstract compare 5 seeds, a random-search baseline and an ablation that
 sets each criterion weight to 0. Each command writes `outputs/experiment-<song>-s1-<hash>/`
@@ -164,19 +199,46 @@ uv run src/main.py experiment data/leadsheets/korobeiniki.abc --seed 1
 
 ## Generated pieces
 
-Each folder in `samples/` holds `piece.mid`, `piece.mp3`, the piano roll, the evolution log and
-figure, `metrics.json`, `config.json` and the listening notes (`notes.md`).
+![Korobeiniki, seed 1: the four NES channels drawn as glowing lines in sync with the music](samples/korobeiniki-s1/preview.gif)
 
-| Sample | Song | Seed | What varied | Best fitness | Generations |
-|---|---|---|---|---|---|
-| [ievan-polkka-s1](samples/ievan-polkka-s1/) | Ievan Polkka | 1 | default configuration | 0.929 | 550 |
-| [ievan-polkka-s1-contrast0](samples/ievan-polkka-s1-contrast0/) | Ievan Polkka | 1 | contrast weight 0 (default 1) | 0.871 | 330 |
-| [korobeiniki-s1](samples/korobeiniki-s1/) | Korobeiniki | 1 | default configuration | 0.912 | 934 |
-| [korobeiniki-s2](samples/korobeiniki-s2/) | Korobeiniki | 2 | seed (same configuration as s1) | 0.889 | 841 |
+*Korobeiniki, seed 1. The image shows the first seconds of the video: P1 is the melody (blue),
+P2 the arpeggios (orange), TR the bass (grey), and the bottom band holds the drum hits.*
 
-Every run stopped because the best fitness did not improve for 100 generations. The fitness of
-the contrast-0 run uses the other six criteria only, so it is not comparable with the other
-three.
+Each folder in `samples/` holds:
+
+- the input made audible (`input.mp3`);
+- the arrangement with General MIDI timbres (`piece.mp3`) and with the chip synthesizer
+  (`piece-chip.mp3`);
+- the video (`piece.mp4`);
+- `piece.mid`, the piano roll, the evolution log and figure, `metrics.json`, `config.json`;
+- the listening notes (`notes.md`).
+
+### Original vs. generated
+
+| Sample | Song (input) | What varied | Fitness | Original | 8-bit, GM | 8-bit, chip | Video |
+|---|---|---|---|---|---|---|---|
+| [ievan-polkka-s1](samples/ievan-polkka-s1/) | Ievan Polkka (ABC) | default | 0.929 | [mp3](samples/ievan-polkka-s1/input.mp3) | [mp3](samples/ievan-polkka-s1/piece.mp3) | [mp3](samples/ievan-polkka-s1/piece-chip.mp3) | [mp4](samples/ievan-polkka-s1/piece.mp4) |
+| [ievan-polkka-s1-contrast0](samples/ievan-polkka-s1-contrast0/) | Ievan Polkka (ABC) | contrast weight 0 | 0.871 | [mp3](samples/ievan-polkka-s1-contrast0/input.mp3) | [mp3](samples/ievan-polkka-s1-contrast0/piece.mp3) | [mp3](samples/ievan-polkka-s1-contrast0/piece-chip.mp3) | [mp4](samples/ievan-polkka-s1-contrast0/piece.mp4) |
+| [korobeiniki-s1](samples/korobeiniki-s1/) | Korobeiniki (ABC) | default | 0.912 | [mp3](samples/korobeiniki-s1/input.mp3) | [mp3](samples/korobeiniki-s1/piece.mp3) | [mp3](samples/korobeiniki-s1/piece-chip.mp3) | [mp4](samples/korobeiniki-s1/piece.mp4) |
+| [korobeiniki-s2](samples/korobeiniki-s2/) | Korobeiniki (ABC) | seed 2 | 0.889 | [mp3](samples/korobeiniki-s2/input.mp3) | [mp3](samples/korobeiniki-s2/piece.mp3) | [mp3](samples/korobeiniki-s2/piece-chip.mp3) | [mp4](samples/korobeiniki-s2/piece.mp4) |
+| [voa-voa-s1](samples/voa-voa-s1/) | Voa Voa (MIDI, bars 8–56) | 4000 generations | 0.802 | [mp3](samples/voa-voa-s1/input.mp3) | [mp3](samples/voa-voa-s1/piece.mp3) | [mp3](samples/voa-voa-s1/piece-chip.mp3) | [mp4](samples/voa-voa-s1/piece.mp4) |
+
+How to read the table:
+
+- **Original:** for the ABC tunes, the lead sheet played plainly (piano melody, block chords,
+  bass). For the MIDI songs, the band arrangement of the MIDI file over the same bars.
+- **Fitness:** the contrast-0 run is scored without the contrast criterion, so its value is not
+  comparable with the others.
+- **Stopping:** every run stopped after 100 generations without improvement; the MIDI song used a
+  window of 200 and up to 4000 generations.
+- **The MIDI song scores lower** than the ABC tunes, for two reasons. Its melody sits lower (in
+  octave 3), which pits the register criterion against fidelity. It is also longer.
+
+Piano rolls of two arrangements (every sample folder has its own `pianoroll.png`):
+
+| Korobeiniki, seed 1 | Voa Voa, seed 1 |
+|---|---|
+| ![Korobeiniki piano roll](samples/korobeiniki-s1/pianoroll.png) | ![Voa Voa piano roll](samples/voa-voa-s1/pianoroll.png) |
 
 ## Inputs, sources and licenses
 
@@ -191,6 +253,13 @@ three.
 - **Korobeiniki** ([data/leadsheets/korobeiniki.abc](data/leadsheets/korobeiniki.abc)).
   - A traditional Russian melody, known as the Tetris theme.
   - The lead sheet was written for this project, in the A A B A form of the game version.
+
+- **Voa Voa** (Chiclete com Banana).
+  - It comes from a fan-made MIDI file that the student collected (shared through YouTube).
+  - The song is copyrighted, and so is the fan transcription. The source file is not in the
+    repository: put it in `data/raw/chiclete/voa_voa.mid`.
+  - The samples hold only the arranged output and the excerpt used for comparison, for academic
+    use in this course.
 
 ## AI usage
 

@@ -90,6 +90,8 @@ class LeadSheet:
         tempo_bpm: tempo in quarter notes per minute.
         bars: the bars, in performed order.
         beats_per_bar: always 4 (only 4/4 is supported).
+        source_grid: for a lead sheet reduced from a MIDI recording, (tempo in BPM, time in
+            seconds of the first downbeat) of the beat grid found in the recording; None for ABC.
     """
 
     title: str
@@ -97,3 +99,4 @@ class LeadSheet:
     tempo_bpm: float
     bars: tuple[Bar, ...]
     beats_per_bar: int = 4
+    source_grid: tuple[float, float] | None = None

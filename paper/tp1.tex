@@ -53,8 +53,9 @@ every genotype into a valid arrangement, so the chip rules hold by construction,
 mean of seven music-theory criteria scores each plan. Selection is roulette with windowing and
 elitism, crossover cuts between bars, and mutation changes 1\% of the genes. We arrange two
 traditional tunes with famous 8-bit versions, \emph{Ievan Polkka} and \emph{Korobeiniki} (the
-Tetris theme), and report the evolution of the fitness, the diversity across seeds, a
-random-search baseline and a weight ablation.
+Tetris theme), and a Brazilian song reduced from a multi-track MIDI file, and report the
+evolution of the fitness, the diversity across seeds, a random-search baseline and a weight
+ablation.
 \end{abstract}
 
 \section{Introduction}\label{sec:introduction}
@@ -157,6 +158,18 @@ genotypes pass unchanged (elitism). One-point crossover cuts only between bars
 generations without improvement. All randomness comes from one seeded generator, and each run
 stores its seed, hyperparameters, input hash and code commit.
 
+\subsection{Inputs and Rendering}
+
+ABC lead sheets give the melody, the chords and the part labels directly. A multi-track MIDI song
+is first reduced to a lead sheet. The chosen melody track or tracks are merged by a skyline (the
+highest note wins) and snapped to a sixteenth-note grid. One chord per half bar is chosen among
+major, minor, dominant-seventh and minor-seventh chords: the other tracks vote for pitch classes in
+proportion to how long they sound, bass tracks count twice, and a chord whose root is the bass note
+gets a bonus. The arrangement is rendered twice from the same MIDI file. One rendering uses
+FluidSynth with General MIDI timbres. The other uses our own chip synthesizer, with pulse waves of
+25\% and 12.5\% duty, the 4-bit 32-step triangle and 15-bit LFSR noise \cite{donahue2018nes}. A
+video draws each channel as a glowing step line in sync with the audio.
+
 \section{Results}\label{sec:results}
 
 \textbf{Setup.} We arranged two traditional tunes with well-known 8-bit versions: \emph{Ievan
@@ -229,13 +242,22 @@ for the slow bridge, where the melody holds long notes. The noise channel sounds
 the time, close to the 39\% measured in NES game music, but our pulse and triangle channels never
 rest (100\%, against 84\% and 70\% in that corpus \cite{donahue2018nes}).
 
+\textbf{A MIDI song.} We also arranged bars 8--56 of \emph{Voa Voa} (Chiclete com Banana): a
+verse, a pre-chorus and a chorus that modulates. The source is a fan-made MIDI file recorded live.
+It states 120 BPM, but its drum hits fit a sixteenth-note grid at 110.1 BPM (strength 0.90 against
+0.04 for the stated tempo), so the reader re-estimates the grid before cutting bars. The
+arrangement reaches a lower fitness (0.80, after 1784 generations). The sax melody sits around
+octave 3, so keeping it in its written register conflicts with keeping P2 below it. The GA trades
+fidelity (0.73) against register (0.93), and the longer form lowers coherence (0.58).
+
 \section{Discussion and Future Work}\label{sec:discussion}
 
 The GA turns a lead sheet into a plausible 8-bit arrangement in seconds, and the experiments show
 that the search, not chance, produces the result. The approach has clear limits. The fitness is a
 weighted sum of hand-written heuristics, a common choice that hides the conflicts between
 objectives \cite{fernandez2013ai}. A Pareto front \cite{freitas2011melody,carpentier2010solving}
-would expose these trade-offs. The textures come from a fixed vocabulary, so the GA chooses
+would expose these trade-offs. Automatic chord detection on MIDI songs is approximate (a few major chords come out minor).
+The textures come from a fixed vocabulary, so the GA chooses
 between arranging gestures but does not invent new ones. The channels never rest. Only 4/4 lead
 sheets are supported. General MIDI timbres only approximate the chip, which also has duty cycles
 and a sample channel that we do not model. Future work includes a fitness learned from the NES

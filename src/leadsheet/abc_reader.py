@@ -112,18 +112,18 @@ def read_lead_sheet_text(
     _check_complete_bars(measures)
 
     chords_per_bar = _chord_segments([_chord_changes(measure) for measure in measures])
-    phrase_marks = _phrases([bar.section for bar in scanned_bars], phrase_length)
+    marks = phrase_marks([bar.section for bar in scanned_bars], phrase_length)
     bars = []
     for index, measure in enumerate(measures):
         label = scanned_bars[index].label
-        phrase, phrase_end = phrase_marks[index]
+        phrase, phrase_end = marks[index]
         bars.append(
             Bar(
                 index=index,
                 melody=_melody(measure),
                 chords=chords_per_bar[index],
                 label=label,
-                role=_role(label, role_map),
+                role=section_role(label, role_map),
                 phrase=phrase,
                 phrase_end=phrase_end,
             )
@@ -276,14 +276,14 @@ def _chord_segments(
     return segments_per_bar
 
 
-def _phrases(sections: list[int], phrase_length: int) -> list[tuple[int, bool]]:
+def phrase_marks(sections: list[int], phrase_length: int) -> list[tuple[int, bool]]:
     """Give each bar its phrase index and whether it is the last bar of its phrase.
 
     Phrases are chunks of `phrase_length` bars counted from the start of each section, so a
     section of 6 bars with 4-bar phrases holds one 4-bar phrase and one 2-bar phrase. Phrase
     indices count over the whole piece.
 
-    >>> _phrases([1, 1, 1, 1, 1, 1, 2, 2], phrase_length=4)
+    >>> phrase_marks([1, 1, 1, 1, 1, 1, 2, 2], phrase_length=4)
     [(0, False), (0, False), (0, False), (0, True), (1, False), (1, True), (2, False), (2, True)]
     """
     marks: list[tuple[int, bool]] = []
@@ -298,11 +298,13 @@ def _phrases(sections: list[int], phrase_length: int) -> list[tuple[int, bool]]:
     return marks
 
 
-def _role(label: str, role_map: dict[str, str] | None) -> str:
+def section_role(label: str, role_map: dict[str, str] | None) -> str:
     """Return "verse" or "chorus" for a part label.
 
-    >>> _role("B", None), _role("Chorus 2", None), _role("A", None), _role("A", {"A": "chorus"})
-    ('chorus', 'chorus', 'verse', 'chorus')
+    >>> [section_role(label, None) for label in ("B", "Chorus 2", "A")]
+    ['chorus', 'chorus', 'verse']
+    >>> section_role("A", {"A": "chorus"})
+    'chorus'
     """
     if role_map is not None and label in role_map:
         return role_map[label]

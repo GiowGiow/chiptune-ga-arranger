@@ -17,9 +17,16 @@ FLUIDSYNTH_GAIN = "0.25"
 
 
 def render_mp3(
-    mid_path: Path | str, mp3_path: Path | str, soundfont: Path | str = DEFAULT_SOUNDFONT
+    mid_path: Path | str,
+    mp3_path: Path | str,
+    soundfont: Path | str = DEFAULT_SOUNDFONT,
+    start_seconds: float | None = None,
+    end_seconds: float | None = None,
 ) -> bool:
-    """Render `mid_path` to `mp3_path`; return False (with a notice) when audio is unavailable."""
+    """Render `mid_path` to `mp3_path`; return False (with a notice) when audio is unavailable.
+
+    `start_seconds` and `end_seconds` cut the rendered audio to an excerpt.
+    """
     mid_path, mp3_path, soundfont = Path(mid_path), Path(mp3_path), Path(soundfont)
     missing = [name for name in ("fluidsynth", "ffmpeg") if shutil.which(name) is None]
     if not soundfont.exists():
@@ -31,6 +38,8 @@ def render_mp3(
     synth = ["fluidsynth", "-ni", "-q", "-g", FLUIDSYNTH_GAIN, "-r", "44100", "-F", str(wav_path)]
     subprocess.run([*synth, str(soundfont), str(mid_path)], check=True, capture_output=True)
     encode = ["ffmpeg", "-y", "-loglevel", "error", "-i", str(wav_path)]
+    if start_seconds is not None and end_seconds is not None:
+        encode += ["-ss", f"{start_seconds:.3f}", "-to", f"{end_seconds:.3f}"]
     subprocess.run([*encode, "-codec:a", "libmp3lame", "-qscale:a", "4", str(mp3_path)], check=True)
     wav_path.unlink()
     return True

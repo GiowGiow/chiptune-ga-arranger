@@ -16,13 +16,18 @@
     "idiom": 1.0,
     "fidelity": 0.5
   },
+  "midi": {
+    "melody_track": null,
+    "bars": null,
+    "sections": null
+  },
   "seed": 1,
   "input_path": "data/leadsheets/ievan_polkka.abc",
   "input_sha256": "3c8f7310aa018657c2133bd57b0943c42df23761952e2ff162077a5a70d7177b",
-  "git_commit": "41fbd3ee938d72f9c6a8f35950a224874949114f",
+  "git_commit": "b0fe59e44ce226da5698284063672bd1e712a0d1",
   "git_dirty": true,
-  "created": "2026-10-11T22:30:47+00:00",
-  "run_id": "ievan_polkka-s1-175532e9",
+  "created": "2026-10-11T22:44:22+00:00",
+  "run_id": "ievan_polkka-s1-8e2f2e48",
   "best_fitness": 0.8707386363636364,
   "stop_reason": "stagnation",
   "generations": 330,

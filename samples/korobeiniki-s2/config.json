@@ -16,13 +16,18 @@
     "idiom": 1.0,
     "fidelity": 0.5
   },
+  "midi": {
+    "melody_track": null,
+    "bars": null,
+    "sections": null
+  },
   "seed": 2,
   "input_path": "data/leadsheets/korobeiniki.abc",
   "input_sha256": "581434723b1382d1bea395cf64c79e3a928b5568e54f279f312d13a9093daa36",
-  "git_commit": "41fbd3ee938d72f9c6a8f35950a224874949114f",
+  "git_commit": "b0fe59e44ce226da5698284063672bd1e712a0d1",
   "git_dirty": true,
-  "created": "2026-10-11T22:30:42+00:00",
-  "run_id": "korobeiniki-s2-95456f9f",
+  "created": "2026-10-11T22:44:15+00:00",
+  "run_id": "korobeiniki-s2-220a0105",
   "best_fitness": 0.8889950495293237,
   "stop_reason": "stagnation",
   "generations": 841,

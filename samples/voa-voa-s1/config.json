@@ -1,0 +1,52 @@
+{
+  "population_size": 60,
+  "max_generations": 4000,
+  "stagnation_window": 200,
+  "mutation_rate": 0.01,
+  "elite_count": 2,
+  "phrase_length": 4,
+  "tempo_bpm": null,
+  "role_map": {},
+  "weights": {
+    "complementarity": 1.0,
+    "register": 1.0,
+    "coherence": 1.0,
+    "contrast": 1.0,
+    "bass_smoothness": 1.0,
+    "idiom": 1.0,
+    "fidelity": 0.5
+  },
+  "midi": {
+    "melody_track": 3,
+    "bars": [
+      8,
+      56
+    ],
+    "sections": [
+      [
+        0,
+        "A"
+      ],
+      [
+        16,
+        "Pre"
+      ],
+      [
+        32,
+        "Chorus"
+      ]
+    ],
+    "grid": "auto"
+  },
+  "seed": 1,
+  "input_path": "data/raw/chiclete/voa_voa.mid",
+  "input_sha256": "d7e4c13991ba7c1c2e5298568439cdaad8de1d521faea264b52cd17107013522",
+  "git_commit": "b0fe59e44ce226da5698284063672bd1e712a0d1",
+  "git_dirty": true,
+  "created": "2026-10-11T23:01:35+00:00",
+  "run_id": "voa_voa-s1-a4ef6256",
+  "best_fitness": 0.8016089695209604,
+  "stop_reason": "stagnation",
+  "generations": 1784,
+  "audio": true
+}

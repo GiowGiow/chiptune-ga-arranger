@@ -210,7 +210,7 @@ tests in `tests/`. Run the tests with `uv run pytest`. Units: MIDI pitches, quar
 
 ## Phase 6: User Story 4 - Animated visualization (P4, optional)
 
-- [ ] T040 [US4] Implement `src/export/video.py` and the `video` command in `src/main.py`: matplotlib animation of one glowing step line per channel (layered linewidths and alphas, dark background), revealed up to the current time; muxed with `piece.mp3` through ffmpeg into `piece.mp4`. Render it for one sample, only after T039.
+- [X] T040 [US4] Implement `src/export/video.py` and the `video` command in `src/main.py`: matplotlib animation of one glowing step line per channel (layered linewidths and alphas, dark background), revealed up to the current time; muxed with `piece.mp3` through ffmpeg into `piece.mp4`. Render it for one sample, only after T039.
 
 ---
 
@@ -219,6 +219,18 @@ tests in `tests/`. Run the tests with `uv run pytest`. Units: MIDI pitches, quar
 - [ ] T041 Write the deferred items: the marimo notebook in `notebooks/`, `docs/glossary.md`, and `docs/explanation.md` with its Mermaid diagram (constitution IV and V)
 
 ---
+
+## Phase 8: Extensions after the first submission-ready version (2026-10-11)
+
+- [X] T042 [P] Tests, then the NES chip synthesizer in `src/export/chip_audio.py` (FR-030): pulse 25% and 12.5% duty, 4-bit triangle, LFSR noise per drum, −3 dBFS peak
+- [X] T043 Add `--renderer gm|chip|both` to `arrange` in `src/main.py` and write `piece-chip.mp3` (FR-030)
+- [X] T044 Amend the constitution to 1.1.0 (chip renderer, `input.mp3`, MIDI inputs in `data/raw/`)
+- [X] T045 [P] Tests, then the MIDI-to-lead-sheet reader in `src/leadsheet/midi_reader.py`: skyline melody, grid snapping, half-bar chord detection, excerpt and sections (FR-031)
+- [X] T046 Tests, then `src/export/input_preview.py`; write `input.mid` and `input.mp3` in every run (FR-032)
+- [X] T047 [P] Tests, then the video renderer in `src/export/video.py`, plus the `video` command (FR-033)
+- [X] T048 Arrange "Voa Voa" (bars 8–56, on the re-estimated beat grid) from `data/raw/chiclete/`, curate it as a sample, and write its listening notes ("Chiclete com Banana" was tried and dropped by the student)
+- [X] T049 Render the videos of every sample, then add the comparison tables and a GIF preview to `README.md` (FR-034)
+- [X] T050 Update the abstract (`paper/tp1.tex`) with the MIDI inputs, the chip renderer and the new samples, then commit and push
 
 ## Dependencies and execution order
 

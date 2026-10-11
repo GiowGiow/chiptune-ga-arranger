@@ -144,10 +144,19 @@ Rationale: a small, direct codebase is easier to test, explain and grade.
 - Outputs: each run writes `outputs/<run-id>/` with `piece.mid`, `piece.mp3`, `pianoroll.png`
   and `config.json`. `outputs/` is not versioned. The pieces chosen for the deliverables are
   copied, with all four files, to `samples/<name>/` by a documented command, and only
-  `samples/` is versioned. Audio is rendered only from the generated MIDI with FluidSynth and a
-  General MIDI soundfont, never edited by hand, and each audio file stays under 5 MB.
+  `samples/` is versioned.
+- Audio is rendered only from MIDI files written by the code, never edited by hand, and each
+  audio file stays under 5 MB. Two renderers are allowed:
+  - FluidSynth with a General MIDI soundfont (`piece.mp3`);
+  - the project's own NES chip synthesizer, which builds pulse, triangle and noise waveforms
+    with numpy (`piece-chip.mp3`).
+- A run may also write `input.mid` and `input.mp3`: the input made audible for comparison. For
+  an ABC lead sheet, this is the lead sheet played plainly. For a MIDI song, it is the original
+  excerpt.
 - Data: if a corpus is used, its source and license are recorded in the README; large corpora
-  stay out of git in `data/raw/` and are downloaded by a documented command.
+  stay out of git in `data/raw/` and are downloaded by a documented command. Inputs are ABC lead
+  sheets or multi-track MIDI songs that the code reduces to lead sheets. Third-party MIDI files
+  stay out of git in `data/raw/`, and the README says where they come from.
 - Deliverables: public GitHub repository with README (install, reproduce, pieces, AI usage
   statement) and `requirements.txt`; at least 3 synthesized pieces in the repository; an ISMIR
   abstract of at most 3 pages of content (postgraduate rule) with at least 4 references, 3 of
@@ -176,4 +185,4 @@ Rationale: a small, direct codebase is easier to test, explain and grade.
 - Agent guidance files in the repository (such as `CLAUDE.md`) must not contradict this
   document.
 
-**Version**: 1.0.1 | **Ratified**: 2026-10-11 | **Last Amended**: 2026-10-11
+**Version**: 1.1.0 | **Ratified**: 2026-10-11 | **Last Amended**: 2026-10-11

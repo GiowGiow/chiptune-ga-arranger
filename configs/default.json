@@ -15,5 +15,11 @@
     "bass_smoothness": 1.0,
     "idiom": 1.0,
     "fidelity": 0.5
+  },
+  "midi": {
+    "melody_track": null,
+    "bars": null,
+    "sections": null,
+    "grid": "auto"
   }
 }

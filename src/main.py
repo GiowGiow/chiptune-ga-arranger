@@ -23,8 +23,10 @@ from arrangement.assemble import assemble
 from arrangement.validation import find_violations
 from config import load_config
 from export.audio import DEFAULT_SOUNDFONT, render_mp3
+from export.chip_audio import render_chip_mp3
 from export.experiments import run_experiments
 from export.figures import plot_evolution, plot_pianoroll
+from export.input_preview import excerpt_seconds, lead_sheet_to_midi
 from export.midi import write_midi
 from export.run_folder import (
     make_run_id,
@@ -32,10 +34,15 @@ from export.run_folder import (
     write_evolution_csv,
     write_metrics_json,
 )
+from export.video import render_video
 from ga.evolution import GAParams, evolve
 from ga.fitness import criterion_scores
 from ga.tables import build_tables
 from leadsheet.abc_reader import read_lead_sheet
+from leadsheet.midi_reader import read_lead_sheet_midi
+from leadsheet.model import LeadSheet
+
+MIDI_SUFFIXES = (".mid", ".midi")
 
 NOTES_TEMPLATE = """# Listening notes: {name}
 
@@ -54,7 +61,7 @@ def build_parser() -> argparse.ArgumentParser:
     commands = parser.add_subparsers(dest="command", required=True)
 
     arrange = commands.add_parser("arrange", help="arrange a lead sheet for the NES channels")
-    arrange.add_argument("leadsheet", type=Path, help="ABC lead sheet (first tune is used)")
+    arrange.add_argument("leadsheet", type=Path, help="ABC lead sheet or MIDI song")
     arrange.add_argument("--seed", type=int, required=True, help="seed of the random generator")
     arrange.add_argument("--config", type=Path, help="JSON file with hyperparameters")
     arrange.add_argument(
@@ -67,6 +74,12 @@ def build_parser() -> argparse.ArgumentParser:
     arrange.add_argument("--out", type=Path, default=Path("outputs"), help="parent folder")
     arrange.add_argument("--no-audio", action="store_true", help="skip FluidSynth and ffmpeg")
     arrange.add_argument("--soundfont", type=Path, default=DEFAULT_SOUNDFONT)
+    arrange.add_argument(
+        "--renderer",
+        choices=("gm", "chip", "both"),
+        default="both",
+        help="General MIDI soundfont (piece.mp3), NES chip synthesizer (piece-chip.mp3) or both",
+    )
     arrange.set_defaults(handler=run_arrange)
 
     sample = commands.add_parser("sample", help="copy a run to the curated samples")
@@ -76,8 +89,13 @@ def build_parser() -> argparse.ArgumentParser:
     sample.add_argument("--figures", type=Path, default=Path("paper/figures"))
     sample.set_defaults(handler=run_sample)
 
+    video = commands.add_parser("video", help="render a Bach Vision Test style video of a run")
+    video.add_argument("run_dir", type=Path, help="run or sample folder with piece.mid")
+    video.add_argument("--fps", type=int, default=30)
+    video.set_defaults(handler=run_video)
+
     experiment = commands.add_parser("experiment", help="seeds, random search and ablation")
-    experiment.add_argument("leadsheet", type=Path, help="ABC lead sheet (first tune is used)")
+    experiment.add_argument("leadsheet", type=Path, help="ABC lead sheet or MIDI song")
     experiment.add_argument("--seed", type=int, required=True, help="first of five seeds")
     experiment.add_argument("--config", type=Path, help="JSON file with hyperparameters")
     experiment.add_argument("--set", action="append", default=[], metavar="KEY=VALUE")
@@ -86,15 +104,46 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def load_lead_sheet(path: Path, config: dict) -> LeadSheet:
+    """Read an ABC lead sheet, or reduce a multi-track MIDI song to a lead sheet."""
+    common = {"phrase_length": config["phrase_length"], "role_map": config["role_map"]}
+    if path.suffix.lower() in MIDI_SUFFIXES:
+        midi = config["midi"]
+        if midi["melody_track"] is None:
+            raise ValueError("a MIDI input needs --set midi.melody_track=<track index>")
+        return read_lead_sheet_midi(
+            path,
+            melody_track=midi["melody_track"],
+            bars=tuple(midi["bars"]) if midi["bars"] else None,
+            sections=[(int(bar), str(label)) for bar, label in midi["sections"] or []],
+            tempo_override=config["tempo_bpm"],
+            grid=midi["grid"],
+            **common,
+        )
+    return read_lead_sheet(path, tempo_override=config["tempo_bpm"], **common)
+
+
+def write_input_audio(
+    args: argparse.Namespace, config: dict, lead_sheet: LeadSheet, folder: Path
+) -> None:
+    """Write the input made audible: `input.mp3` (and `input.mid` for an ABC lead sheet)."""
+    if args.leadsheet.suffix.lower() in MIDI_SUFFIXES:
+        bars = config["midi"]["bars"]
+        start, end = excerpt_seconds(
+            args.leadsheet, lead_sheet.source_grid, tuple(bars) if bars else None
+        )
+        if not args.no_audio:
+            render_mp3(args.leadsheet, folder / "input.mp3", args.soundfont, start, end)
+        return
+    lead_sheet_to_midi(lead_sheet).write(str(folder / "input.mid"))
+    if not args.no_audio:
+        render_mp3(folder / "input.mid", folder / "input.mp3", args.soundfont)
+
+
 def run_arrange(args: argparse.Namespace) -> Path:
     """Evolve an arrangement plan, validate it and write the run folder; return the folder."""
     config = load_config(args.config, args.set)
-    lead_sheet = read_lead_sheet(
-        args.leadsheet,
-        phrase_length=config["phrase_length"],
-        role_map=config["role_map"],
-        tempo_override=config["tempo_bpm"],
-    )
+    lead_sheet = load_lead_sheet(args.leadsheet, config)
     rng = np.random.default_rng(args.seed)
     tables = build_tables(lead_sheet)
     params = GAParams(
@@ -113,9 +162,13 @@ def run_arrange(args: argparse.Namespace) -> Path:
     folder = args.out / make_run_id(args.leadsheet, args.seed, config)
     folder.mkdir(parents=True, exist_ok=True)
     write_midi(arrangement, folder / "piece.mid")
+    write_input_audio(args, config, lead_sheet, folder)
     audio = False
     if not args.no_audio:
-        audio = render_mp3(folder / "piece.mid", folder / "piece.mp3", args.soundfont)
+        if args.renderer in ("gm", "both"):
+            audio = render_mp3(folder / "piece.mid", folder / "piece.mp3", args.soundfont)
+        if args.renderer in ("chip", "both"):
+            audio = render_chip_mp3(folder / "piece.mid", folder / "piece-chip.mp3") or audio
     for suffix in ("png", "pdf"):
         plot_pianoroll(arrangement, folder / f"pianoroll.{suffix}")
         plot_evolution(result.log, folder / f"evolution.{suffix}")
@@ -150,13 +203,20 @@ def run_arrange(args: argparse.Namespace) -> Path:
 def run_experiment(args: argparse.Namespace) -> Path:
     """Run the experiments of the Results section (FR-029) on one lead sheet."""
     config = load_config(args.config, args.set)
-    lead_sheet = read_lead_sheet(
-        args.leadsheet,
-        phrase_length=config["phrase_length"],
-        role_map=config["role_map"],
-        tempo_override=config["tempo_bpm"],
-    )
+    lead_sheet = load_lead_sheet(args.leadsheet, config)
     return run_experiments(lead_sheet, config, args.seed, args.out, args.leadsheet.stem)
+
+
+def run_video(args: argparse.Namespace) -> Path:
+    """Render `piece.mp4` with the chip audio when it exists, else the General MIDI audio."""
+    audio = args.run_dir / "piece-chip.mp3"
+    if not audio.exists():
+        audio = args.run_dir / "piece.mp3"
+    target = args.run_dir / "piece.mp4"
+    if not render_video(args.run_dir / "piece.mid", audio, target, fps=args.fps):
+        raise ValueError(f"no video written for {args.run_dir}")
+    print(target)
+    return target
 
 
 def run_sample(args: argparse.Namespace) -> Path:

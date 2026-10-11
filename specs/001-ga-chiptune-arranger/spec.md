@@ -318,6 +318,35 @@ and that each channel appears as its own line.
 - **FR-028**: The plan MUST record, as constitution deviations, the items deferred past the
   deadline: the marimo walkthrough notebook, `docs/glossary.md` and `docs/explanation.md`.
 
+#### Extensions requested after the first submission-ready version (2026-10-11)
+
+- **FR-030**: Besides the General MIDI rendering, the system MUST render the arrangement with its
+  own NES chip synthesizer, made only from `piece.mid`, into `piece-chip.mp3`:
+  - P1 is a pulse wave with 25% duty and P2 a pulse wave with 12.5% duty;
+  - TR is the 4-bit, 32-step triangle, at constant loudness;
+  - NO is 15-bit LFSR noise, with one period and decay for each drum;
+  - the peak is at −3 dBFS.
+
+  `--renderer gm|chip|both` selects the renderers, and `both` is the default.
+- **FR-031**: The system MUST accept a multi-track 4/4 MIDI song as input and reduce it to a lead
+  sheet:
+  - the melody comes from one or more chosen tracks, merged by a skyline (highest note) and
+    snapped to a sixteenth-note grid;
+  - one chord (major, minor, dominant 7th or minor 7th) is detected per half bar from the other
+    pitched tracks, with bass tracks weighted twice;
+  - the student marks the bar excerpt and where each section starts.
+
+  These settings live in the configuration (`midi.melody_track`, `midi.bars`, `midi.sections`).
+- **FR-032**: Every run MUST also write `input.mid` and `input.mp3`, the input made audible for
+  comparison. For an ABC lead sheet, it is the lead sheet played plainly. For a MIDI song, it is
+  the original excerpt.
+- **FR-033**: A `video` command MUST render `piece.mp4` for a run or sample (User Story 4), using
+  `piece-chip.mp3` when it exists.
+- **FR-034**: The README MUST compare, for each sample, the input with the generated GM and chip
+  versions, the video and the piano roll. One extra song comes from a fan-made MIDI file, kept out of
+  git in `data/raw/`: "Voa Voa" (Chiclete com Banana). The student dropped "Chiclete com Banana"
+  (Jackson do Pandeiro) after listening.
+
 ### Key Entities
 
 - **Lead sheet**: title, reference number, key, meter (4/4), tempo, and the ordered bars of the

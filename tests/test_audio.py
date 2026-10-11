@@ -31,3 +31,19 @@ def test_audio_is_rendered_from_the_midi_file_only(tmp_path):
     assert render_mp3(mid, tmp_path / "piece.mp3") is True
     assert (tmp_path / "piece.mp3").stat().st_size > 0
     assert not (tmp_path / "piece.wav").exists()
+
+
+@pytest.mark.skipif(
+    not AUDIO_TOOLS_AVAILABLE, reason="fluidsynth, ffmpeg or the GM soundfont is not installed"
+)
+def test_audio_can_be_cut_to_an_excerpt(tmp_path):
+    import subprocess
+
+    mid = tmp_path / "piece.mid"
+    write_midi(small_arrangement(), mid)
+    assert render_mp3(mid, tmp_path / "cut.mp3", start_seconds=0.2, end_seconds=0.7) is True
+    probe = ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0"]
+    duration = float(
+        subprocess.run([*probe, str(tmp_path / "cut.mp3")], capture_output=True, text=True).stdout
+    )
+    assert abs(duration - 0.5) < 0.1
