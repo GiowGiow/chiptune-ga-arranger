@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Course material (assignment statement is not ours to publish)
+tp1_geracao_musical_simbolica.pdf
+
+# Soundfonts are large; document the download in README instead
+*.sf2
+*.sf3
+
+# LaTeX build files (ISMIR abstract)
+*.aux
+*.log
+*.out
+*.bbl
+*.blg
+*.synctex.gz
+*.fdb_latexmk
+*.fls

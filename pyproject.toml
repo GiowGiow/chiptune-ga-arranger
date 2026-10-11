@@ -1,0 +1,16 @@
+[project]
+name = "dcc831-tp1"
+version = "0.1.0"
+description = "TP1 de DCC831 (UFMG 2026/2): composição musical algorítmica"
+authors = [
+    { name = "Giovanni Martinelli", email = "giofmartinelli@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+dcc831-tp1 = "dcc831_tp1:main"
+
+[build-system]
+requires = ["uv_build>=0.12.1,<0.13.0"]
+build-backend = "uv_build"
