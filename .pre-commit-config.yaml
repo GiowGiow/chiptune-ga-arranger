@@ -1,0 +1,52 @@
+# Install all hook types with: uv run pre-commit install
+default_install_hook_types: [pre-commit, pre-push, post-checkout, post-merge, post-rewrite]
+
+# Keep byte-for-byte: the official ISMIR 2026 template files (ismir/paper_templates@2026v1)
+# and the JSON state files that the Spec Kit CLI writes
+exclude: |
+  (?x)^(
+    paper/(ISMIR2026_template\.(tex|pdf)|ISMIRtemplate\.bib|ismir\.sty|cite\.sty|IEEEtran\.bst|cc_by\.(eps|pdf|png)|example\.png)
+    |\.specify/.*\.json
+  )$
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      # Generated audio goes in the repo; keep each file small (use mp3/ogg, not wav)
+      - id: check-added-large-files
+        args: [--maxkb=5120]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.0 # keep in sync with ruff in the dev group
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.12.24
+    hooks:
+      # Keep uv.lock in sync with pyproject.toml
+      - id: uv-lock
+      # Regenerate requirements.txt (required by the assignment) from uv.lock
+      - id: uv-export
+        files: ^(uv\.lock|pyproject\.toml)$
+        args: [--frozen, --no-dev, --no-hashes, --output-file=requirements.txt, --quiet]
+      # Run uv sync after checkout, merge and rebase
+      - id: uv-sync
+
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: uv run pytest
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
