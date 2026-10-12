@@ -25,11 +25,9 @@
       <span class="chip"><span class="dot" style="--c: var(--no)"></span>NO noise · drums</span>
     </div>
     <nav class="steps" aria-label="Sections">
-      <a href="#input"><span class="step-num">1</span>Input</a>
-      <a href="#settings"><span class="step-num">2</span>Settings</a>
-      <a href="#evolution"><span class="step-num">3</span>Evolution</a>
-      <a href="#result"><span class="step-num">4</span>Result</a>
-      <a href="#catalog">Catalog</a>
+      <a href="#song">Song</a>
+      <a href="#evolution">Evolution</a>
+      <a href="#result">Result</a>
       <a href="#about">About</a>
     </nav>
   </header>
@@ -37,29 +35,49 @@
   <noscript><p class="card notice">The arranger runs in JavaScript. Turn it on to arrange a song.</p></noscript>
 
   <div class="panels">
-    <section id="input" class="card" aria-labelledby="input-title">
-      <h2 id="input-title"><span class="step-num">1</span>Input</h2>
-      <p class="placeholder">Drop an ABC or MIDI file here, or pick one of the examples.</p>
+    <section id="song" class="card" aria-labelledby="song-title">
+      <h2 id="song-title">Song</h2>
+      <div class="tabs" role="tablist" aria-label="Where the song comes from">
+        <button type="button" role="tab" id="tab-file" aria-controls="panel-file" aria-selected="true">Your file</button>
+        <button type="button" role="tab" id="tab-examples" aria-controls="panel-examples" aria-selected="false" tabindex="-1">Examples</button>
+        <button type="button" role="tab" id="tab-catalog" aria-controls="panel-catalog" aria-selected="false" tabindex="-1">MPB catalog</button>
+      </div>
+      <div class="tab-panel" role="tabpanel" id="panel-file" aria-labelledby="tab-file"></div>
+      <div class="tab-panel" role="tabpanel" id="panel-examples" aria-labelledby="tab-examples" hidden></div>
+      <div class="tab-panel" role="tabpanel" id="panel-catalog" aria-labelledby="tab-catalog" hidden></div>
+      <div class="song-details" data-song-details></div>
     </section>
 
-    <section id="settings" class="card" aria-labelledby="settings-title">
-      <h2 id="settings-title"><span class="step-num">2</span>Settings</h2>
-      <p class="placeholder">The seed, the size of the run and the fitness weights. The defaults are the command line's.</p>
+    <section id="run" class="card" aria-labelledby="run-title">
+      <h2 id="run-title">Run</h2>
+      <p class="run-song" data-run-song>Choose a song first.</p>
+      <div class="run-fields">
+        <label class="inline">Seed <input type="number" min="0" step="1" value="1" class="mono" data-seed></label>
+        <label class="inline">Pace
+          <select data-pace><option value="watch">watch</option><option value="full">full speed</option></select></label>
+      </div>
+      <div class="toolbar">
+        <button type="button" class="button primary" data-arrange disabled>Arrange</button>
+        <button type="button" class="button" data-stop disabled>Stop</button>
+      </div>
+      <p class="hint" data-run-hint></p>
+      <div class="changed-chips" data-changed aria-label="Settings changed from the defaults"></div>
+      <button type="button" class="button small" data-settings-toggle aria-expanded="false" aria-controls="settings">Settings</button>
+    </section>
+
+    <section id="settings" class="card wide" aria-labelledby="settings-title" hidden>
+      <h2 id="settings-title">Settings</h2>
+      <p class="hint">The defaults are the command line's (<code>configs/default.json</code>). Focus a field to read what it changes.</p>
     </section>
 
     <section id="evolution" class="card wide" aria-labelledby="evolution-title">
-      <h2 id="evolution-title"><span class="step-num">3</span>Evolution</h2>
+      <h2 id="evolution-title">Evolution</h2>
       <p class="placeholder">The fitness curve and the plan of every bar appear here while the run evolves.</p>
     </section>
 
     <section id="result" class="card wide" aria-labelledby="result-title">
-      <h2 id="result-title"><span class="step-num">4</span>Result</h2>
+      <h2 id="result-title">Result</h2>
       <p class="placeholder">Play the arrangement on the NES chip, compare it with the original, and download the MIDI, the settings and the lead sheet.</p>
-    </section>
-
-    <section id="catalog" class="card wide" aria-labelledby="catalog-title">
-      <h2 id="catalog-title">MPB MIDI catalog</h2>
-      <p class="placeholder">Search a catalog of Brazilian popular music by title, composer or performer, download a song from its site and drop it in above.</p>
     </section>
 
     <section id="about" class="card wide" aria-labelledby="about-title">

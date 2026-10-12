@@ -30,6 +30,7 @@ import { buildExamples } from "./examples.js";
 import { createInputPanel } from "./input-panel.js";
 import { createPlanGrid } from "./plan-grid.js";
 import { addRun } from "./run-list.js";
+import { changedSettings } from "./settings-form.js";
 import { createRunsView } from "./runs.js";
 import { createSettingsPanel } from "./settings-panel.js";
 
@@ -84,8 +85,10 @@ const defaults = defaultSettings(defaultConfig);
 
 // --- Panels ---------------------------------------------------------------------------------
 
-clearPlaceholder("#input");
-const inputPanel = createInputPanel($("#input"), {
+setUpTabs($("#song"));
+const inputPanel = createInputPanel(
+  { root: $("#song"), file: $("#panel-file"), examples: $("#panel-examples"), details: $("[data-song-details]") },
+  {
   examples: buildExamples(sources),
   onFileDropped: (name) => catalogPanel.claim(name),
   readOptions: () => ({
@@ -105,35 +108,33 @@ const inputPanel = createInputPanel($("#input"), {
     state.settings.midi = { ...state.settings.midi, ...loaded.midi };
     settingsPanel.show(state.settings, false);
     planGrid.setBars(loaded.leadSheet.bars);
+    $("[data-run-song]").textContent =
+      `${loaded.leadSheet.title || loaded.input.name} · ${loaded.leadSheet.bars.length} bars`;
     updateRunButtons();
   },
+  },
+);
+
+const catalogPanel = createCatalogPanel($("#panel-catalog"), {
+  onFile: (file) => inputPanel.readFile(file),
 });
 
-clearPlaceholder("#catalog");
-const catalogPanel = createCatalogPanel($("#catalog"));
-
-clearPlaceholder("#settings");
 const settingsPanel = createSettingsPanel($("#settings"), {
   defaults,
   onChange(settings) {
     // The MIDI options belong to the input panel; the form never edits them.
-    state.settings = { ...settings, midi: state.settings.midi };
+    state.settings = { ...settings, seed: state.settings.seed, midi: state.settings.midi };
     updateRunButtons();
   },
 });
 settingsPanel.show(state.settings, false);
+const settingsToggle = /** @type {HTMLButtonElement} */ ($("[data-settings-toggle]"));
+settingsToggle.addEventListener("click", () => toggleSettings());
 
 clearPlaceholder("#evolution");
 $("#evolution").insertAdjacentHTML(
   "beforeend",
-  `<div class="toolbar">
-     <button type="button" class="button primary" data-arrange disabled>Arrange</button>
-     <button type="button" class="button" data-stop disabled>Stop</button>
-     <label class="inline">Pace
-       <select data-pace><option value="watch">watch</option><option value="full">full speed</option></select></label>
-     <span class="hint" data-run-hint>Load a song first.</span>
-   </div>
-   <div data-evolution-view></div>
+  `<div data-evolution-view></div>
    <h3 class="subhead">Best plan so far</h3>
    <div data-plan-grid></div>
    <p class="caption">One column per bar, one row per gene: the P2 harmony texture, the TR bass
@@ -145,6 +146,11 @@ const planGrid = createPlanGrid($("[data-plan-grid]"));
 const arrangeButton = /** @type {HTMLButtonElement} */ ($("[data-arrange]"));
 const stopButton = /** @type {HTMLButtonElement} */ ($("[data-stop]"));
 const paceSelect = /** @type {HTMLSelectElement} */ ($("[data-pace]"));
+const seedInput = /** @type {HTMLInputElement} */ ($("[data-seed]"));
+seedInput.addEventListener("input", () => {
+  state.settings.seed = seedInput.value.trim() === "" ? NaN : Number(seedInput.value);
+  updateRunButtons();
+});
 
 clearPlaceholder("#result");
 $("#result").insertAdjacentHTML(
@@ -230,6 +236,8 @@ async function startRun() {
   downloads.clear();
   setResultStatus("Evolving…");
   updateRunButtons();
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  $("#evolution").scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
   worker.postMessage({
     type: "run",
     runId: id,
@@ -495,12 +503,71 @@ function buildScenes(arrangement, voices, tempoBpm) {
 function updateRunButtons() {
   const evolving = state.phase === "evolving";
   const valid = validateSettings(state.settings).length === 0;
+  if (document.activeElement !== seedInput && Number.isFinite(state.settings.seed)) {
+    seedInput.value = String(state.settings.seed);
+  }
+  showChangedSettings();
   arrangeButton.disabled = !state.input || evolving || !valid;
   stopButton.disabled = !evolving;
-  if (!state.input) setRunHint("Load a song first.");
+  if (!state.input) setRunHint("");
   else if (!valid) setRunHint(validateSettings(state.settings).map((m) => m.message).join("; "), true);
   else if (evolving) setRunHint("Evolving… changes apply to the next run.");
-  else setRunHint(`${state.input.leadSheet.bars.length} bars ready.`);
+  else setRunHint("Ready to arrange.");
+}
+
+/** Show the settings that differ from the defaults as chips on the Run card. */
+function showChangedSettings() {
+  const box = $("[data-changed]");
+  box.innerHTML = "";
+  for (const key of changedSettings(state.settings, defaults)) {
+    if (key.startsWith("midi.")) continue; // the Song card shows the MIDI options
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "changed mono";
+    const value = key.split(".").reduce((node, part) => node?.[part], /** @type {any} */ (state.settings));
+    chip.textContent = `${key} ${JSON.stringify(value)}`;
+    chip.title = "Open the settings";
+    chip.addEventListener("click", () => toggleSettings(true));
+    box.append(chip);
+  }
+}
+
+/** @param {boolean} [open] open (true), close (false) or flip (undefined) the Settings card */
+function toggleSettings(open) {
+  const section = $("#settings");
+  const show = open ?? section.hidden;
+  section.hidden = !show;
+  settingsToggle.setAttribute("aria-expanded", String(show));
+  settingsToggle.textContent = show ? "Hide settings" : "Settings";
+  if (show) section.scrollIntoView({ block: "nearest" });
+}
+
+/**
+ * Tabs of the Song card: arrow keys move between tabs, as in the WAI-ARIA tabs pattern.
+ *
+ * @param {HTMLElement} card
+ */
+function setUpTabs(card) {
+  const tabs = /** @type {HTMLButtonElement[]} */ ([...card.querySelectorAll('[role="tab"]')]);
+  const select = (/** @type {HTMLButtonElement} */ tab) => {
+    for (const other of tabs) {
+      const selected = other === tab;
+      other.setAttribute("aria-selected", String(selected));
+      other.tabIndex = selected ? 0 : -1;
+      const panel = /** @type {HTMLElement} */ (document.getElementById(/** @type {string} */ (other.getAttribute("aria-controls"))));
+      panel.hidden = !selected;
+    }
+  };
+  tabs.forEach((tab, index) => {
+    tab.addEventListener("click", () => select(tab));
+    tab.addEventListener("keydown", (event) => {
+      const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+      if (!step) return;
+      const next = tabs[(index + step + tabs.length) % tabs.length];
+      select(next);
+      next.focus();
+    });
+  });
 }
 
 /**

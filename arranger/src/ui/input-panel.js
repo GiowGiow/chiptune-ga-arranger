@@ -106,28 +106,37 @@ export function loadAbcjs() {
 }
 
 /**
- * Build the panel inside `container`.
+ * Build the panel inside the Song card: the drop zone in the "Your file" tab, the examples in the
+ * "Examples" tab, and the status, MIDI options and lead-sheet summary below the tabs. A file
+ * dropped anywhere on the card is read.
  *
- * @param {HTMLElement} container
+ * @param {{root: HTMLElement, file: HTMLElement, examples: HTMLElement, details: HTMLElement}} targets
  * @param {{
  *   examples: Array<{id: string, title: string, artist: string, path: string, overrides: Record<string, number>}>,
  *   readOptions: () => ReadOptions,
  *   onLoaded: (loaded: LoadedInput) => void,
  *   onFileDropped?: (name: string) => unknown | null,
  * }} options `onFileDropped` lets the catalog panel claim a dropped file (FR-031)
- * @returns {{reread: () => void, current: () => LoadedInput | null}}
+ * @returns {{reread: () => void, current: () => LoadedInput | null, readFile: (file: File) => Promise<void>}}
  */
-export function createInputPanel(container, options) {
-  container.insertAdjacentHTML(
+export function createInputPanel(targets, options) {
+  const container = targets.root;
+  targets.file.insertAdjacentHTML(
     "beforeend",
-    `
-    <label class="dropzone" data-drop tabindex="-1">
+    `<label class="dropzone" data-drop>
       <input type="file" accept=".abc,.txt,.mid,.midi,.kar" data-file>
       <span class="drop-title">Drop an ABC or MIDI file here</span>
       <span class="drop-hint">or <span class="button small">choose a file</span>. It stays on this device.</span>
-    </label>
-    <div class="examples" data-examples><span class="label">Examples</span></div>
-    <p class="status" data-status role="status" aria-live="polite"></p>
+    </label>`,
+  );
+  targets.examples.insertAdjacentHTML(
+    "beforeend",
+    `<p class="hint">The lead sheets of the listening page's samples.</p>
+     <div class="examples" data-examples></div>`,
+  );
+  targets.details.insertAdjacentHTML(
+    "beforeend",
+    `<p class="status" data-status role="status" aria-live="polite"></p>
     <div class="field" data-tunes hidden>
       <label>Tune <select data-tune></select></label>
     </div>
@@ -152,6 +161,7 @@ export function createInputPanel(container, options) {
     /** @type {HTMLElement} */ (container.querySelector(selector));
   const fileInput = /** @type {HTMLInputElement} */ ($("[data-file]"));
   const dropZone = $("[data-drop]");
+  const dropTarget = targets.root;
   const status = $("[data-status]");
 
   /** @type {null | {input: InputSong, text?: string, tuneIndex: number, midi?: any, tracks?: any[], overrides: Record<string, number>}} */
@@ -186,15 +196,20 @@ export function createInputPanel(container, options) {
     fileInput.value = "";
   });
   for (const type of ["dragenter", "dragover"]) {
-    dropZone.addEventListener(type, (event) => {
+    dropTarget.addEventListener(type, (event) => {
       event.preventDefault();
+      dropTarget.classList.add("over");
       dropZone.classList.add("over");
     });
   }
   for (const type of ["dragleave", "drop"]) {
-    dropZone.addEventListener(type, () => dropZone.classList.remove("over"));
+    dropTarget.addEventListener(type, (event) => {
+      if (type === "dragleave" && dropTarget.contains(/** @type {Node} */ (/** @type {DragEvent} */ (event).relatedTarget))) return;
+      dropTarget.classList.remove("over");
+      dropZone.classList.remove("over");
+    });
   }
-  dropZone.addEventListener("drop", (event) => {
+  dropTarget.addEventListener("drop", (event) => {
     event.preventDefault();
     const file = /** @type {DragEvent} */ (event).dataTransfer?.files?.[0];
     if (file) readDroppedFile(file);
@@ -406,7 +421,7 @@ export function createInputPanel(container, options) {
     status.classList.toggle("error", isError);
   }
 
-  return { reread, current: () => loaded };
+  return { reread, current: () => loaded, readFile: readDroppedFile };
 }
 
 /**

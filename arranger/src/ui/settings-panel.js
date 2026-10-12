@@ -18,9 +18,8 @@ import { exportConfig, formToSettings, importConfig } from "./settings-form.js";
 /** Field groups: key, label and explanation. */
 export const FIELDS = Object.freeze([
   {
-    group: "Run",
+    group: "Search",
     fields: [
-      ["seed", "Seed", "Starts the random generator. The same song, seed and settings always give the same arrangement; another seed gives another plan."],
       ["population_size", "Population", "Plans per generation. More plans explore more choices per generation and take longer."],
       ["max_generations", "Max generations", "Upper limit on the number of generations."],
       ["stagnation_window", "Stagnation window", "Stop after this many generations without a better plan."],
@@ -64,7 +63,7 @@ export function createSettingsPanel(container, options) {
     ({ group, fields }) => `<fieldset class="settings-group"><legend>${group}</legend>${fields
       .map(
         ([key, label, help]) => `<div class="setting" data-setting="${key}">
-          <label for="setting-${key}">${label}</label>
+          <label for="setting-${key}" title="${help}">${label}</label>
           <input id="setting-${key}" class="mono" inputmode="decimal" data-key="${key}"
             aria-describedby="help-${key} error-${key}">
           <p class="help" id="help-${key}">${help}</p>

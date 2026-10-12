@@ -5,7 +5,7 @@
  * The catalog site sends no permission for other sites to read its files, and the app uses no
  * relay (spec 002, FR-031), so a picked song reaches the app in two steps that the panel spells
  * out: open the song's MIDI link on the catalog site, where the browser saves the file, then drop
- * the saved file into the input panel. The panel remembers the pick, so the dropped file keeps
+ * the saved file back here (or anywhere on the Song card). The panel remembers the pick, so the dropped file keeps
  * the catalog's credit and the song page link (FR-032). The catalog list loads only when the
  * search box is first used.
  */
@@ -18,10 +18,11 @@ import { buildIndex, matchDroppedFile, search } from "../core/catalog.js";
  * Build the panel inside `container`.
  *
  * @param {HTMLElement} container
+ * @param {{onFile: (file: File) => void}} options `onFile` reads a file chosen in step 2
  * @returns {{claim: (fileName: string) => CatalogEntry | null}} `claim` tells whether a dropped
  *   file is the picked song
  */
-export function createCatalogPanel(container) {
+export function createCatalogPanel(container, options) {
   container.insertAdjacentHTML(
     "beforeend",
     `<p class="hint">Songs of <a href="https://www.beakauffmann.com/" rel="noopener">Beatriz
@@ -100,9 +101,16 @@ export function createCatalogPanel(container) {
       <a href="${encodeURI(entry.u)}" target="_blank" rel="noopener">song page</a></p>
       <ol class="two-steps">
         <li>${links}<span class="hint">Your browser saves the file.</span></li>
-        <li><a href="#input">Drop the saved file into the Input panel</a>.
-          <span class="hint">The arranger recognizes it and keeps the credit.</span></li>
+        <li><label class="button">Choose the saved file
+            <input type="file" accept=".mid,.midi,.kar" data-catalog-file hidden></label>
+          <span class="hint">Or drop it anywhere on this card. The arranger recognizes it and keeps the credit.</span></li>
       </ol>`;
+    const chooser = /** @type {HTMLInputElement} */ (pickBox.querySelector("[data-catalog-file]"));
+    chooser.addEventListener("change", () => {
+      const file = chooser.files?.[0];
+      chooser.value = "";
+      if (file) options.onFile(file);
+    });
     /** @type {HTMLElement} */ (pickBox.querySelector("strong")).textContent = entry.t;
     /** @type {HTMLElement} */ (pickBox.querySelector(".names")).textContent =
       ` — ${[entry.c, entry.p].filter(Boolean).join(", ")} · `;
