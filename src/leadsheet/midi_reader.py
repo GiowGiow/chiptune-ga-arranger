@@ -18,7 +18,11 @@ ticks. A file recorded live may not: "Voa Voa" says 120 BPM but was played at ab
 notes drift across the file's bar lines. When the drum onsets do not fit the file's own grid,
 the grid is estimated from the recording: the tempo whose sixteenth-note grid best explains the
 drum onsets, the sixteenth with the most onsets as the beat, and the beat where the bass plays
-its longest notes as the downbeat. Only 4/4 is supported.
+its longest notes as the downbeat.
+
+Only 4/4 is supported. A file may open with a few bars in another meter, such as a 3/4 count-in
+before a 4/4 song: on the file's own grid those bars are a lead-in, and bar 0 is the first 4/4 bar.
+A change to another meter inside the music would move every later bar line, so it is refused.
 """
 
 import math
@@ -97,6 +101,47 @@ def estimate_beat_grid(midi: pretty_midi.PrettyMIDI) -> tuple[float, float, floa
     return bpm, downbeat, strength
 
 
+def meter_offset_beats(midi: pretty_midi.PrettyMIDI) -> float:
+    """Return the beat (ticks / resolution) on which the file's 4/4 music starts.
+
+    Time signatures before the first 4/4 one are a lead-in (a count-in, for example): on the
+    file's own grid, bar 0 starts on the tick of that 4/4 time signature. A file without time
+    signatures is 4/4 from the start.
+
+    >>> midi = pretty_midi.PrettyMIDI(initial_tempo=120.0)
+    >>> meter_offset_beats(midi)
+    0.0
+    >>> midi.time_signature_changes = [  # two 3/4 bars of count-in, 4/4 from 3 s on
+    ...     pretty_midi.TimeSignature(3, 4, 0.0),
+    ...     pretty_midi.TimeSignature(4, 4, 3.0),
+    ... ]
+    >>> meter_offset_beats(midi)
+    6.0
+
+    Raises:
+        ValueError: when no time signature is 4/4, or when the meter changes from 4/4 to another
+            one (the message names the meter, its bar counted from the offset and its time).
+    """
+    changes = midi.time_signature_changes
+    if not changes:
+        return 0.0
+    supported = [(c.numerator, c.denominator) == (4, 4) for c in changes]
+    if not any(supported):
+        meter = f"{changes[0].numerator}/{changes[0].denominator}"
+        raise ValueError(f"only 4/4 MIDI files are supported; this file is in {meter}")
+    start = supported.index(True)
+    offset = float(midi.time_to_tick(changes[start].time) / midi.resolution)
+    for change, is_supported in zip(changes[start:], supported[start:], strict=True):
+        if not is_supported:
+            beat = midi.time_to_tick(change.time) / midi.resolution
+            bar = math.floor((beat - offset) / BEATS_PER_BAR)
+            raise ValueError(
+                f"the file changes to {change.numerator}/{change.denominator} at bar {bar} "
+                f"({change.time:.1f} s); only 4/4 is supported"
+            )
+    return offset
+
+
 def skyline(notes: Sequence[Note]) -> list[Note]:
     """Keep the highest note at each onset and cut every note at the next onset.
 
@@ -163,12 +208,17 @@ def read_lead_sheet_midi(
             notes are merged by the skyline.
         phrase_length: bars per phrase.
         role_map: part label to "verse"/"chorus", as in the ABC reader.
-        bars: optional excerpt (first bar, end bar), 0-based with the end excluded.
+        bars: optional excerpt (first bar, end bar), 0-based with the end excluded. On the file's
+            own grid, bar 0 is the first 4/4 bar (see `meter_offset_beats`).
         sections: (bar inside the excerpt, label) pairs where each section starts; default one
             section "A".
         tempo_override: tempo in BPM; by default the tempo of the beat grid.
         grid: "file" uses the file's ticks; (bpm, downbeat seconds) gives the grid explicitly;
             "auto" keeps the file's ticks when the drums fit them, else estimates the grid.
+
+    Raises:
+        ValueError: for a missing or drum melody track, or a meter that is not 4/4 after the
+            lead-in (see `meter_offset_beats`).
     """
     midi = pretty_midi.PrettyMIDI(str(path))
     melody_tracks = [melody_track] if isinstance(melody_track, int) else list(melody_track)
@@ -177,9 +227,7 @@ def read_lead_sheet_midi(
             raise ValueError(f"melody track {track} does not exist")
         if midi.instruments[track].is_drum:
             raise ValueError(f"track {track} is a drum track and cannot be the melody")
-    for change in midi.time_signature_changes:
-        if (change.numerator, change.denominator) != (4, 4):
-            raise ValueError("only 4/4 MIDI files are supported")
+    meter_offset = meter_offset_beats(midi)
 
     file_bpm = float(midi.get_tempo_changes()[1][0])
     if grid == "auto":
@@ -205,6 +253,7 @@ def read_lead_sheet_midi(
     else:
         grid_bpm, downbeat = float(grid[0]), float(grid[1])
         source_grid = (grid_bpm, downbeat)
+        meter_offset = 0.0  # a grid of its own starts on its own downbeat
 
         def beats(seconds: float) -> float:
             return (seconds - downbeat) * grid_bpm / 60.0
@@ -218,9 +267,11 @@ def read_lead_sheet_midi(
         tracks.append((index, notes, mean_pitch < BASS_TRACK_MAX_MEAN_PITCH))
     last_beat = max(end for _, notes, _ in tracks for _, end, _ in notes)
     first_bar, end_bar = (
-        bars if bars is not None else (0, math.ceil(last_beat / BEATS_PER_BAR - 1e-3))
+        bars
+        if bars is not None
+        else (0, math.ceil((last_beat - meter_offset) / BEATS_PER_BAR - 1e-3))
     )
-    offset = first_bar * BEATS_PER_BAR
+    offset = meter_offset + first_bar * BEATS_PER_BAR
     n_bars = end_bar - first_bar
 
     melody_notes = [n for index, notes, _ in tracks if index in melody_tracks for n in notes]
@@ -249,10 +300,21 @@ def read_lead_sheet_midi(
         )
         for b in range(n_bars)
     )
-    tempo = tempo_override or source_grid[0]
+    tempo = tempo_override or (_tempo_at_beat(midi, offset) if grid == "file" else source_grid[0])
     return LeadSheet(
         title=Path(path).stem, key="", tempo_bpm=tempo, bars=lead_bars, source_grid=source_grid
     )
+
+
+def _tempo_at_beat(midi: pretty_midi.PrettyMIDI, beat: float) -> float:
+    """The tempo (BPM) in effect at a beat of the file's own grid.
+
+    The excerpt plays at the tempo where it starts, not at the file's first tempo, which may
+    belong to a count-in.
+    """
+    times, tempi = midi.get_tempo_changes()
+    seconds = midi.tick_to_time(int(round(beat * midi.resolution)))
+    return float(tempi[np.searchsorted(times, seconds + 1e-9, side="right") - 1])
 
 
 def _snap(beat: float) -> float:

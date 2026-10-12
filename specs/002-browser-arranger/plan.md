@@ -77,7 +77,7 @@ operations and IEEE double `+ - * /`, `Math.abs`, `Math.min`, `Math.max` and `Ma
 `Math.random`, `Math.exp`, `Math.log` or `Math.pow`. Works offline after the first visit
 (FR-035). Phone width 375 px.
 
-**Scale/Scope**: inputs up to 128 bars (64 by default). The catalog index has about 3,700
+**Scale/Scope**: inputs up to 256 bars (the whole song by default). The catalog index has about 3,700
 entries (about 0.5 MB raw, about 0.12 MB gzipped, loaded only when the catalog panel opens).
 The port covers about 1,900 lines of Python core, plus the UI.
 

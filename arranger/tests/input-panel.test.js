@@ -22,3 +22,21 @@ test("the input fingerprint is the SHA-256 of the file bytes", async () => {
     "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
   );
 });
+
+test("the tempo summary of an excerpt weighs each tempo by how long it lasts", async () => {
+  const { excerptTempos } = await import("../src/ui/input-panel.js");
+  // Tempo changes as readMidiFile lists them: 120 BPM for 4 s, then 60 BPM until the end (8 s).
+  const midi = {
+    resolution: 480,
+    tempoChanges: [
+      { tick: 0, time: 0, bpm: 120 },
+      { tick: 3840, time: 4, bpm: 60 },
+    ],
+    timeToTick: (/** @type {number} */ t) => (t <= 4 ? t * 960 : 3840 + (t - 4) * 480),
+    tickToTime: (/** @type {number} */ k) => (k <= 3840 ? k / 960 : 4 + (k - 3840) / 480),
+  };
+  // Beats 0-12: 8 beats at 120 (4 s) and 4 beats at 60 (4 s), so each tempo lasts half the time.
+  const summary = excerptTempos(/** @type {any} */ (midi), 0, 12);
+  assert.deepEqual({ ...summary, median: Math.round(summary.median) }, { atStart: 120, min: 60, max: 120, median: 60 });
+  assert.deepEqual(excerptTempos(/** @type {any} */ (midi), 8, 12), { atStart: 60, min: 60, max: 60, median: 60 });
+});

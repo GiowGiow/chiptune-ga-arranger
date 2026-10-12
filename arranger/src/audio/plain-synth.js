@@ -21,6 +21,7 @@
 // (`renderVoices`). It is pure and deterministic: the drum noise comes from the seeded generator
 // of `core/random.js`, and the result does not depend on Web Audio.
 
+import { meterOffsetBeats } from "../core/midi-song.js";
 import { createRandom } from "../core/random.js";
 import { PEAK_LEVEL, SAMPLE_RATE } from "./chip-synth.js";
 
@@ -151,7 +152,8 @@ export function leadSheetVoices(leadSheet) {
  * The function that turns a time of a MIDI file, in seconds, into beats on a lead sheet's grid.
  *
  * Like `excerpt_seconds` in `src/export/input_preview.py`: a grid of [the file's first tempo, 0]
- * is the file's own tick grid (it follows the file's tempo changes); any other grid is the
+ * is the file's own tick grid (it follows the file's tempo changes), whose beat 0 is the first
+ * 4/4 or 2/4 bar, after any count-in in another meter (`meterOffsetBeats`); any other grid is the
  * steady one that the reduction estimated, starting at its first downbeat.
  * @param {import("../core/midi-file.js").MidiSong} midi
  * @param {[number, number]} sourceGrid [tempo BPM, first downbeat in seconds]
@@ -159,11 +161,13 @@ export function leadSheetVoices(leadSheet) {
  * @example
  * beatClock(midi120, [120, 0])(2.25); // 4.5: ticks / resolution
  * beatClock(midi120, [100, 0.3])(1.5); // 2: (1.5 − 0.3) × 100 / 60
+ * beatClock(countInSong, [120, 0])(3); // 0: 4/4 starts at 3 s, after two 3/4 bars
  */
 export function beatClock(midi, sourceGrid) {
   const [bpm, downbeat] = sourceGrid;
   if (downbeat === 0 && bpm === midi.tempoChanges[0].bpm) {
-    return (seconds) => midi.timeToTick(seconds) / midi.resolution;
+    const meterOffset = meterOffsetBeats(midi);
+    return (seconds) => midi.timeToTick(seconds) / midi.resolution - meterOffset;
   }
   return (seconds) => ((seconds - downbeat) * bpm) / 60;
 }

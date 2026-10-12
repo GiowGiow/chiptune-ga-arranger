@@ -10,14 +10,18 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 
+import { readMidiFile, writeMidiFile } from "../src/core/midi-file.js";
+
 import {
   assertClose,
+  countInSongBytes,
   fixturesDir,
   loadAbcjs,
   nullToNaN,
   rawMidiPath,
   readFixture,
   readJson,
+  withTimeSignatures,
   repoRoot,
 } from "./helpers.js";
 
@@ -163,4 +167,28 @@ test("rawMidiPath returns the absolute path when data/raw has the file", (t) => 
     return;
   }
   assert.equal(rawMidiPath("mpb/amor_i_love_you.mid"), join(repoRoot, "data", "raw", "mpb", "amor_i_love_you.mid"));
+});
+
+test("withTimeSignatures replaces the time signatures of a written file and keeps its notes", () => {
+  const bytes = writeMidiFile({
+    tempoBpm: 120,
+    tracks: [{ name: "P1", channel: 0, program: 80, notes: [{ start: 3, end: 4, pitch: 72, velocity: 100 }] }],
+  });
+  const song = readMidiFile(withTimeSignatures(bytes, [[3, 4, 0], [4, 4, 2880]]));
+  assert.deepEqual(song.timeSignatures, [
+    { numerator: 3, denominator: 4, time: 0 },
+    { numerator: 4, denominator: 4, time: 3 },
+  ]);
+  assert.equal(song.tempoChanges[0].bpm, 120);
+  assert.deepEqual(song.instruments[0].notes, [{ start: 3, end: 4, pitch: 72, velocity: 100 }]);
+});
+
+test("countInSongBytes is 3/4 for 3 s, then 4/4 with the voice on track 0 and C5 on the first downbeat", () => {
+  const song = readMidiFile(countInSongBytes());
+  assert.deepEqual(song.timeSignatures.map((ts) => ts.time), [0, 3]);
+  assert.deepEqual(song.instruments.map((instrument) => instrument.name), ["Sax", "Guitar", "Bass", "Drums"]);
+  assert.deepEqual(
+    song.instruments[0].notes.slice(0, 2).map((n) => [n.start, n.pitch]),
+    [[2.5, 67], [3, 72]],
+  );
 });

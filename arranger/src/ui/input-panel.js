@@ -4,8 +4,8 @@
  *
  * The arranger works on a lead sheet: bars of melody, chords and part labels (spec 001). An ABC
  * file is one already. A MIDI song is a whole band, so the visitor helps reduce it: the panel
- * lists its tracks with the likeliest melody track preselected, the bar range to arrange (64 bars
- * by default, 128 at most) and where each section starts. The lead-sheet summary shows what the
+ * lists its tracks with the likeliest melody track preselected, the bar range to arrange (the whole song
+ * by default, 256 bars at most) and where each section starts. The lead-sheet summary shows what the
  * app understood (title, tempo, bars, parts, the chord of every bar) before any run, so a wrong
  * reading is caught before the GA spends time on it (spec 002, FR-001 to FR-007).
  *
@@ -15,10 +15,17 @@
 
 import { listTunes, readLeadSheetAbc } from "../core/abc-reader.js";
 import { readMidiFile } from "../core/midi-file.js";
-import { countBars, describeTracks, readLeadSheetMidi, suggestMelodyTrack } from "../core/midi-song.js";
+import {
+  MAX_BARS,
+  countBars,
+  describeTracks,
+  meterOffsetBeats,
+  readLeadSheetMidi,
+  suggestMelodyTrack,
+} from "../core/midi-song.js";
+import { noteName, programName } from "./gm-programs.js";
 
-export const DEFAULT_BAR_LIMIT = 64;
-export const MAX_BARS = 128;
+export { MAX_BARS };
 
 /** @typedef {import("../core/leadsheet.js").LeadSheet} LeadSheet */
 /**
@@ -71,6 +78,52 @@ export function parseSections(text) {
 }
 
 /**
+ * The tempos a MIDI excerpt plays at, each weighted by how long it lasts in seconds.
+ *
+ * The arrangement plays at one steady tempo, the one in effect where the excerpt starts. A file
+ * whose tempo changes inside the excerpt (a ritardando, a live recording) may sound faster or
+ * slower than that, so the panel shows this summary and offers the median as a tempo override.
+ *
+ * @param {{resolution: number, tempoChanges: Array<{tick: number, time: number, bpm: number}>,
+ *   tickToTime: (tick: number) => number}} midi
+ * @param {number} startBeat first beat of the excerpt, on the file's own ticks
+ * @param {number} endBeat end beat of the excerpt
+ * @returns {{atStart: number, min: number, max: number, median: number}}
+ * @example
+ * excerptTempos(midi, 0, 12) // {atStart: 120, min: 60, max: 120, median: 60} for 4 s at each tempo
+ */
+export function excerptTempos(midi, startBeat, endBeat) {
+  const start = midi.tickToTime(Math.round(startBeat * midi.resolution));
+  const end = midi.tickToTime(Math.round(endBeat * midi.resolution));
+  /** @type {Array<[number, number]>} [bpm, seconds] */
+  const spans = [];
+  midi.tempoChanges.forEach((change, index) => {
+    const next = midi.tempoChanges[index + 1]?.time ?? Infinity;
+    const seconds = Math.min(next, end) - Math.max(change.time, start);
+    if (seconds > 1e-9) spans.push([change.bpm, seconds]);
+  });
+  if (spans.length === 0) {
+    const bpm = midi.tempoChanges[0].bpm;
+    return { atStart: bpm, min: bpm, max: bpm, median: bpm };
+  }
+  const sorted = [...spans].sort((a, b) => a[0] - b[0]);
+  const total = sorted.reduce((sum, [, seconds]) => sum + seconds, 0);
+  let median = sorted[0][0];
+  let covered = 0;
+  for (const [bpm, seconds] of sorted) {
+    covered += seconds;
+    median = bpm;
+    if (covered >= total / 2 - 1e-9) break;
+  }
+  return {
+    atStart: spans[0][0],
+    min: sorted[0][0],
+    max: /** @type {[number, number]} */ (sorted.at(-1))[0],
+    median,
+  };
+}
+
+/**
  * The SHA-256 of a file's bytes, in hex: the run record names the exact input it arranged.
  *
  * @param {Uint8Array} bytes
@@ -116,7 +169,10 @@ export function loadAbcjs() {
  *   readOptions: () => ReadOptions,
  *   onLoaded: (loaded: LoadedInput) => void,
  *   onFileDropped?: (name: string) => unknown | null,
- * }} options `onFileDropped` lets the catalog panel claim a dropped file (FR-031)
+ *   previewTrack?: (trackIndex: number) => void,
+ *   useTempo?: (bpm: number) => void,
+ * }} options `onFileDropped` lets the catalog panel claim a dropped file (FR-031);
+ *   `previewTrack` plays one track of the MIDI song alone
  * @returns {{reread: () => void, current: () => LoadedInput | null, readFile: (file: File) => Promise<void>}}
  */
 export function createInputPanel(targets, options) {
@@ -141,18 +197,35 @@ export function createInputPanel(targets, options) {
       <label>Tune <select data-tune></select></label>
     </div>
     <fieldset class="midi-options" data-midi hidden>
-      <legend>MIDI song</legend>
+      <legend>Reduce the MIDI song to a lead sheet</legend>
+      <h3 class="step-title">1. Which track plays the melody?</h3>
+      <p class="hint">A MIDI song has one track per instrument. The arranger keeps one of them as the
+        melody (the NES pulse P1) and reads the chords from all the others. Pick the track that plays
+        the tune, usually the singer's line: one note at a time, in a middle-high range. The likeliest
+        track is already chosen; press <span aria-hidden="true">▶</span> to hear a track alone.</p>
       <div class="table-wrap"><table class="tracks">
-        <thead><tr><th>Melody</th><th>#</th><th>Track</th><th>Program</th><th>Notes</th><th>Range</th><th>Chords</th></tr></thead>
+        <thead><tr>
+          <th scope="col">Melody</th><th scope="col">Track</th><th scope="col">Instrument</th>
+          <th scope="col">Notes</th><th scope="col">Range</th>
+          <th scope="col"><span class="has-tip">Chords<span class="tip-mark" aria-hidden="true">i</span>
+            <span class="tip" role="tooltip">Share of the track's notes that sound together with another note of the same track. A melody is usually low (one note at a time); piano, guitar and strings playing chords are high.</span></span></th>
+          <th scope="col">Listen</th>
+        </tr></thead>
         <tbody data-tracks></tbody>
       </table></div>
+      <h3 class="step-title">2. Which bars?</h3>
+      <p class="hint">The excerpt to arrange, in bars of the file (bar 0 is the first). The whole song by default, at most 256 bars.</p>
       <div class="row">
         <label>From bar <input type="number" min="0" step="1" data-first></label>
         <label>to bar <input type="number" min="1" step="1" data-end></label>
         <span class="hint" data-bar-count></span>
       </div>
-      <label class="block">Sections (bar and label per line, counted from the first bar)
-        <textarea rows="3" spellcheck="false" data-sections placeholder="0 A&#10;8 Chorus"></textarea></label>
+      <h3 class="step-title">3. Where do the parts start?</h3>
+      <p class="hint">One line per part: the bar where it starts, counted from the first bar of the
+        excerpt, and its label. A label with "Chorus" (or "B") is a chorus, which the contrast
+        criterion wants denser than the verse; phrases and drum fills restart at each part.</p>
+      <textarea rows="3" spellcheck="false" data-sections aria-label="Parts: bar and label per line"
+        placeholder="0 Verse&#10;8 Chorus"></textarea>
       <button type="button" class="button" data-apply>Read again</button>
     </fieldset>
     <div class="summary" data-summary hidden></div>`,
@@ -283,28 +356,38 @@ export function createInputPanel(targets, options) {
       if (track.isDrum) row.className = "drum";
       row.innerHTML = `<td><input type="radio" name="melody-track" value="${track.index}"
         ${track.isDrum ? "disabled" : ""} ${track.index === suggested ? "checked" : ""}
-        aria-label="Melody track ${track.index}"></td><td class="mono">${track.index}</td>
-        <td class="name"></td><td class="mono">${track.isDrum ? "drums" : track.program}</td>
+        aria-label="Track ${track.index} plays the melody"></td>
+        <td><span class="mono">${track.index}</span> <span class="name"></span></td>
+        <td class="instrument"></td>
         <td class="mono">${track.noteCount}</td>
-        <td class="mono">${track.isDrum ? "" : `${track.lowest}–${track.highest}`}</td>
-        <td class="mono">${Math.round(track.polyphony * 100)}%</td>`;
+        <td class="mono">${track.isDrum ? "" : `${noteName(track.lowest)}–${noteName(track.highest)}`}</td>
+        <td class="mono">${track.isDrum ? "" : `${Math.round(track.polyphony * 100)}%`}</td>
+        <td>${track.isDrum ? "" : `<button type="button" class="button small" data-preview="${track.index}" aria-label="Play track ${track.index} alone">▶</button>`}</td>`;
       /** @type {HTMLElement} */ (row.querySelector(".name")).textContent = track.name || "(no name)";
+      /** @type {HTMLElement} */ (row.querySelector(".instrument")).textContent =
+        programName(track.program, track.isDrum);
+      if (track.index === suggested) row.classList.add("suggested");
       body.append(row);
     }
     body.querySelectorAll("input").forEach((radio) => radio.addEventListener("change", () => reread()));
+    body.querySelectorAll("[data-preview]").forEach((button) =>
+      button.addEventListener("click", () =>
+        options.previewTrack?.(Number(/** @type {HTMLElement} */ (button).dataset.preview)),
+      ),
+    );
     const barCount = countBars(midi, "auto");
     if (barCount === 0) throw new Error("the file has no pitched notes to arrange");
     const first = /** @type {HTMLInputElement} */ ($("[data-first]"));
     const end = /** @type {HTMLInputElement} */ ($("[data-end]"));
     first.value = "0";
-    end.value = String(Math.min(barCount, DEFAULT_BAR_LIMIT));
+    end.value = String(Math.min(barCount, MAX_BARS));
     first.max = String(barCount - 1);
     end.max = String(barCount);
     $("[data-bar-count]").textContent =
-      barCount > DEFAULT_BAR_LIMIT
-        ? `${barCount} bars; the first ${DEFAULT_BAR_LIMIT} are selected (at most ${MAX_BARS}).`
-        : `${barCount} bars.`;
-    /** @type {HTMLTextAreaElement} */ ($("[data-sections]")).value = "0 A";
+      barCount > MAX_BARS
+        ? `${barCount} bars; the first ${MAX_BARS} are selected (the most the arranger takes).`
+        : `${barCount} bars, all selected.`;
+    /** @type {HTMLTextAreaElement} */ ($("[data-sections]")).value = "0 Verse";
     $("[data-midi]").hidden = false;
   }
 
@@ -357,6 +440,7 @@ export function createInputPanel(targets, options) {
         overrides: source.overrides,
       };
       showSummary(leadSheet, source.input);
+      if (source.input.kind === "midi") showTempoHint(source.midi, leadSheet, midiSettings.bars, tempoOverride);
       setStatus(`${source.input.name}: ready to arrange.`);
       options.onLoaded(loaded);
     } catch (error) {
@@ -410,6 +494,32 @@ export function createInputPanel(targets, options) {
       strip.append(item);
     });
     summary.hidden = false;
+  }
+
+  /**
+   * Tell the visitor when the file's tempo changes inside the excerpt, and offer its median.
+   *
+   * @param {any} midi
+   * @param {LeadSheet} leadSheet
+   * @param {[number, number] | null} bars
+   * @param {number | null} tempoOverride
+   */
+  function showTempoHint(midi, leadSheet, bars, tempoOverride) {
+    const grid = leadSheet.sourceGrid;
+    const fileGrid = grid && grid[1] === 0 && grid[0] === midi.tempoChanges[0].bpm;
+    if (!fileGrid || tempoOverride !== null || !bars) return;
+    const start = meterOffsetBeats(midi) + bars[0] * 4;
+    const tempos = excerptTempos(midi, start, start + (bars[1] - bars[0]) * 4);
+    if (tempos.max - tempos.min < 2) return;
+    const hint = document.createElement("p");
+    hint.className = "tempo-hint";
+    const median = Math.round(tempos.median);
+    hint.innerHTML = `The file's tempo changes from ${Math.round(tempos.min)} to ${Math.round(tempos.max)} BPM
+      in this excerpt; most of it plays near ${median} BPM. The arrangement plays at a steady
+      ${Math.round(leadSheet.tempoBpm)} BPM, the tempo where the excerpt starts.
+      <button type="button" class="button small">Use ${median} BPM</button>`;
+    hint.querySelector("button")?.addEventListener("click", () => options.useTempo?.(median));
+    $("[data-summary]").prepend(hint);
   }
 
   /**

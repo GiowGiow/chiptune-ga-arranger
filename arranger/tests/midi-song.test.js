@@ -23,12 +23,13 @@ import {
   detectChord,
   estimateBeatGrid,
   gridStrength,
+  meterOffsetBeats,
   rankMelodyTracks,
   readLeadSheetMidi,
   skyline,
   suggestMelodyTrack,
 } from "../src/core/midi-song.js";
-import { assertClose, rawMidiPath, readFixture, readJson, repoRoot } from "./helpers.js";
+import { assertClose, countInSongBytes, rawMidiPath, readFixture, readJson, repoRoot, withTimeSignatures } from "./helpers.js";
 
 /** The MIDI songs of data/sources.json; their raw files are in data/raw/ (not committed). */
 const SONGS = readJson(`${repoRoot}/data/sources.json`).songs;
@@ -44,9 +45,10 @@ function loadSong(song) {
 
 /**
  * A small song at 120 BPM (a beat lasts 0.5 s): a voice, a bass and drums, for `bars` bars.
- * @param {{timeSignature?: [number, number], bars?: number}} [options]
+ * `meters` ([numerator, denominator, tick] at 480 ticks per beat) replaces `timeSignature`.
+ * @param {{timeSignature?: [number, number], bars?: number, meters?: Array<[number, number, number]>}} [options]
  */
-function smallSong({ timeSignature = [4, 4], bars = 2 } = {}) {
+function smallSong({ timeSignature = [4, 4], bars = 2, meters } = {}) {
   /** @type {{start: number, end: number, pitch: number, velocity: number}[]} */
   const voice = [];
   /** @type {typeof voice} */
@@ -59,17 +61,16 @@ function smallSong({ timeSignature = [4, 4], bars = 2 } = {}) {
     bass.push({ start: t, end: t + 2, pitch: bar % 2 === 0 ? 36 : 43, velocity: 100 });
     for (let beat = 0; beat < 4; beat += 1) drums.push({ start: t + beat / 2, end: t + beat / 2 + 0.1, pitch: 36, velocity: 100 });
   }
-  return readMidiFile(
-    writeMidiFile({
-      tempoBpm: 120,
-      timeSignature,
-      tracks: [
-        { name: "Voz", channel: 0, program: 53, notes: voice },
-        { name: "Bass", channel: 1, program: 33, notes: bass },
-        { name: "Drums", channel: 9, program: 0, notes: drums },
-      ],
-    }),
-  );
+  const bytes = writeMidiFile({
+    tempoBpm: 120,
+    timeSignature,
+    tracks: [
+      { name: "Voz", channel: 0, program: 53, notes: voice },
+      { name: "Bass", channel: 1, program: 33, notes: bass },
+      { name: "Drums", channel: 9, program: 0, notes: drums },
+    ],
+  });
+  return readMidiFile(meters ? withTimeSignatures(bytes, meters) : bytes);
 }
 
 test("the reader's constants are those of midi_reader.py", () => {
@@ -253,19 +254,63 @@ test("a 3/4 file is refused with a message that names 3/4, and 2/4 is accepted",
   assert.equal(readLeadSheetMidi(smallSong({ timeSignature: [2, 4] }), { melodyTrack: 0 }).bars.length, 2);
 });
 
-test("bars must satisfy 0 ≤ first < end ≤ barCount and end − first ≤ 128", () => {
+test("meterOffsetBeats is the beat where the 4/4 or 2/4 music starts: 6 after two 3/4 bars of count-in", () => {
+  assert.equal(meterOffsetBeats(readMidiFile(countInSongBytes())), 6);
+  assert.equal(meterOffsetBeats(smallSong()), 0);
+  assert.equal(meterOffsetBeats(smallSong({ timeSignature: [2, 4] })), 0);
+  assert.equal(meterOffsetBeats(smallSong({ meters: [[3, 4, 0], [2, 4, 1440]] })), 3);
+  assert.equal(meterOffsetBeats(smallSong({ meters: [] })), 0);
+});
+
+test("a count-in in another meter is skipped: bar 0 starts on the first 4/4 downbeat", () => {
+  const midi = readMidiFile(countInSongBytes());
+  assert.equal(countBars(midi), 4);
+  const sheet = readLeadSheetMidi(midi, { melodyTrack: 0 });
+  assert.equal(sheet.bars.length, 4);
+  // The pickup G4 of the count-in lies before bar 0, outside every bar.
+  assert.deepEqual(sheet.bars[0].melody, [{ pitch: 72, onset: 0, duration: 2 }]);
+  assert.deepEqual(sheet.bars.map((bar) => bar.chords.map((c) => c.symbol)), [["C"], ["G"], ["C"], ["G"]]);
+  assert.deepEqual(sheet.sourceGrid, [120, 0]);
+});
+
+test("an excerpt after a count-in counts bars from the first 4/4 bar", () => {
+  const sheet = readLeadSheetMidi(readMidiFile(countInSongBytes()), { melodyTrack: 0, bars: [1, 3] });
+  assert.deepEqual(sheet.bars[0].melody.map((n) => [n.pitch, n.onset]), [[74, 0]]);
+  assert.deepEqual(sheet.bars[0].chords.map((c) => c.symbol), ["G"]);
+});
+
+test("an explicit grid finds its own downbeat and ignores the count-in", () => {
+  const midi = readMidiFile(countInSongBytes());
+  // Bars of 2 s from 1 s on: the last note ends at 11 s, so 5 bars.
+  assert.equal(countBars(midi, [120, 1]), 5);
+  const sheet = readLeadSheetMidi(midi, { melodyTrack: 0, grid: [120, 1] });
+  assert.equal(sheet.bars.length, 5);
+  assert.deepEqual(sheet.sourceGrid, [120, 1]);
+});
+
+test("a meter change inside the music is refused, naming the meter, its bar and its time", () => {
+  const midi = smallSong({ bars: 4, meters: [[4, 4, 0], [3, 4, 8 * 480]] });
+  const message = /the file changes to 3\/4 at bar 2 \(4\.0 s\); only 4\/4 and 2\/4 are supported/;
+  assert.throws(() => readLeadSheetMidi(midi, { melodyTrack: 0 }), message);
+  assert.throws(() => countBars(midi), message);
+  assert.throws(() => meterOffsetBeats(midi), message);
+});
+
+test("bars must satisfy 0 ≤ first < end ≤ barCount and end − first ≤ 256", () => {
   const midi = smallSong({ bars: 4 });
   for (const bars of [[2, 2], [-1, 2], [0, 5], [3, 1], [0.5, 2]]) {
     assert.throws(
       () => readLeadSheetMidi(midi, { melodyTrack: 0, bars: /** @type {[number, number]} */ (bars) }),
-      /0 ≤ first < end ≤ 4 and end − first ≤ 128/,
+      /0 ≤ first < end ≤ 4 and end − first ≤ 256/,
       String(bars),
     );
   }
-  const long = smallSong({ bars: 130 });
-  assert.throws(() => readLeadSheetMidi(long, { melodyTrack: 0, bars: [0, 130] }), /end − first ≤ 128/);
-  assert.throws(() => readLeadSheetMidi(long, { melodyTrack: 0 }), /130 bars.*at most 128/);
-  assert.equal(readLeadSheetMidi(long, { melodyTrack: 0, bars: [2, 130] }).bars.length, 128);
+  const long = smallSong({ bars: 258 });
+  assert.throws(() => readLeadSheetMidi(long, { melodyTrack: 0, bars: [0, 258] }), /end − first ≤ 256/);
+  assert.throws(() => readLeadSheetMidi(long, { melodyTrack: 0 }), /258 bars.*at most 256/);
+  assert.equal(readLeadSheetMidi(long, { melodyTrack: 0, bars: [2, 258] }).bars.length, 256);
+  // A whole song of up to 256 bars reads without an excerpt.
+  assert.equal(readLeadSheetMidi(smallSong({ bars: 200 }), { melodyTrack: 0 }).bars.length, 200);
 });
 
 test("sections must start at bars inside the excerpt, in strictly increasing order", () => {
@@ -318,3 +363,12 @@ for (const song of SONGS) {
     assert.equal(suggestMelodyTrack(describeTracks(midi)), ranking[0]);
   });
 }
+
+test("the tempo is the one in effect where the excerpt starts, not the count-in's", () => {
+  // Count-in in 3/4 at 127 BPM; the 4/4 music from tick 2880 at 98 BPM.
+  const bytes = withTimeSignatures(countInSongBytes(), [[3, 4, 0], [4, 4, 2880]], [[127, 0], [98, 2880]]);
+  const sheet = readLeadSheetMidi(readMidiFile(bytes), { melodyTrack: 0, title: "tempo" });
+  assertClose(sheet.tempoBpm, 98, 3);
+  // The file grid is still named by the file's first tempo.
+  assertClose(/** @type {[number, number]} */ (sheet.sourceGrid)[0], 127, 3);
+});

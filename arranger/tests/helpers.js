@@ -12,7 +12,9 @@
 //   (`assertClose`), since the scores are compared to 6 decimals (SC-010);
 // - load the vendored abcjs parser without a browser (`loadAbcjs`, research R3);
 // - find a MIDI song in `data/raw/`, which is not committed (`rawMidiPath`), so a test can skip
-//   with "run uv run src/main.py fetch" when the file is missing.
+//   with "run uv run src/main.py fetch" when the file is missing;
+// - build a MIDI file whose meter changes (`withTimeSignatures`), such as a song that opens with
+//   a 3/4 count-in (`countInSongBytes`), since `writeMidiFile` writes a single time signature.
 //
 // This file is not a test itself: node --test only runs files named `*.test.js`.
 
@@ -21,6 +23,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { writeMidiFile } from "../src/core/midi-file.js";
 
 const testsDir = dirname(fileURLToPath(import.meta.url));
 
@@ -220,4 +224,106 @@ export function loadAbcjs() {
 export function rawMidiPath(relative) {
   const path = join(repoRoot, "data", "raw", relative);
   return existsSync(path) ? path : null;
+}
+
+/**
+ * Give a MIDI file written by `writeMidiFile` other time signatures (it writes one, at tick 0).
+ *
+ * Track 0 is rebuilt with its tempo and the given time signatures; the other tracks stay as they
+ * are.
+ *
+ * @param {Uint8Array} bytes a file from `writeMidiFile`: its track 0 opens with the tempo
+ * @param {Array<[number, number, number]>} timeSignatures [numerator, denominator, tick] in tick
+ *   order; each denominator a power of two
+ * @param {Array<[number, number]> | null} [tempos] [BPM, tick] pairs that replace the file's
+ *   single tempo; null keeps it
+ * @returns {Uint8Array} the new file
+ * @example
+ * // At 120 BPM and 480 ticks per beat: two 3/4 bars of count-in, then 4/4 from 3 s on.
+ * readMidiFile(withTimeSignatures(bytes, [[3, 4, 0], [4, 4, 2880]])).timeSignatures;
+ * // [{ numerator: 3, denominator: 4, time: 0 }, { numerator: 4, denominator: 4, time: 3 }]
+ */
+export function withTimeSignatures(bytes, timeSignatures, tempos = null) {
+  const trackStart = 14 + 8; // the header chunk, then "MTrk" and the track length
+  const tempoEvent = [...bytes.subarray(trackStart, trackStart + 7)]; // delta 0, FF 51 03 and 3 bytes
+  if (tempoEvent[1] !== 0xff || tempoEvent[2] !== 0x51) throw new Error("track 0 does not open with the tempo");
+  // Meta events in tick order; at the same tick a time signature comes before a tempo.
+  /** @type {Array<[number, number[]]>} */
+  const metas = timeSignatures.map(([numerator, denominator, at]) => [
+    at,
+    [0xff, 0x58, 4, numerator, Math.log2(denominator), 24, 8],
+  ]);
+  if (tempos) {
+    for (const [bpm, at] of tempos) {
+      const micros = Math.round(60_000_000 / bpm);
+      metas.push([at + 0.5, [0xff, 0x51, 3, (micros >> 16) & 0xff, (micros >> 8) & 0xff, micros & 0xff]]);
+    }
+  }
+  metas.sort((a, b) => a[0] - b[0]);
+  const events = tempos ? [] : [...tempoEvent];
+  let tick = 0;
+  for (const [at, event] of metas) {
+    const exact = Math.floor(at);
+    events.push(...varIntBytes(exact - tick), ...event);
+    tick = exact;
+  }
+  events.push(0, 0xff, 0x2f, 0);
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const rest = bytes.subarray(trackStart + view.getUint32(trackStart - 4));
+  const length = [24, 16, 8, 0].map((shift) => (events.length >>> shift) & 0xff);
+  return Uint8Array.from([...bytes.subarray(0, trackStart - 4), ...length, ...events, ...rest]);
+}
+
+/**
+ * A variable-length quantity: 7 bits per byte, the high bit set on all but the last.
+ * @param {number} value non-negative integer
+ * @returns {number[]}
+ */
+function varIntBytes(value) {
+  const bytes = [value & 0x7f];
+  for (let rest = Math.floor(value / 128); rest > 0; rest = Math.floor(rest / 128)) bytes.unshift((rest & 0x7f) | 0x80);
+  return bytes;
+}
+
+/**
+ * The count-in song of `write_count_in_song` in tests/test_midi_reader.py: at 120 BPM, two 3/4
+ * bars of count-in, then four 4/4 bars (C, G, C, G) from 3 s on.
+ *
+ * The voice (track 0) plays a pickup G4 on the last count-in beat, then C5 or D5 for two beats on
+ * each 4/4 downbeat; a guitar plays the triads, a bass their roots, and drums every beat.
+ *
+ * @param {Array<[number, number, number]>} [timeSignatures] [numerator, denominator, tick] at
+ *   480 ticks per beat; default 3/4 at 0 and 4/4 at 2880 (3 s)
+ * @returns {Uint8Array} the file's bytes
+ * @example
+ * readMidiFile(countInSongBytes()).timeSignatures.map((ts) => ts.time); // [0, 3]
+ */
+export function countInSongBytes(timeSignatures = [[3, 4, 0], [4, 4, 2880]]) {
+  const beat = 0.5;
+  const leadIn = 2 * 3 * beat;
+  const note = (/** @type {number} */ start, /** @type {number} */ end, /** @type {number} */ pitch) => ({ start, end, pitch, velocity: 90 });
+  const voice = [note(leadIn - beat, leadIn, 67)];
+  /** @type {typeof voice} */
+  const guitar = [];
+  /** @type {typeof voice} */
+  const bass = [];
+  const drums = Array.from({ length: 6 + 16 }, (_, b) => note(b * beat, b * beat + 0.1, 36));
+  for (let bar = 0; bar < 4; bar += 1) {
+    const start = leadIn + bar * 4 * beat;
+    const end = start + 4 * beat;
+    voice.push(note(start, start + 2 * beat, 72 + (bar % 2) * 2));
+    const triad = bar % 2 === 0 ? [60, 64, 67] : [55, 59, 62];
+    for (const pitch of triad) guitar.push(note(start, end, pitch));
+    bass.push(note(start, end, triad[0] - 24));
+  }
+  const bytes = writeMidiFile({
+    tempoBpm: 120,
+    tracks: [
+      { name: "Sax", channel: 0, program: 66, notes: voice },
+      { name: "Guitar", channel: 1, program: 27, notes: guitar },
+      { name: "Bass", channel: 2, program: 33, notes: bass },
+      { name: "Drums", channel: 9, program: 0, notes: drums },
+    ],
+  });
+  return withTimeSignatures(bytes, timeSignatures);
 }

@@ -224,7 +224,7 @@ tr.drum { color: var(--muted); }
 .has-tip:hover .tip, .has-tip:focus-within .tip { opacity: 1; visibility: visible; transform: none; }
 .tip-mark {
   display: inline-grid; place-items: center; width: 15px; height: 15px; margin-left: 6px; border-radius: 50%;
-  border: 1px solid var(--muted); color: var(--muted); font: 700 .65rem/1 var(--mono); vertical-align: 1px; cursor: help;
+  border: 1px solid var(--muted); color: var(--muted); font: italic 700 .7rem/1 Georgia, "Times New Roman", serif; vertical-align: 1px; cursor: help;
 }
 .has-tip:hover .tip-mark, .has-tip:focus-within .tip-mark { border-color: var(--no); color: var(--no); }
 .setting .field-error { grid-column: 1 / -1; margin: 0; font-size: .82rem; }
@@ -307,3 +307,11 @@ footer .sep { color: var(--line); }
 .changed-chips .changed { cursor: pointer; background: none; font: .78rem var(--mono); padding: 1px 8px; border-radius: 999px; border: 1px solid var(--p2); color: var(--p2); }
 #settings code { font-family: var(--mono); font-size: .85em; }
 @media (prefers-reduced-motion: reduce) { .tip { transition: none; } }
+.step-title { font-size: .95rem; margin: 14px 0 4px; }
+.midi-options .hint { margin: 0 0 8px; }
+.tracks tr.suggested td { background: rgba(95, 158, 209, .08); }
+.tracks td .name { color: var(--muted); }
+.tracks th .has-tip { display: inline-flex; align-items: center; }
+.midi-options textarea { width: 100%; }
+.tempo-hint { margin: 0 0 10px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); color: #c9cfdb; font-size: .9rem; }
+.tempo-hint .button { margin-left: 6px; }

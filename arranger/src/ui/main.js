@@ -91,6 +91,12 @@ const inputPanel = createInputPanel(
   {
   examples: buildExamples(sources),
   onFileDropped: (name) => catalogPanel.claim(name),
+  previewTrack: (index) => previewTrack(index),
+  useTempo(bpm) {
+    state.settings.tempo_bpm = bpm;
+    settingsPanel.show(state.settings, state.phase === "evolving");
+    inputPanel.reread();
+  },
   readOptions: () => ({
     phraseLength: state.settings.phrase_length,
     roleMap: state.settings.role_map,
@@ -394,6 +400,8 @@ function showRun(id) {
 // --- Result panel ---------------------------------------------------------------------------
 
 playButton.addEventListener("click", () => {
+  trackPreview?.stop();
+  trackPreview = null;
   player.ensureContext();
   player.toggle();
 });
@@ -449,6 +457,43 @@ function showScores(scores, fitness, weights) {
   }).join("");
   $("[data-scores]").innerHTML = `<table><thead><tr><th>Criterion</th><th>Weight</th><th>Score</th></tr></thead>
     <tbody>${rows}</tbody><tfoot><tr><th scope="row">Fitness</th><td></td><td class="mono">${fitness.toFixed(4)}</td></tr></tfoot></table>`;
+}
+
+/** @type {AudioBufferSourceNode | null} */
+let trackPreview = null;
+
+/**
+ * Play the first 8 bars of one track of the loaded MIDI song alone, to help choose the melody.
+ *
+ * @param {number} index track index, as listed in the input panel
+ */
+function previewTrack(index) {
+  const loaded = inputPanel.current();
+  if (!loaded?.song || !loaded.leadSheet.sourceGrid) return;
+  const context = player.ensureContext();
+  player.pause();
+  trackPreview?.stop();
+  const bars = loaded.midi.bars ?? [0, loaded.leadSheet.bars.length];
+  const voices = midiExcerptVoices(loaded.song, {
+    melodyTrack: index,
+    sourceGrid: /** @type {[number, number]} */ (loaded.leadSheet.sourceGrid),
+    bars: /** @type {[number, number]} */ (bars),
+  });
+  const beats = Math.min(32, (bars[1] - bars[0]) * 4);
+  const rendered = renderVoices(
+    { melody: voices.melody, others: [], drums: [] },
+    loaded.leadSheet.tempoBpm,
+    context.sampleRate,
+    beats,
+  );
+  const samples = matchLoudness(rendered, rendered, context.sampleRate).a;
+  const buffer = context.createBuffer(1, samples.length, context.sampleRate);
+  buffer.copyToChannel(samples, 0);
+  const source = context.createBufferSource();
+  source.buffer = buffer;
+  source.connect(context.destination);
+  source.start();
+  trackPreview = source;
 }
 
 /**

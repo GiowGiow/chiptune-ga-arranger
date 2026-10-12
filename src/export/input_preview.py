@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pretty_midi
 
+from leadsheet.midi_reader import meter_offset_beats
 from leadsheet.model import LeadSheet
 
 PIANO, ACOUSTIC_BASS = 0, 32
@@ -45,15 +46,21 @@ def excerpt_seconds(
     """Return the start and end, in seconds, of a bar excerpt of a MIDI recording.
 
     `source_grid` is the (tempo, first downbeat) grid on which the song was read; a grid with
-    downbeat 0.0 is the file's own tick grid. Without `bars`, the whole file is used.
+    downbeat 0.0 at the file's first tempo is the file's own tick grid, whose bar 0 is the first
+    4/4 bar (a count-in in another meter is skipped, see `meter_offset_beats`). Without `bars`,
+    the whole file is used, from that bar on.
     """
     source = pretty_midi.PrettyMIDI(str(path))
-    if bars is None:
-        return 0.0, source.get_end_time()
     bpm, downbeat = source_grid
     if downbeat == 0.0 and bpm == float(source.get_tempo_changes()[1][0]):
-        start = source.tick_to_time(bars[0] * 4 * source.resolution)
-        end = source.tick_to_time(bars[1] * 4 * source.resolution)
+        first_tick = round(meter_offset_beats(source) * source.resolution)
+        ticks_per_bar = 4 * source.resolution
+        if bars is None:
+            return source.tick_to_time(first_tick), source.get_end_time()
+        start = source.tick_to_time(first_tick + bars[0] * ticks_per_bar)
+        end = source.tick_to_time(first_tick + bars[1] * ticks_per_bar)
         return start, end
+    if bars is None:
+        return 0.0, source.get_end_time()
     seconds_per_bar = 4 * 60.0 / bpm
     return downbeat + bars[0] * seconds_per_bar, downbeat + bars[1] * seconds_per_bar

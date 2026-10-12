@@ -47,7 +47,7 @@ The same entity as spec 001, `src/leadsheet/model.py`.
 | `title` | string | ABC `T:` or the MIDI file stem |
 | `key` | string | music21-style name, `""` for none or for MIDI |
 | `tempoBpm` | number > 0 | ABC `Q:` in quarter notes per minute, the MIDI grid tempo, or the override; default 140 |
-| `bars` | Bar[] | 1 to 128 bars, in performed order (repeats played out) |
+| `bars` | Bar[] | 1 to 256 bars, in performed order (repeats played out) |
 | `sourceGrid` | `[bpm, downbeatSeconds]` \| null | MIDI only |
 
 **Bar**: `{ index, melody: MelodyNote[], chords: ChordSegment[], label, role, phrase, phraseEnd }`
@@ -84,7 +84,7 @@ These are the keys of `configs/default.json`. The defaults are read at run time 
 | `role_map` | `{label: "verse" \| "chorus"}` | labels of the lead sheet |
 | `weights.<criterion>` (7 criteria) | number | finite, ≥ 0; at least one > 0 |
 | `midi.melody_track` | integer \| null | an index of a non-drum track; required for MIDI input |
-| `midi.bars` | `[first, end]` \| null | `0 ≤ first < end ≤ barCount` and `end − first ≤ 128` |
+| `midi.bars` | `[first, end]` \| null | `0 ≤ first < end ≤ barCount` and `end − first ≤ 256` |
 | `midi.sections` | `[[bar, label], …]` \| null | bars inside the excerpt; strictly increasing |
 | `midi.grid` | `"auto"` \| `"file"` \| `[bpm, downbeat]` | as in the CLI |
 

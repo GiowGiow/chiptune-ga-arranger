@@ -176,10 +176,15 @@ Raimundos), load it, choose the melody track recorded in `data/sources.json`, an
   and does not arrange.
 - A meter other than 4/4: 2/4 is read as 4/4 by joining pairs of bars (common in samba and other
   MPB files); other meters are refused with a message that names the meter.
+- A MIDI file that opens with a lead-in in another meter, such as a 3/4 count-in before a 4/4 song:
+  the lead-in is skipped, and bars count from the first 4/4 (or 2/4) bar (FR-004). A change to
+  another meter inside the music is refused with a message that names the meter, its bar and its
+  time.
 - An ABC tune with several voices: the first voice is the melody.
 - A MIDI file with only drums, or with no track that can carry a melody: the app says so.
-- A song longer than 64 bars: the app selects the first 64 bars, says so, and lets the visitor
-  choose another range of at most 128 bars.
+- A song longer than 256 bars: the app selects the first 256 bars, says so, and lets the visitor
+  choose another range. Shorter songs are selected whole by default (changed on 2026-10-12 from
+  the first 64 bars, at the student's request).
 - A song without part labels: every bar belongs to one part, and the contrast criterion, which
   compares parts, is shown as "not applicable" instead of a number.
 - The visitor changes a setting during a run: the change applies to the next run, and the panel
@@ -206,6 +211,9 @@ Raimundos), load it, choose the melody track recorded in `data/sources.json`, an
   not fit its drums.
 - **FR-004**: The app MUST play out ABC repeat signs (including first and second endings) into
   plain bars, fill a pickup bar with a leading rest, and read 2/4 as 4/4 by joining pairs of bars.
+  For a MIDI file read on its own grid, a lead-in in another meter before the first 4/4 (or 2/4)
+  bar (a count-in) is skipped and bars count from that bar, as the command-line reader does; a
+  meter change inside the music is refused.
 - **FR-005**: For a MIDI file, the app MUST list the tracks, preselect a melody track, and let the
   visitor change the melody track, the bar range and the part labels before arranging.
 - **FR-006**: The app MUST show the lead sheet it will arrange (bars, chords, parts, melody range)
@@ -359,9 +367,10 @@ Raimundos), load it, choose the melody track recorded in `data/sources.json`, an
 
 - Visitors use a recent desktop or phone browser (the last two versions of Chrome, Firefox, Safari
   and Edge). Older browsers are not supported.
-- The app supports the same musical inputs as the command line (4/4, one melody, chord symbols),
-  widened only by FR-004; chord inference for ABC tunes without chord symbols is out of scope.
-- 64 bars is the default length limit and 128 bars the hard limit. Longer songs need a range.
+- The app supports the same musical inputs as the command line (4/4, one melody, chord symbols,
+  and for MIDI files a count-in in another meter before the 4/4 music), widened only by FR-004;
+  chord inference for ABC tunes without chord symbols is out of scope.
+- The whole song is selected by default, up to 256 bars, the hard limit. Longer songs need a range.
 - The original MIDI is made audible with simple built-in instrument sounds, not a General MIDI
   soundfont; the General MIDI rendering stays on the listening page.
 - The catalog list is a snapshot. It is rebuilt by a documented command with polite crawling (one

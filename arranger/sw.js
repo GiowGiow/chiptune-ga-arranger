@@ -44,6 +44,7 @@ const APP_SHELL = [
   "src/ui/downloads.js",
   "src/ui/evolution-view.js",
   "src/ui/examples.js",
+  "src/ui/gm-programs.js",
   "src/ui/input-panel.js",
   "src/ui/main.js",
   "src/ui/plan-grid.js",

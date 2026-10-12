@@ -20,7 +20,7 @@ import {
   renderMidiExcerpt,
   renderVoices,
 } from "../src/audio/plain-synth.js";
-import { assertClose, readFixture } from "./helpers.js";
+import { assertClose, countInSongBytes, readFixture } from "./helpers.js";
 
 const RATE = 44100;
 const korobeiniki = leadSheetFromJson(readFixture("leadsheets/korobeiniki.json"));
@@ -170,6 +170,19 @@ test("a MIDI excerpt is read on the lead sheet's grid, shifted to its first bar 
   const estimated = midiExcerptVoices(midi, { melodyTrack: trackIndex(midi, "melody"), sourceGrid: [100, 0.3], bars: [0, 2] });
   assertClose(estimated.melody[0], { pitch: 72, onset: 0, duration: (0.5 - 0.3) * (100 / 60) }, 9);
   assertClose(estimated.melody[1], { pitch: 74, onset: (2 - 0.3) * (100 / 60), duration: 0.5 * (100 / 60) }, 9);
+});
+
+test("the original of a song with a count-in starts on its first 4/4 downbeat, as its lead sheet does", () => {
+  // 3/4 for 3 s (6 beats), then 4/4: the lead sheet's bar 0 starts at 3 s.
+  const midi = readMidiFile(countInSongBytes());
+  assert.equal(beatClock(midi, [120, 0])(3), 0);
+  assert.equal(beatClock(midi, [120, 0])(5), 4);
+  const voices = midiExcerptVoices(midi, { melodyTrack: 0, sourceGrid: [120, 0], bars: [0, 1] });
+  // The pickup G4 at 2.5 s is before the excerpt.
+  assert.deepEqual(voices.melody, [{ pitch: 72, onset: 0, duration: 2 }]);
+  assert.deepEqual(voices.drums.map((hit) => hit.onset), [0, 1, 2, 3]);
+  // An estimated grid has its own downbeat: the count-in does not move it.
+  assert.equal(beatClock(midi, [100, 0.3])(1.5), 2);
 });
 
 test("a MIDI excerpt render lasts the excerpt's beats at the run tempo", () => {

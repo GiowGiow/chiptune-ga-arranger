@@ -20,7 +20,10 @@
 // the grid is estimated from the recording: the tempo whose sixteenth-note grid best explains the
 // drum onsets, the sixteenth with the most onsets as the beat, and the beat where the bass plays
 // its longest notes as the downbeat. The beat grid is in quarter notes, so 4/4 and 2/4 files read
-// the same way (research R11); other meters are refused.
+// the same way (research R11); other meters are refused. A file may open with a few bars in another
+// meter, such as a 3/4 count-in before a 4/4 song: on the file's own grid those bars are a lead-in,
+// and bar 0 is the first 4/4 (or 2/4) bar. A change to another meter inside the music would move
+// every later bar line, so it is refused.
 //
 // This is a port of src/leadsheet/midi_reader.py. It must give the same lead sheet from the same
 // song and settings (SC-006), so it copies numpy's and Python's arithmetic where a result depends
@@ -60,7 +63,7 @@ export const BASS_TRACK_MAX_MEAN_PITCH = 50;
 /** A file whose drum onsets fit its own sixteenth grid this well keeps its ticks as the grid. */
 export const FILE_GRID_MIN_STRENGTH = 0.8;
 /** The longest lead sheet the arranger takes (data-model.md). */
-export const MAX_BARS = 128;
+export const MAX_BARS = 256;
 /**
  * Candidate tempos for the beat-grid estimate: numpy's `np.arange(60.0, 200.0, 0.05)`. numpy
  * steps by `(60 + 0.05) - 60` = 0.04999999999999716, so the values carry the same float noise.
@@ -69,6 +72,9 @@ export const MAX_BARS = 128;
 export const TEMPO_SEARCH = Object.freeze(
   Array.from({ length: Math.ceil((200.0 - 60.0) / 0.05) }, (_, index) => 60.0 + index * (60.0 + 0.05 - 60.0)),
 );
+
+/** Meters the reader takes: 2/4 bars are joined in pairs into 4/4 bars (research R11). */
+const SUPPORTED_METERS = Object.freeze(["4/4", "2/4"]);
 
 /** Track names that suggest the sung line (research R11). */
 const MELODY_NAME = /voc|voz|melod|lead|canto|vocal|melody/i;
@@ -105,7 +111,7 @@ const MELODY_NAME = /voc|voz|melod|lead|canto|vocal|melody/i;
  * @property {number} [phraseLength] bars per phrase (default 4).
  * @property {Record<string, Role> | null} [roleMap] part label to "verse"/"chorus".
  * @property {[number, number] | null} [bars] excerpt [first bar, end bar), 0-based; default the
- *   whole song, which must then have at most 128 bars.
+ *   whole song, which must then have at most 256 bars.
  * @property {Array<[number, string]> | null} [sections] [bar inside the excerpt, label] where each
  *   section starts, strictly increasing; default one section "A".
  * @property {number | null} [tempoOverride] tempo in BPM; by default the beat grid's.
@@ -373,28 +379,73 @@ export function suggestMelodyTrack(tracks) {
 }
 
 /**
+ * The beat (ticks / resolution) on which the song's 4/4 or 2/4 music starts (port of
+ * `meter_offset_beats`).
+ *
+ * Time signatures before the first 4/4 or 2/4 one are a lead-in (a count-in, for example): on the
+ * file's own grid, bar 0 starts on the tick of that time signature. A file without time
+ * signatures is 4/4 from the start.
+ *
+ * @param {MidiSong} midi
+ * @returns {number} 0 when the song starts in 4/4 or 2/4 or has no time signature.
+ * @throws {Error} when no time signature is 4/4 or 2/4, or when the meter changes from one of
+ *   them to another meter (the message names the meter, its bar counted from the offset and its
+ *   time).
+ * @example
+ * // At 120 BPM, two 3/4 bars of count-in, then 4/4 from 3 s on (see midi-song.test.js):
+ * meterOffsetBeats(countInSong); // 6
+ */
+export function meterOffsetBeats(midi) {
+  const changes = midi.timeSignatures;
+  if (changes.length === 0) return 0;
+  const supported = changes.map(({ numerator, denominator }) => SUPPORTED_METERS.includes(`${numerator}/${denominator}`));
+  const start = supported.indexOf(true);
+  if (start < 0) {
+    const meter = `${changes[0].numerator}/${changes[0].denominator}`;
+    throw new Error(`only 4/4 and 2/4 MIDI files are supported; this file is in ${meter}`);
+  }
+  const offset = midi.timeToTick(changes[start].time) / midi.resolution;
+  for (let index = start; index < changes.length; index += 1) {
+    if (supported[index]) continue;
+    const { numerator, denominator, time } = changes[index];
+    const bar = Math.floor((midi.timeToTick(time) / midi.resolution - offset) / BEATS_PER_BAR);
+    throw new Error(
+      `the file changes to ${numerator}/${denominator} at bar ${bar} (${time.toFixed(1)} s); only 4/4 and 2/4 are supported`,
+    );
+  }
+  return offset;
+}
+
+/**
  * The number of bars that hold pitched notes on the song's beat grid (the excerpt's upper bound).
+ *
+ * On the file's own grid, bars count from the first 4/4 or 2/4 bar (`meterOffsetBeats`).
  *
  * @param {MidiSong} midi
  * @param {"auto" | "file" | [number, number]} [grid] as in `readLeadSheetMidi`.
  * @returns {number} 0 when the song has no pitched note.
+ * @throws {Error} on the file's own grid, for the meters that `meterOffsetBeats` refuses.
  * @example
  * countBars(midi); // 4 for a song whose last pitched note ends on beat 16
  */
 export function countBars(midi, grid = "auto") {
-  const tracks = pitchedTracks(midi, beatGrid(midi, grid).toBeats);
-  return tracks.length === 0 ? 0 : barsHoldingNotes(tracks);
+  const { toBeats, meterOffset } = beatGrid(midi, grid);
+  const tracks = pitchedTracks(midi, toBeats);
+  return tracks.length === 0 ? 0 : barsHoldingNotes(tracks, meterOffset);
 }
 
 /**
  * Reduce a multi-track MIDI song to a lead sheet (port of `read_lead_sheet_midi`).
  *
+ * On the file's own grid, bar 0 is the first 4/4 or 2/4 bar: a lead-in in another meter (a
+ * count-in) is skipped (`meterOffsetBeats`). An estimated or explicit grid has its own downbeat.
+ *
  * @param {MidiSong} midi the song, from `readMidiFile`.
  * @param {MidiReadOptions} options
  * @returns {LeadSheet} with `key` "" and `sourceGrid` [bpm, downbeat seconds].
- * @throws {Error} for a missing or drum melody track, a meter other than 4/4 or 2/4 (the message
- *   names it), an excerpt outside `0 ≤ first < end ≤ barCount` or longer than 128 bars, or
- *   section starts outside the excerpt or not strictly increasing.
+ * @throws {Error} for a missing or drum melody track, a meter other than 4/4 or 2/4 after the
+ *   lead-in (the message names it), an excerpt outside `0 ≤ first < end ≤ barCount` or longer
+ *   than 256 bars, or section starts outside the excerpt or not strictly increasing.
  * @example
  * // A voice note C5 over [0, 1 s] and a bass C2 over [0, 2 s], at 120 BPM:
  * const sheet = readLeadSheetMidi(midi, { melodyTrack: 0, title: "demo" });
@@ -421,17 +472,12 @@ export function readLeadSheetMidi(midi, options) {
       throw new Error(`track ${track} is a drum track and cannot be the melody`);
     }
   }
-  for (const { numerator, denominator } of midi.timeSignatures) {
-    const meter = `${numerator}/${denominator}`;
-    if (meter !== "4/4" && meter !== "2/4") {
-      throw new Error(`only 4/4 and 2/4 MIDI files are supported; this file is in ${meter}`);
-    }
-  }
+  meterOffsetBeats(midi);
 
-  const { sourceGrid, toBeats } = beatGrid(midi, grid);
+  const { sourceGrid, toBeats, meterOffset, fileGrid } = beatGrid(midi, grid);
   const tracks = pitchedTracks(midi, toBeats);
-  const [firstBar, endBar] = checkedExcerpt(bars, barsHoldingNotes(tracks));
-  const offset = firstBar * BEATS_PER_BAR;
+  const [firstBar, endBar] = checkedExcerpt(bars, barsHoldingNotes(tracks, meterOffset));
+  const offset = meterOffset + firstBar * BEATS_PER_BAR;
   const barTotal = endBar - firstBar;
 
   const melodyNotes = tracks.filter((track) => melodyTracks.includes(track.index)).flatMap((track) => track.notes);
@@ -467,7 +513,8 @@ export function readLeadSheetMidi(midi, options) {
   return {
     title,
     key: "",
-    tempoBpm: tempoOverride || sourceGrid[0],
+    // The excerpt plays at the tempo where it starts, not at a count-in's tempo.
+    tempoBpm: tempoOverride || (fileGrid ? tempoAtBeat(midi, offset) : sourceGrid[0]),
     bars: leadBars,
     beatsPerBar: BEATS_PER_BAR,
     sourceGrid,
@@ -476,11 +523,12 @@ export function readLeadSheetMidi(midi, options) {
 
 /**
  * The beat grid in use: the file's ticks, the given [bpm, downbeat], or for "auto" the ticks when
- * the drums fit them, else the estimate.
+ * the drums fit them, else the estimate. `meterOffset` is the beat of bar 0: after the lead-in on
+ * the file's ticks, 0 on a grid with its own downbeat.
  *
  * @param {MidiSong} midi
  * @param {"auto" | "file" | [number, number]} grid
- * @returns {{sourceGrid: [number, number], toBeats: (seconds: number) => number}}
+ * @returns {{sourceGrid: [number, number], toBeats: (seconds: number) => number, meterOffset: number, fileGrid: boolean}}
  */
 function beatGrid(midi, grid) {
   let chosen = grid;
@@ -496,13 +544,36 @@ function beatGrid(midi, grid) {
     return {
       sourceGrid: [midi.tempoChanges[0].bpm, 0.0],
       toBeats: (seconds) => midi.timeToTick(seconds) / midi.resolution,
+      meterOffset: meterOffsetBeats(midi),
+      fileGrid: true,
     };
   }
   if (!Array.isArray(chosen) || chosen.length !== 2 || !chosen.every(Number.isFinite) || !(chosen[0] > 0)) {
     throw new Error(`grid must be "auto", "file" or [bpm, downbeat seconds]; got ${JSON.stringify(grid)}`);
   }
   const [gridBpm, downbeat] = chosen;
-  return { sourceGrid: [gridBpm, downbeat], toBeats: (seconds) => ((seconds - downbeat) * gridBpm) / 60.0 };
+  return {
+    sourceGrid: [gridBpm, downbeat],
+    toBeats: (seconds) => ((seconds - downbeat) * gridBpm) / 60.0,
+    meterOffset: 0,
+    fileGrid: false,
+  };
+}
+
+/**
+ * The tempo (BPM) in effect at a beat of the file's own grid (port of `_tempo_at_beat`).
+ *
+ * @param {MidiSong} midi
+ * @param {number} beat
+ * @returns {number}
+ */
+function tempoAtBeat(midi, beat) {
+  const tick = Math.round(beat * midi.resolution);
+  let bpm = midi.tempoChanges[0].bpm;
+  for (const change of midi.tempoChanges) {
+    if (change.tick <= tick) bpm = change.bpm;
+  }
+  return bpm;
 }
 
 /**
@@ -526,16 +597,17 @@ function pitchedTracks(midi, toBeats) {
 }
 
 /**
- * Bars up to the end of the last pitched note; a note that ends a hair after a bar line does not
- * open a new bar.
+ * Bars from `meterOffset` up to the end of the last pitched note; a note that ends a hair after a
+ * bar line does not open a new bar.
  *
  * @param {Array<{notes: BeatNote[]}>} tracks
+ * @param {number} meterOffset beat of bar 0.
  * @returns {number}
  */
-function barsHoldingNotes(tracks) {
+function barsHoldingNotes(tracks, meterOffset) {
   let lastBeat = -Infinity;
   for (const track of tracks) for (const [, end] of track.notes) lastBeat = Math.max(lastBeat, end);
-  return Math.ceil(lastBeat / BEATS_PER_BAR - 1e-3);
+  return Math.ceil((lastBeat - meterOffset) / BEATS_PER_BAR - 1e-3);
 }
 
 /**

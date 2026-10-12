@@ -305,8 +305,9 @@ Survey of the site (2026-10-12):
   - For a MIDI file, the beat grid is already in quarter notes, so 2/4 only changes the
     accepted time-signature list.
 - **Length**:
-  - Inputs over 64 bars start with bars 0–64 selected.
-  - Above 128 bars the app refuses to arrange until a range is chosen.
+  - The whole song is selected by default.
+  - Above 256 bars the app selects the first 256 and refuses a longer range (changed on
+    2026-10-12 from 64 by default and 128 at most, at the student's request).
 - **Several tunes in one ABC file**: the app lists them by `T:` and reads the one picked.
 - **Without part labels**: one section "A". Contrast then shows "not applicable" (NaN in
   Python, `null` in JSON).
