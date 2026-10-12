@@ -639,7 +639,7 @@ catalog and drop the file in, with the credit kept (FR-029 to FR-032).
   - Cache in `data/raw/catalog/`.
   - Print progress every 100 pages.
   - Make T075 pass.
-- [ ] T077 [US4] Build the catalog.
+- [X] T077 [US4] Build the catalog.
   1. Run `uv run src/main.py catalog --letters "0-9"` and check the 12 entries by eye.
   2. Run `uv run src/main.py catalog` in the background (about 3,700 requests, about 62
      minutes at 1 request per second).
@@ -663,7 +663,7 @@ catalog and drop the file in, with the credit kept (FR-029 to FR-032).
   - On a matching drop, the input shows "From Beatriz Kauffmann's Web Site" and the song page
     link, and `config.json` records `app.catalog_page`.
   - If the catalog file is missing, show an error and keep the rest of the app working.
-- [ ] T081 [US4] Check it by hand: quickstart.md rows 11 and 12.
+- [X] T081 [US4] Check it by hand: quickstart.md rows 11 and 12.
 
 **Checkpoint**: all four stories work.
 
