@@ -25,6 +25,14 @@ same rules.
   hyperparameters, the git commit hash and the creation date.
 - Every result in the README and in the abstract (MIDI, audio, figures, tables) MUST be
   regenerable with commands documented in the README.
+- The web app (see "Web App Constraints") follows the same rule with its own generator: its
+  randomness MUST come from a seeded generator object passed as a parameter. `Math.random`,
+  module-level generators and any other global random state are forbidden. The same input,
+  seed and settings MUST give the same arrangement inside the app.
+- The Python command line is the reference implementation for the samples and the abstract.
+  The web app need not give the command line's arrangement for the same seed, but it MUST give
+  the same fitness and criterion scores to a given plan, and the same lead sheet from a given
+  MIDI song and settings. Tests check both against the committed samples.
 
 Rationale: the assignment requires reproducible symbolic output, and MIR results are only
 credible when implementation details can be rerun.
@@ -42,6 +50,8 @@ credible when implementation details can be rerun.
   executable specification of the method.
 - Scripts that only produce figures or audio are exempt from test-first, but the functions they
   call are not.
+- These rules apply to the web app's code too. Its tests run under a JavaScript test runner
+  without a browser, except tests that need one.
 
 Rationale: tests written first force a clear definition of each musical rule before the code,
 and they double as worked examples for the reader.
@@ -67,6 +77,10 @@ explain, and the assignment requires an explicit stylistic constraint.
   idea it implements, in plain language, before any implementation detail.
 - Every public function MUST have type hints and a docstring. Functions in the method core MUST
   include a small worked example in the docstring (doctest format) that runs under pytest.
+- In the web app, every module MUST open with a comment that explains its musical or
+  algorithmic idea. Every exported function MUST have a doc comment with parameter and return
+  types (JSDoc or TypeScript). Method-core functions MUST show a small worked example in that
+  comment, and a test MUST check the same example.
 - Names MUST use domain vocabulary (`transition_matrix`, `bar`, `chord_progression`), not
   generic names (`data`, `tmp`, `arr`).
 - Comments explain the why: a trade-off, a boundary condition, a musical rule, or a link to the
@@ -133,7 +147,8 @@ Rationale: a small, direct codebase is easier to test, explain and grade.
 - Layout: code lives directly in `src/`, in subfolders by responsibility, with `src/main.py` as
   the argparse entry point (`uv run src/main.py`). Tests live in `tests/`, the abstract in
   `paper/`, notebooks in `notebooks/`, long-form docs in `docs/`, and curated pieces in
-  `samples/`.
+  `samples/`. The web app lives in one top-level folder of its own (named in its plan), with
+  its tests inside that folder.
 - Language: all repository text is in English: code, identifiers, docstrings, comments, Spec
   Kit artifacts, README, glossary, explanation document, notebook narrative and the abstract.
   Every Markdown code block carries a language tag.
@@ -161,15 +176,44 @@ Rationale: a small, direct codebase is easier to test, explain and grade.
   reduces from each MIDI song may be committed as ABC in `data/leadsheets/` (the project's own
   reduction: one melody track, detected chords and part labels, no accompaniment or lyrics), so
   that the runs can be reproduced without the MIDI files.
+- A catalog of third-party songs (for the web app's search) MAY be committed as metadata and
+  links only: title, composers, performer and page and file URLs. It MUST NOT hold third-party
+  MIDI files, and it credits its source.
 - Deliverables: public GitHub repository with README (install, reproduce, pieces, AI usage
   statement) and `requirements.txt`; at least 3 synthesized pieces in the repository; an ISMIR
   abstract of at most 3 pages of content (postgraduate rule) with at least 4 references, 3 of
   them on the chosen method applied to music.
 
+## Web App Constraints
+
+These rules govern the browser arranger (spec `002-browser-arranger`), a static page that
+reimplements the lead-sheet reader, the GA and the NES chip synthesizer in the visitor's browser.
+Principles I–VII apply to it as well.
+
+- Hosting: static files on the project's GitHub Pages site. No server-side code, no accounts,
+  no analytics.
+- Privacy: files and settings the visitor gives MUST stay on the visitor's device. The app sends
+  them to no server, and it fetches only its own files and the links the visitor clicks.
+- Build: no build step when feasible. When one is needed, it stays minimal, and the committed
+  output can be served as it is.
+- Dependencies: few, pinned to exact versions, loaded from the repository or a pinned CDN URL.
+  Prefer the browser's own APIs (for example, Web Audio for sound).
+- Separation: the method core (reader, genome, fitness, operators, realizers) MUST be pure
+  functions with no DOM, audio or network access, so that the JavaScript test runner can test it
+  without a browser. Page code, audio and file I/O stay at the edges.
+- Responsiveness: a GA run MUST NOT block the page. It runs off the main thread or in short
+  slices, and it can be stopped at any time.
+- Outputs: the app downloads the arrangement as MIDI, its settings as a JSON file that the
+  command line accepts with `--config`, and the lead sheet as ABC. The settings file records the
+  seed, every hyperparameter, the input's SHA-256, the app version (git commit) and the date.
+
 ## Development Workflow and Quality Gates
 
 - pre-commit runs on every commit: file hygiene, ruff check and format, `uv.lock` sync and
-  `requirements.txt` export. pytest, including doctests, runs before every push.
+  `requirements.txt` export. pytest, including doctests, runs before every push, and so do the
+  web app's tests once the app exists.
+- Work after the TP1 submission (tag `v1.0-submission`) happens on feature branches. `main`,
+  which GitHub Pages serves, changes only when the student merges.
 - Each commit is small and leaves the test suite green. Under principle II, the failing test
   and the code that makes it pass may land in the same commit, but the test is written first.
 - Before a feature is done, its docstrings, glossary entries, visuals and README commands are
@@ -189,4 +233,4 @@ Rationale: a small, direct codebase is easier to test, explain and grade.
 - Agent guidance files in the repository (such as `CLAUDE.md`) must not contradict this
   document.
 
-**Version**: 1.2.0 | **Ratified**: 2026-10-11 | **Last Amended**: 2026-10-11
+**Version**: 1.3.0 | **Ratified**: 2026-10-11 | **Last Amended**: 2026-10-12

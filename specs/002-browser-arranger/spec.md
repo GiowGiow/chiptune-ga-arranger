@@ -373,11 +373,11 @@ Raimundos), load it, choose the melody track recorded in `data/sources.json`, an
 
 ## Dependencies and Constraints
 
-- The constitution names Python, numpy and music21 as the stack and requires randomness from a
-  numpy generator. A browser implementation of the reader, the GA and the synthesizer (FR-028)
-  needs a constitution amendment (MINOR) before `/speckit-plan`: a second stack for the web app,
-  a seeded generator passed as a parameter instead of numpy's, and the same test-first and
-  learnable-code rules for its code.
+- Constitution 1.3.0 (amended 2026-10-12 for this feature) allows the browser implementation
+  of the reader, the GA and the synthesizer (FR-028): its section "Web App Constraints" and
+  principles I, II and IV set the seeded generator, the parity tests against the command line,
+  the test-first and learnable-code rules for web code, and the no-server, privacy and
+  dependency rules.
 - The constitution keeps third-party MIDI files out of git, so the app never hosts catalog MIDI
   files (FR-029).
 - The catalog site states "All Rights Reserved"; the app uses only its public links and metadata,
