@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { isMidi, parseSections, sha256Hex } from "../src/ui/input-panel.js";
+import { isMidi, parseSections, sha256Hex, sharedTrackName, trackRangeBars } from "../src/ui/input-panel.js";
 
 test("a file is MIDI when it starts with the chunk name MThd, whatever its name", () => {
   assert.equal(isMidi(new TextEncoder().encode("MThd\0\0\0\x06")), true);
@@ -39,4 +39,27 @@ test("the tempo summary of an excerpt weighs each tempo by how long it lasts", a
   const summary = excerptTempos(/** @type {any} */ (midi), 0, 12);
   assert.deepEqual({ ...summary, median: Math.round(summary.median) }, { atStart: 120, min: 60, max: 120, median: 60 });
   assert.deepEqual(excerptTempos(/** @type {any} */ (midi), 8, 12), { atStart: 60, min: 60, max: 60, median: 60 });
+});
+
+test("a track name that every track repeats is found, so the table can leave it out", () => {
+  assert.equal(sharedTrackName([{ name: "Amor I Love You" }, { name: "Amor I Love You" }]), "Amor I Love You");
+  assert.equal(sharedTrackName([{ name: "Piano" }, { name: "Bass" }]), null);
+  assert.equal(sharedTrackName([{ name: "Solo" }]), null, "one track repeats nothing");
+  assert.equal(sharedTrackName([{ name: "" }, { name: "" }]), null);
+});
+
+test("the range bars of the tracks share one pitch axis, and drums and empty tracks have none", () => {
+  const tracks = [
+    { isDrum: false, noteCount: 3, lowest: 52, highest: 64 },
+    { isDrum: false, noteCount: 5, lowest: 40, highest: 57 },
+    { isDrum: true, noteCount: 9, lowest: 35, highest: 81 },
+    { isDrum: false, noteCount: 0, lowest: Infinity, highest: -Infinity },
+  ];
+  assert.deepEqual(trackRangeBars(tracks), [
+    { left: 12 / 24, width: 12 / 24 },
+    { left: 0, width: 17 / 24 },
+    null,
+    null,
+  ]);
+  assert.deepEqual(trackRangeBars([{ isDrum: false, noteCount: 1, lowest: 60, highest: 60 }]), [{ left: 0, width: 0 }]);
 });

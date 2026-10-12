@@ -168,18 +168,23 @@ label.block { display: grid; gap: 6px; color: var(--muted); margin: 10px 0; }
 .table-wrap { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; font-size: .9rem; }
 th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--line); }
+/* Numbers align right, so their digits line up for comparison. */
+th.num, td.num { text-align: right; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 thead th { color: var(--muted); font-weight: 500; }
 tr.drum { color: var(--muted); }
 .tracks td.name { max-width: 14em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Range bars: every pitched track on one pitch axis, low at the left; the chosen melody in its channel color. */
+.tracks td.range { white-space: nowrap; }
+.range-bar { position: relative; display: inline-block; width: 72px; height: 8px; margin-right: 6px; vertical-align: middle; border-radius: 2px; background: rgba(255, 255, 255, .06); }
+.range-bar span { position: absolute; top: 0; bottom: 0; min-width: 3px; border-radius: 2px; background: var(--muted); }
+.tracks tr:has(input:checked) .range-bar span { background: var(--p1); }
 .summary { margin-top: 14px; }
 .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px 14px; margin: 0 0 8px; }
 .facts div { min-width: 0; }
 .facts .span { grid-column: 1 / -1; }
 .facts dt { color: var(--muted); font-size: .8rem; }
 .facts dd { margin: 0; overflow-wrap: anywhere; }
-.chord-strip { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; margin: 4px 0 0; padding: 0; font-size: .8rem; }
-.chord-strip li { padding: 2px 6px; border-radius: 6px; background: rgba(255, 255, 255, .04); border: 1px solid var(--line); }
-.chord-strip li[data-part] { border-left: 3px solid var(--p2); }
 
 /* Evolution panel. */
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 8px 0 14px; }
@@ -196,24 +201,63 @@ tr.drum { color: var(--muted); }
 .row-label { color: var(--muted); font-size: .75rem; }
 .gene { height: 16px; border-radius: 3px; background: var(--c); opacity: .15; transition: opacity .15s; }
 .parts .part-mark { font-size: .7rem; color: var(--no); white-space: nowrap; overflow: visible; height: 14px; }
+/* Chord row: a symbol where the harmony changes, spanning the bars that repeat it; a symbol wider
+   than its span keeps only the tick and the tooltip. */
+.plan-row.chords { align-items: stretch; }
+.chord-cell { min-height: 16px; padding-left: 2px; border-left: 1px solid var(--muted); font: .68rem/1.15 var(--mono); color: var(--text); white-space: pre; overflow: hidden; }
+.chord-cell.small { font-size: .56rem; letter-spacing: -.02em; }
+.chord-cell.tight span { visibility: hidden; }
 
 /* Result panel. */
 .transport { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .versions { display: inline-flex; gap: 6px; }
 .time { color: var(--muted); font-size: .9rem; }
-.scores { margin-top: 12px; max-width: 520px; }
+.scores { margin-top: 12px; max-width: 560px; }
 .scores tfoot th, .scores tfoot td { border-bottom: 0; font-weight: 700; }
+.scores tfoot .hint { font-weight: 400; }
+/* Score bars share one 0 to 1 scale, so the criterion that holds the fitness back is the shortest. */
+.scores .bar-cell { width: 40%; }
+.score-bar { display: block; height: 8px; border-radius: 2px; background: rgba(255, 255, 255, .06); }
+.score-bar span { display: block; height: 100%; border-radius: 2px; background: var(--muted); }
+.scores tfoot .score-bar span { background: var(--text); }
+.scores .scale { display: flex; justify-content: space-between; font: 400 .75rem var(--mono); color: var(--muted); }
 .downloads { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
 .downloads .button { flex-direction: column; gap: 0; border-radius: 12px; align-items: flex-start; }
 .downloads .file { font-size: .72rem; color: var(--muted); font-weight: 400; }
 
 /* Settings panel. */
-.settings-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 12px; margin-top: 8px; align-items: start; }
-.settings-group { border: 1px solid var(--line); border-radius: 12px; margin: 0; padding: 8px 12px 4px; min-width: 0; }
-.settings-group legend { color: var(--muted); padding: 0 6px; font-size: .88rem; }
-.setting { display: grid; grid-template-columns: minmax(0, 1fr) 7em; gap: 2px 10px; align-items: center; padding: 4px 0; border-bottom: 1px solid rgba(37, 48, 74, .5); }
+/* Settings: a drawer that slides in over the right side of the page and leaves the layout as it
+   is, so the evolution keeps its place while the values change. Closed, it waits off screen,
+   invisible to the mouse, the keyboard and screen readers. */
+#settings {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 30; width: min(380px, 100vw);
+  overflow: hidden auto; overscroll-behavior: contain; border-radius: 0; border-width: 0 0 0 1px;
+  background: #121828; padding: 16px 18px 24px; box-shadow: -16px 0 40px rgba(0, 0, 0, .55);
+  transform: translateX(100%); visibility: hidden;
+  transition: transform .25s ease, visibility 0s linear .25s;
+}
+#settings.open { transform: none; visibility: visible; transition: transform .25s ease; }
+@media (prefers-reduced-motion: reduce) { #settings, #settings.open { transition: none; } }
+/* The card's focus border would scroll with the drawer's content, so the drawer goes without it. */
+#settings::before { display: none; }
+.side-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.side-head h2 { margin: 0; }
+#settings-title:focus { outline: none; }
+/* One column of groups set apart by space, not boxes. */
+.settings-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; margin-top: 12px; }
+.settings-group { border: 0; margin: 0; padding: 0; min-width: 0; }
+.settings-group legend { color: var(--muted); padding: 0; margin-bottom: 4px; font-size: .85rem; font-weight: 600; }
+.setting { display: grid; grid-template-columns: minmax(0, 1fr) 6.5em; gap: 2px 10px; align-items: center; padding: 5px 0; border-bottom: 1px solid rgba(37, 48, 74, .5); }
 .setting:last-child { border-bottom: 0; }
-.setting label { font-weight: 600; font-size: .93rem; }
+.setting label { font-weight: 400; font-size: .93rem; }
+/* A changed setting is the one bold name, with its default below it. */
+.setting.changed label { font-weight: 700; }
+.setting-note { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; margin: 0; color: var(--muted); font-size: .8rem; }
+.setting-note:empty { display: none; }
+.setting-note [data-default]:empty { display: none; }
+.share { display: inline-flex; align-items: center; gap: 8px; }
+.share-bar { display: block; width: 72px; height: 6px; border-radius: 2px; background: rgba(255, 255, 255, .06); }
+.share-bar span { display: block; height: 100%; border-radius: 2px; background: var(--muted); }
 .setting input { width: 100%; text-align: right; }
 /* Tooltips: what a setting changes, on hover or keyboard focus, floating over the page. */
 .has-tip { position: relative; }
@@ -227,11 +271,11 @@ tr.drum { color: var(--muted); }
 .has-tip:hover .tip, .has-tip:focus-within .tip { opacity: 1; visibility: visible; transform: none; }
 .tip-mark {
   display: inline-grid; place-items: center; width: 15px; height: 15px; margin-left: 6px; border-radius: 50%;
-  border: 1px solid var(--muted); color: var(--muted); font: italic 700 .7rem/1 Georgia, "Times New Roman", serif; vertical-align: 1px; cursor: help;
+  border: 1px solid var(--muted); color: var(--muted); font: 700 .66rem/1 Inter, system-ui, sans-serif; vertical-align: 1px; cursor: help;
 }
 .has-tip:hover .tip-mark, .has-tip:focus-within .tip-mark { border-color: var(--no); color: var(--no); }
 .setting .field-error { grid-column: 1 / -1; margin: 0; font-size: .82rem; }
-.setting .tip { grid-column: 1 / -1; }
+.setting .tip { grid-column: 1 / -1; right: 0; width: auto; }
 .setting.invalid input { border-color: #ff9b8a; }
 .field-error:empty { display: none; }
 

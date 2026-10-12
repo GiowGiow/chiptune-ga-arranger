@@ -50,6 +50,7 @@ const APP_SHELL = [
   "src/ui/plan-grid.js",
   "src/ui/run-list.js",
   "src/ui/runs.js",
+  "src/ui/scores-table.js",
   "src/ui/settings-form.js",
   "src/ui/settings-panel.js",
   "src/worker.js",

@@ -72,9 +72,13 @@
       <button type="button" class="button small" data-settings-toggle aria-expanded="false" aria-controls="settings">Settings</button>
     </section>
 
-    <section id="settings" class="card wide" aria-labelledby="settings-title" hidden>
-      <h2 id="settings-title">Settings</h2>
-      <p class="hint">The defaults are the command line's (<code>configs/default.json</code>). Hover or focus a field to read what it changes.</p>
+    <section id="settings" class="card" aria-labelledby="settings-title">
+      <div class="side-head">
+        <h2 id="settings-title" tabindex="-1">Settings</h2>
+        <button type="button" class="button small" data-settings-close>Close</button>
+      </div>
+      <p class="hint">The defaults are the command line's (<code>configs/default.json</code>). A bold name
+      differs from its default, shown below it. Hover or focus a field to read what it changes.</p>
     </section>
 
     <section id="evolution" class="card wide" aria-labelledby="evolution-title">

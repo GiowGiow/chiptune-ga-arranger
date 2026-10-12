@@ -15,7 +15,6 @@
 
 import { assemble, findViolations } from "../core/arrangement.js";
 import { writeLeadSheetAbc } from "../core/abc-writer.js";
-import { CRITERIA } from "../core/fitness.js";
 import { arrangementToMidi } from "../core/midi-export.js";
 import { configRecord, defaultSettings, runId, validateSettings } from "../core/settings.js";
 import { renderChip } from "../audio/chip-synth.js";
@@ -30,22 +29,13 @@ import { buildExamples } from "./examples.js";
 import { createInputPanel } from "./input-panel.js";
 import { createPlanGrid } from "./plan-grid.js";
 import { addRun } from "./run-list.js";
-import { changedSettings } from "./settings-form.js";
+import { renderScores } from "./scores-table.js";
+import { changedSettings, valueAt } from "./settings-form.js";
 import { createRunsView } from "./runs.js";
-import { createSettingsPanel } from "./settings-panel.js";
+import { createSettingsPanel, settingLabel } from "./settings-panel.js";
 
 /** @typedef {import("./input-panel.js").LoadedInput} LoadedInput */
 /** @typedef {import("../core/settings.js").Settings} Settings */
-
-const CRITERION_LABELS = {
-  complementarity: "Complementarity",
-  register: "Register",
-  coherence: "Coherence",
-  contrast: "Contrast",
-  bass_smoothness: "Bass smoothness",
-  idiom: "NES idiom",
-  fidelity: "Fidelity",
-};
 
 const $ = (/** @type {string} */ selector) =>
   /** @type {HTMLElement} */ (document.querySelector(selector));
@@ -113,6 +103,8 @@ const inputPanel = createInputPanel(
     Object.assign(state.settings, loaded.overrides);
     state.settings.midi = { ...state.settings.midi, ...loaded.midi };
     settingsPanel.show(state.settings, false);
+    // With no tempo override the lead sheet plays at the file's tempo: the field's placeholder.
+    if (state.settings.tempo_bpm === null) settingsPanel.setFileTempo(loaded.leadSheet.tempoBpm);
     planGrid.setBars(loaded.leadSheet.bars);
     $("[data-run-song]").textContent =
       `${loaded.leadSheet.title || loaded.input.name} · ${loaded.leadSheet.bars.length} bars`;
@@ -136,6 +128,10 @@ const settingsPanel = createSettingsPanel($("#settings"), {
 settingsPanel.show(state.settings, false);
 const settingsToggle = /** @type {HTMLButtonElement} */ ($("[data-settings-toggle]"));
 settingsToggle.addEventListener("click", () => toggleSettings());
+$("[data-settings-close]").addEventListener("click", () => toggleSettings(false));
+$("#settings").addEventListener("keydown", (event) => {
+  if (event.key === "Escape") toggleSettings(false);
+});
 
 clearPlaceholder("#evolution");
 $("#evolution").insertAdjacentHTML(
@@ -147,9 +143,10 @@ $("#evolution").insertAdjacentHTML(
    <div data-evolution-view></div>
    <h3 class="subhead">Best plan so far</h3>
    <div data-plan-grid></div>
-   <p class="caption">One column per bar, one row per gene: the P2 harmony texture, the TR bass
-   texture, the NO drum pattern and the P1 melody octave. Brighter cells are busier choices;
-   hover a cell for its name.</p>`,
+   <p class="caption">One column per bar. The top row is the chord, named where it changes and
+   held until the next tick; a tick without a name is a chord too long for the column. Below it,
+   one row per gene: the P2 harmony texture, the TR bass texture, the NO drum pattern and the P1
+   melody octave. Brighter cells are busier choices; hover a cell or a chord for its name.</p>`,
 );
 const evolutionView = createEvolutionView($("[data-evolution-view]"));
 const planGrid = createPlanGrid($("[data-plan-grid]"));
@@ -283,7 +280,7 @@ async function finishRun(message) {
     generations: message.generations,
     durationMs: message.durationMs ?? performance.now() - runStartedAt,
   });
-  showScores(message.scores, message.bestFitness, settings.weights);
+  renderScores($("[data-scores]"), message.scores, message.bestFitness, settings.weights);
   const violations = findViolations(arrangement, leadSheet);
   if (violations.length) {
     state.phase = "failed";
@@ -389,7 +386,7 @@ function showRun(id) {
     generations: run.message.generations,
     durationMs: run.message.durationMs ?? 0,
   });
-  showScores(run.message.scores, run.message.bestFitness, run.settings.weights);
+  renderScores($("[data-scores]"), run.message.scores, run.message.bestFitness, run.settings.weights);
   scenes = run.scenes;
   player.load({ arrangement: run.samples, original: run.originalSamples }, run.sampleRate);
   downloads.set(run.files);
@@ -442,22 +439,6 @@ document.addEventListener("keydown", (event) => {
   else if (event.key === "ArrowRight") player.seek(player.currentTime() + 2);
   else if (event.key === "ArrowLeft") player.seek(player.currentTime() - 2);
 });
-
-/**
- * @param {Record<string, number | null>} scores
- * @param {number} fitness
- * @param {Record<string, number>} weights
- */
-function showScores(scores, fitness, weights) {
-  const rows = CRITERIA.map((name) => {
-    const score = scores[name];
-    const value = score === null || Number.isNaN(score) ? "not applicable" : score.toFixed(3);
-    const label = CRITERION_LABELS[/** @type {keyof typeof CRITERION_LABELS} */ (name)] ?? name;
-    return `<tr><th scope="row">${label}</th><td class="mono">${weights[name]}</td><td class="mono">${value}</td></tr>`;
-  }).join("");
-  $("[data-scores]").innerHTML = `<table><thead><tr><th>Criterion</th><th>Weight</th><th>Score</th></tr></thead>
-    <tbody>${rows}</tbody><tfoot><tr><th scope="row">Fitness</th><td></td><td class="mono">${fitness.toFixed(4)}</td></tr></tfoot></table>`;
-}
 
 /** @type {AudioBufferSourceNode | null} */
 let trackPreview = null;
@@ -577,22 +558,30 @@ function showChangedSettings() {
     const chip = document.createElement("button");
     chip.type = "button";
     chip.className = "changed mono";
-    const value = key.split(".").reduce((node, part) => node?.[part], /** @type {any} */ (state.settings));
-    chip.textContent = `${key} ${JSON.stringify(value)}`;
+    chip.textContent = `${settingLabel(key)} ${JSON.stringify(valueAt(state.settings, key))}`;
     chip.title = "Open the settings";
     chip.addEventListener("click", () => toggleSettings(true));
     box.append(chip);
   }
 }
 
-/** @param {boolean} [open] open (true), close (false) or flip (undefined) the Settings card */
+/**
+ * Open (true), close (false) or flip (undefined) the Settings drawer, which slides in over the
+ * right side of the page without moving it. Focus moves into the drawer on opening and back to
+ * its button on closing.
+ *
+ * @param {boolean} [open]
+ */
 function toggleSettings(open) {
   const section = $("#settings");
-  const show = open ?? section.hidden;
-  section.hidden = !show;
+  const isOpen = section.classList.contains("open");
+  const show = open ?? !isOpen;
+  if (show === isOpen) return;
+  section.classList.toggle("open", show);
   settingsToggle.setAttribute("aria-expanded", String(show));
   settingsToggle.textContent = show ? "Hide settings" : "Settings";
-  if (show) section.scrollIntoView({ block: "nearest" });
+  if (show) $("#settings-title").focus({ preventScroll: true });
+  else if (section.contains(document.activeElement)) settingsToggle.focus();
 }
 
 /**

@@ -32,7 +32,7 @@ test("a run that repeats an id replaces the older entry", () => {
   assert.equal(runs[0].bestFitness, 0.5);
 });
 
-test("a run is described by its seed, its changed settings and its best fitness", () => {
+test("a run is described by its seed, its changed settings (named as in the form) and its best fitness", () => {
   const settings = structuredClone(defaults);
   settings.seed = 3;
   settings.weights.fidelity = 0;
@@ -40,7 +40,7 @@ test("a run is described by its seed, its changed settings and its best fitness"
   assert.deepEqual(described, {
     id: "x",
     seed: 3,
-    changed: [{ key: "weights.fidelity", value: "0" }],
+    changed: [{ key: "weights.fidelity", label: "Fidelity weight", value: "0" }],
     fitness: "0.9031",
   });
 });

@@ -35,10 +35,10 @@ export function createRunsView(container, options) {
         if (described.changed.length === 0) {
           changes.textContent = "default settings";
         }
-        for (const { key, value } of described.changed) {
+        for (const { label, value } of described.changed) {
           const chip = document.createElement("span");
-          chip.className = "changed mono";
-          chip.textContent = `${key} ${value}`;
+          chip.className = "changed";
+          chip.textContent = `${label} ${value}`;
           changes.append(chip);
         }
         button.title = run.id;

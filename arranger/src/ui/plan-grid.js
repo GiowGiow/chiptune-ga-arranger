@@ -8,6 +8,12 @@
  * visitor sees the plan settle: coherent phrases become runs of the same color, and arpeggios
  * gather on bars with a single chord. Each cell names its gene in a tooltip and to screen
  * readers, and part labels mark where a section starts.
+ *
+ * A row of chord symbols sits above the genes, one per bar, so the harmony and the textures that
+ * the GA picked for it read in the same column. As in a lead sheet, a bar that repeats the chords
+ * of the bar before is left blank, so a symbol spans its repeats and has room to be read; the
+ * first bar of a part always names its chords. A symbol wider than its span is set smaller, or
+ * hidden when it still does not fit; its tooltip always names it.
  */
 
 import { NO_PATTERNS, P1_OCTAVES, P2_TEXTURES, TR_TEXTURES } from "../core/genome.js";
@@ -26,6 +32,27 @@ const ROWS = /** @type {const} */ ([
   { key: "no", label: "NO", channel: "--no", gene: 2, size: NO_PATTERNS.length },
   { key: "oct", label: "P1 oct", channel: "--p1", gene: 3, size: P1_OCTAVES.length },
 ]);
+
+/**
+ * The chord row's text: each bar's chord symbols, blank where they repeat the bar before.
+ *
+ * @param {Array<{label: string, chords: Array<{symbol: string}>}>} bars
+ * @returns {Array<{text: string, full: string}>} text to show, and the bar's chords for its tooltip
+ * @example
+ * chordLabels([{label: "A", chords: [{symbol: "D"}]}, {label: "A", chords: [{symbol: "D"}]}])
+ * // [{text: "D", full: "D"}, {text: "", full: "D"}]
+ */
+export function chordLabels(bars) {
+  return bars.map((bar, index) => {
+    const full = bar.chords.map((chord) => chord.symbol).join(" ");
+    const previous = bars[index - 1];
+    const repeats =
+      previous !== undefined &&
+      previous.label === bar.label &&
+      previous.chords.map((chord) => chord.symbol).join(" ") === full;
+    return { text: repeats ? "" : full, full };
+  });
+}
 
 /**
  * How strongly a gene value lights its cell: the quietest choice is faint, the busiest bright.
@@ -49,7 +76,7 @@ export function cellStrength(row, value) {
  *
  * @param {HTMLElement} container
  * @returns {{
- *   setBars: (bars: Array<{label: string}>) => void,
+ *   setBars: (bars: Array<{label: string, chords: Array<{symbol: string}>}>) => void,
  *   update: (plan: Uint8Array) => void,
  * }}
  */
@@ -59,6 +86,18 @@ export function createPlanGrid(container) {
   let cells = [];
   /** @type {Uint8Array | null} */
   let shown = null;
+
+  // A chord symbol too wide for its span at the current width gets a smaller type, and is hidden
+  // (tooltip only) when even that does not fit.
+  const fitChords = () => {
+    for (const cell of /** @type {NodeListOf<HTMLElement>} */ (container.querySelectorAll(".chord-cell"))) {
+      cell.classList.remove("small", "tight");
+      if (cell.scrollWidth <= cell.clientWidth) continue;
+      cell.classList.add("small");
+      cell.classList.toggle("tight", cell.scrollWidth > cell.clientWidth);
+    }
+  };
+  new ResizeObserver(fitChords).observe(container);
 
   return {
     setBars(bars) {
@@ -74,6 +113,26 @@ export function createPlanGrid(container) {
         parts.append(mark);
       });
       container.append(parts);
+      const chordRow = document.createElement("div");
+      chordRow.className = "plan-row chords";
+      chordRow.append(rowLabel("Chord"));
+      const labels = chordLabels(bars);
+      labels.forEach(({ text, full }, index) => {
+        if (index > 0 && text === "") return;
+        let span = 1;
+        while (index + span < labels.length && labels[index + span].text === "") span += 1;
+        const cell = document.createElement("span");
+        cell.className = "chord-cell";
+        cell.style.gridColumn = `span ${span}`;
+        cell.title = span === 1 ? `Bar ${index + 1}: ${full}` : `Bars ${index + 1}–${index + span}: ${full}`;
+        cell.setAttribute("aria-label", cell.title);
+        const symbols = document.createElement("span");
+        symbols.textContent = full.split(" ").join("\n");
+        cell.append(symbols);
+        chordRow.append(cell);
+      });
+      container.append(chordRow);
+      requestAnimationFrame(fitChords);
       cells = ROWS.map((row) => {
         const line = document.createElement("div");
         line.className = "plan-row";

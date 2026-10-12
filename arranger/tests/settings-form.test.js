@@ -10,6 +10,8 @@ import {
   exportConfig,
   formToSettings,
   importConfig,
+  valueAt,
+  weightShares,
 } from "../src/ui/settings-form.js";
 import { repoRoot } from "./helpers.js";
 
@@ -87,4 +89,24 @@ test("changed settings are the dotted keys that differ from the defaults, withou
   settings.max_generations = 4000;
   assert.deepEqual(changedSettings(settings, defaults), ["max_generations", "weights.fidelity"]);
   assert.deepEqual(changedSettings(defaults, defaults), []);
+});
+
+test("a dotted key reads a setting inside a section", () => {
+  assert.equal(valueAt(defaults, "weights.fidelity"), defaults.weights.fidelity);
+  assert.equal(valueAt(defaults, "max_generations"), defaults.max_generations);
+  assert.equal(valueAt(defaults, "weights.loudness"), undefined);
+});
+
+test("a weight's share of the fitness is the weight over the sum of all weights", () => {
+  const weights = { ...defaults.weights, fidelity: 0.5, contrast: 1, register: 1 };
+  const total = Object.values(weights).reduce((sum, weight) => sum + weight, 0);
+  const shares = weightShares(weights);
+  assert.equal(shares.fidelity, 0.5 / total);
+  assert.equal(shares.register, 1 / total);
+  assert.ok(Math.abs(Object.values(shares).reduce((sum, share) => sum + share, 0) - 1) < 1e-12);
+});
+
+test("weights that sum to zero give every criterion a share of zero", () => {
+  const weights = Object.fromEntries(Object.keys(defaults.weights).map((name) => [name, 0]));
+  assert.ok(Object.values(weightShares(weights)).every((share) => share === 0));
 });

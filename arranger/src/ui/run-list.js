@@ -8,7 +8,8 @@
  * of the listening page) and its best fitness. These functions are pure; `runs.js` draws them.
  */
 
-import { changedSettings } from "./settings-form.js";
+import { changedSettings, valueAt } from "./settings-form.js";
+import { settingLabel } from "./settings-panel.js";
 
 /** How many runs a visit keeps. */
 export const RUN_LIMIT = 5;
@@ -34,14 +35,15 @@ export function addRun(runs, run) {
  *
  * @param {RunEntry} run
  * @param {import("../core/settings.js").Settings} defaults
- * @returns {{id: string, seed: number, changed: Array<{key: string, value: string}>, fitness: string}}
+ * @returns {{id: string, seed: number, changed: Array<{key: string, label: string, value: string}>, fitness: string}}
  * @example
  * describeRun({id: "x", settings: {...defaults, seed: 3}, bestFitness: 0.9}, defaults).changed // []
  */
 export function describeRun(run, defaults) {
   const changed = changedSettings(run.settings, defaults).map((key) => ({
     key,
-    value: JSON.stringify(key.split(".").reduce((node, part) => node?.[part], /** @type {any} */ (run.settings))),
+    label: settingLabel(key),
+    value: JSON.stringify(valueAt(run.settings, key)),
   }));
   return { id: run.id, seed: run.settings.seed, changed, fitness: run.bestFitness.toFixed(4) };
 }

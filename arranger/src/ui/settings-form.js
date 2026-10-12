@@ -84,6 +84,38 @@ export function exportConfig(settings) {
 }
 
 /**
+ * The value of a setting named by its dotted key, as the form and the run list name it.
+ *
+ * @param {Settings} settings
+ * @param {string} key for example "weights.fidelity"
+ * @returns {unknown} undefined when no setting has that key
+ * @example
+ * valueAt(defaults, "weights.fidelity") // 0.5
+ */
+export function valueAt(settings, key) {
+  return key.split(".").reduce((node, part) => node?.[part], /** @type {any} */ (settings));
+}
+
+/**
+ * Each fitness weight as a share of the sum of the weights.
+ *
+ * The fitness is the weighted mean of the criterion scores, so a weight acts only relative to
+ * the others: with six weights at 1 and fidelity at 0.5, fidelity counts for 0.5 / 6.5 of the
+ * fitness. A criterion that does not apply to a song drops out and the others' shares grow.
+ *
+ * @param {Record<string, number>} weights
+ * @returns {Record<string, number>} shares from 0 to 1 that sum to 1, or all 0
+ * @example
+ * weightShares({register: 1, fidelity: 1}) // {register: 0.5, fidelity: 0.5}
+ */
+export function weightShares(weights) {
+  const total = Object.values(weights).reduce((sum, weight) => sum + weight, 0);
+  return Object.fromEntries(
+    Object.entries(weights).map(([name, weight]) => [name, total > 0 ? weight / total : 0]),
+  );
+}
+
+/**
  * The dotted keys whose value differs from the defaults, sorted, without the seed.
  *
  * @param {Settings} settings

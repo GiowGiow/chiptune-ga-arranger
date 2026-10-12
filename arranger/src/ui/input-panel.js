@@ -5,9 +5,12 @@
  * The arranger works on a lead sheet: bars of melody, chords and part labels (spec 001). An ABC
  * file is one already. A MIDI song is a whole band, so the visitor helps reduce it: the panel
  * lists its tracks with the likeliest melody track preselected, the bar range to arrange (the whole song
- * by default, 256 bars at most) and where each section starts. The lead-sheet summary shows what the
- * app understood (title, tempo, bars, parts, the chord of every bar) before any run, so a wrong
- * reading is caught before the GA spends time on it (spec 002, FR-001 to FR-007).
+ * by default, 256 bars at most) and where each section starts. The track table draws each track's
+ * pitch range as a bar on one shared axis, so the melody's middle-high range stands out next to the
+ * low bass and the wide accompaniment. The lead-sheet summary shows what the app understood (title,
+ * tempo, bars, parts) before any run, and the plan grid shows the chord of every bar, aligned with
+ * the bars it arranges, so a wrong reading is caught before the GA spends time on it (spec 002,
+ * FR-001 to FR-007).
  *
  * Files are read in the browser and never sent anywhere (FR-033). The ABC parser (abcjs) is
  * loaded only the first time an ABC text is read, to keep the first visit light.
@@ -124,6 +127,48 @@ export function excerptTempos(midi, startBeat, endBeat) {
 }
 
 /**
+ * The track name that every track carries, when a file names all its tracks after the song.
+ *
+ * Such a name says nothing about the track, so the track table leaves it out of every row.
+ *
+ * @param {Array<{name: string}>} tracks
+ * @returns {string | null} the shared name, or null when the names differ or there is one track
+ * @example
+ * sharedTrackName([{name: "Amor I Love You"}, {name: "Amor I Love You"}]) // "Amor I Love You"
+ * sharedTrackName([{name: "Piano"}, {name: "Bass"}]) // null
+ */
+export function sharedTrackName(tracks) {
+  const first = tracks[0]?.name ?? "";
+  return tracks.length > 1 && first !== "" && tracks.every((track) => track.name === first) ? first : null;
+}
+
+/**
+ * Where each track's pitch range lies on one axis shared by all the pitched tracks.
+ *
+ * Position on a common scale is the most accurate visual comparison, so the range bars let the
+ * visitor see which track sits highest and narrowest (a sung melody) without reading note names.
+ *
+ * @param {Array<{isDrum: boolean, noteCount: number, lowest: number, highest: number}>} tracks
+ * @returns {Array<{left: number, width: number} | null>} fractions of the axis; null for drums
+ *   and for tracks without notes
+ * @example
+ * trackRangeBars([{isDrum: false, noteCount: 2, lowest: 40, highest: 52},
+ *                 {isDrum: false, noteCount: 2, lowest: 52, highest: 64}])
+ * // [{left: 0, width: 0.5}, {left: 0.5, width: 0.5}]
+ */
+export function trackRangeBars(tracks) {
+  const pitched = tracks.filter((track) => !track.isDrum && track.noteCount > 0);
+  const low = Math.min(...pitched.map((track) => track.lowest));
+  const high = Math.max(...pitched.map((track) => track.highest));
+  const span = Math.max(1, high - low);
+  return tracks.map((track) =>
+    track.isDrum || track.noteCount === 0
+      ? null
+      : { left: (track.lowest - low) / span, width: (track.highest - track.lowest) / span },
+  );
+}
+
+/**
  * The SHA-256 of a file's bytes, in hex: the run record names the exact input it arranged.
  *
  * @param {Uint8Array} bytes
@@ -206,8 +251,8 @@ export function createInputPanel(targets, options) {
       <div class="table-wrap"><table class="tracks">
         <thead><tr>
           <th scope="col">Melody</th><th scope="col">Track</th><th scope="col">Instrument</th>
-          <th scope="col">Notes</th><th scope="col">Range</th>
-          <th scope="col"><span class="has-tip">Chords<span class="tip-mark" aria-hidden="true">i</span>
+          <th scope="col" class="num">Notes</th><th scope="col">Range</th>
+          <th scope="col" class="num"><span class="has-tip">Chords<span class="tip-mark" aria-hidden="true">i</span>
             <span class="tip" role="tooltip">Share of the track's notes that sound together with another note of the same track. A melody is usually low (one note at a time); piano, guitar and strings playing chords are high.</span></span></th>
           <th scope="col">Listen</th>
         </tr></thead>
@@ -358,7 +403,10 @@ export function createInputPanel(targets, options) {
     const suggested = suggestMelodyTrack(tracks);
     const body = $("[data-tracks]");
     body.innerHTML = "";
-    for (const track of tracks) {
+    const sharedName = sharedTrackName(tracks);
+    const bars = trackRangeBars(tracks);
+    for (const [position, track] of tracks.entries()) {
+      const bar = bars[position];
       const row = document.createElement("tr");
       if (track.isDrum) row.className = "drum";
       row.innerHTML = `<td><input type="radio" name="melody-track" value="${track.index}"
@@ -366,11 +414,14 @@ export function createInputPanel(targets, options) {
         aria-label="Track ${track.index} plays the melody"></td>
         <td><span class="mono">${track.index}</span> <span class="name"></span></td>
         <td class="instrument"></td>
-        <td class="mono">${track.noteCount}</td>
-        <td class="mono">${track.isDrum ? "" : `${noteName(track.lowest)}–${noteName(track.highest)}`}</td>
-        <td class="mono">${track.isDrum ? "" : `${Math.round(track.polyphony * 100)}%`}</td>
+        <td class="num mono">${track.noteCount}</td>
+        <td class="range">${bar === null ? "" : `<span class="range-bar" aria-hidden="true"><span
+          style="left: ${bar.left * 100}%; width: ${bar.width * 100}%"></span></span>
+          <span class="mono">${noteName(track.lowest)}–${noteName(track.highest)}</span>`}</td>
+        <td class="num mono">${track.isDrum ? "" : `${Math.round(track.polyphony * 100)}%`}</td>
         <td>${track.isDrum ? "" : `<button type="button" class="button small" data-preview="${track.index}" aria-label="Play track ${track.index} alone">▶</button>`}</td>`;
-      /** @type {HTMLElement} */ (row.querySelector(".name")).textContent = track.name || "(no name)";
+      /** @type {HTMLElement} */ (row.querySelector(".name")).textContent =
+        sharedName === null ? track.name || "(no name)" : "";
       /** @type {HTMLElement} */ (row.querySelector(".instrument")).textContent =
         programName(track.program, track.isDrum);
       if (track.index === suggested) row.classList.add("suggested");
@@ -477,8 +528,8 @@ export function createInputPanel(targets, options) {
         <div class="span"><dt>Parts</dt><dd data-parts></dd></div>
       </dl>
       <p class="credit" data-credit hidden></p>
-      <p class="label">Chord of every bar</p>
-      <ol class="chord-strip mono" data-chords></ol>`;
+      <p class="hint">The chord of every bar is in the top row of the plan, under
+        <a href="#evolution">Evolution</a>.</p>`;
     /** @type {HTMLElement} */ (summary.querySelector("[data-title]")).textContent =
       leadSheet.title || input.name;
     /** @type {HTMLElement} */ (summary.querySelector("[data-parts]")).textContent = parts.join(" · ");
@@ -492,14 +543,6 @@ export function createInputPanel(targets, options) {
       page.textContent = [entry.t, entry.p].filter(Boolean).join(" — ");
       credit.hidden = false;
     }
-    const strip = /** @type {HTMLElement} */ (summary.querySelector("[data-chords]"));
-    leadSheet.bars.forEach((bar, index) => {
-      const item = document.createElement("li");
-      item.textContent = bar.chords.map((chord) => chord.symbol).join(" ");
-      item.title = `Bar ${index + 1}`;
-      if (index === 0 || bar.label !== leadSheet.bars[index - 1].label) item.dataset.part = bar.label;
-      strip.append(item);
-    });
     summary.hidden = false;
   }
 
