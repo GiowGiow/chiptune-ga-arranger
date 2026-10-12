@@ -6,17 +6,17 @@ L:1/16
 Q:1/4=110.1
 K:none
 P:A
-"F#"z12 B,2 ^F,2 | "Bm"^F,10 z6 | "Bm"z8 G, ^F, z E, z D, z G, | "Em7"G,10 z6 |
-"Em7"z5 E, z2 G, ^F, z E, z D, z E, | "Em"E,10 z6 | "Em"z8 G, ^F, z E, z D, z ^F, | "Ebm7"^F,8- "F#"^F,2 z6 |
+"F#"z12 B,2 ^F,2 | "Bm"^F,10 z6 | "Bm"z6 E, ^F, G, ^F, z E, z D, z G, | "Em7"G,10 z6 |
+"Em7"z5 E, z ^F, G, ^F, z E, z D, z E, | "Em"E,10 z6 | "Em"z6 E, ^F, G, ^F, z E, z D, z ^F, | "Ebm7"^F,8- "F#"^F,2 z6 |
 "F#"z14 B, z | "Bm"^F,4 D,9 z3 | "Bm"z5 E, ^F, z G, ^F, z E, z D, z G, | "Em7"G,10 z6 |
-"Em7"z6 E, ^F, G, ^F, z E, z D, z E, | "Em"E,7 z2 ^F,3 G,2 ^F,2 | "Em"E,4 z4 G, ^F, z3 D, z ^F, | "Ebm7"^F,8- "F#"^F,2 z2 _B,2 ^F,2 |
+"Em7"z6 E, ^F, G, ^F, z E, z D, z E, | "Em"E,7 z2 ^F,3 G,2 ^F,2 | "Em"E,4 z2 E, ^F, G, ^F, z E, z D, z ^F, | "Ebm7"^F,8- "F#"^F,2 z2 _B,2 ^F,2 |
 P:Pre
 "F#"^F, z ^F,4 z10 | "Em7"B, z B, z B, z B, z _D4 =D2 _D2 | "Em7"_D2 B,3 z11 | "Bm"B, z B, z B, z B, z _D3 z =D2 B,2 |
-"Bm"B,3 z5 "Bm7"z8 | "G"z6 B, z "Em7"_D3 =D3 _D2 | "Em"_D B,2 z3 B,2 G,2 z A,2 B,3 | "F#"_D8 z8 |
-"Ebm7"z8 "F#"z8 | "Em7"z6 B, z _D3 z =D2 _D2 | "Em7"_D2 B,3 z11 | "Bm"B, z B, z B, z B, z _D4 =D2 B,2 |
-"Bm"B,3 z5 "Bm7"z8 | "G"B, z B, z3 B, z "Em7"_D3 z =D2 _D2 | "Em"_D2 z6 G2 z ^F2 E3 | "F#"^F14 z2 |
+"Bm"B,3 z5 "Bm7"z8 | "G"B, z B, z B, z B, z "Em7"_D3 =D3 _D2 | "Em"_D B,2 z3 B,2 G,2 z A,2 B,3 | "F#"_D8 z8 |
+"Ebm7"z8 "F#"z8 | "Em7"B, z B, z B, z B, z _D3 z =D2 _D2 | "Em7"_D2 B,3 z11 | "Bm"B, z B, z B, z B, z _D4 =D2 B,2 |
+"Bm"B,3 z5 "Bm7"z8 | "G"B, z B, z B, z B, z "Em7"_D3 z =D2 _D2 | "Em"_D2 z6 G2 z ^F2 E3 | "F#"^F14 z2 |
 P:Chorus
-"F#"z16 | "Abm7"_E3 B, z2 _E4 B, z5 | "Abm7"z5 _D z2 E _E z _D2 B,2 _E | "Ebm"_E3 ^F3 _E3 z7 |
-"Ebm"z8 E _E2 _D2 B,2 =E | "Dbm7"E4 B,4 z8 | "Dbm"z6 _D _E =E _E2 =E2 _A z _A | "Ebm7"_A ^F11 z4 |
-"Ebm7"z16 | "Abm7"_E3 B, z2 _E4 B,3 z3 | "Abm7"z7 _E =E _E z _D z B,2 _E | "Ebm"_E ^F2 _E6 z7 |
-"Ebm"z8 E _E z _D2 B,2 =E | "Dbm7"E4 B,5 z7 | "Dbm"z6 _D _E =E _E z =E z _A z _A | "Ebm7"_A ^F11 z4 |
+"F#"z16 | "Abm7"_E3 B, z2 _E4 B, z5 | "Abm7"z5 _D z _E =E _E z _D2 B,2 _E | "Ebm"_E3 ^F3 _E3 z7 |
+"Ebm"z6 _D _E =E _E2 _D2 B,2 =E | "Dbm7"E4 B,4 z8 | "Dbm"z6 _D _E =E _E2 =E2 _A z _A | "Ebm7"_A ^F11 z4 |
+"Ebm7"z16 | "Abm7"_E3 B, z2 _E4 B,3 z3 | "Abm7"z6 _D _E =E _E z _D z B,2 _E | "Ebm"_E ^F2 _E6 z7 |
+"Ebm"z6 _D _E =E _E z _D2 B,2 =E | "Dbm7"E4 B,5 z7 | "Dbm"z6 _D _E =E _E z =E z _A z _A | "Ebm7"_A ^F11 z4 |

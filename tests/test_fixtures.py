@@ -4,7 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from export.fixtures import write_fixtures
+from config import load_config
+from export.fixtures import plan_json, write_fixtures
+from leadsheet.abc_reader import read_lead_sheet
 
 
 @pytest.fixture(scope="module")
@@ -103,3 +105,19 @@ def test_a_missing_raw_midi_is_reported_and_writes_no_midi_song_fixture(small_fi
     out, printed = small_fixtures
     assert "mulher_de_fases" in printed and "uv run src/main.py fetch" in printed
     assert not (out / "midi-songs/mulher_de_fases.json").exists()
+
+
+def test_a_sample_whose_rerun_fitness_differs_is_reported_and_its_plan_is_the_rerun():
+    # A short GA, so the rerun is quick; the record claims a fitness the rerun cannot reach,
+    # as when a sample's lead sheet changed after the sample was made.
+    config = load_config(overrides=["population_size=10", "max_generations=3"])
+    record = {"seed": 1, "best_fitness": -1.0}
+    sheet = read_lead_sheet("data/leadsheets/korobeiniki.abc")
+    notices: list[str] = []
+
+    plan = plan_json("stale-s1", "korobeiniki", sheet, config, record, log=notices.append)
+
+    assert len(notices) == 1
+    assert "stale-s1" in notices[0] and "-1.0" in notices[0] and str(plan["fitness"]) in notices[0]
+    assert plan["fitness"] != record["best_fitness"]
+    assert len(plan["best_plan"]) == 32

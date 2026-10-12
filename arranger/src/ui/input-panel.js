@@ -249,7 +249,11 @@ export function createInputPanel(targets, options) {
     button.innerHTML = `<span class="title"></span><span class="artist"></span>`;
     /** @type {HTMLElement} */ (button.querySelector(".title")).textContent = example.title;
     /** @type {HTMLElement} */ (button.querySelector(".artist")).textContent = example.artist;
+    button.setAttribute("aria-pressed", "false");
     button.addEventListener("click", async () => {
+      for (const other of $("[data-examples]").querySelectorAll("button")) {
+        other.setAttribute("aria-pressed", String(other === button));
+      }
       setStatus(`Loading ${example.title}…`);
       try {
         const response = await fetch(example.path);
@@ -296,6 +300,9 @@ export function createInputPanel(targets, options) {
 
   /** @param {File} file */
   async function readDroppedFile(file) {
+    for (const button of $("[data-examples]").querySelectorAll("button")) {
+      button.setAttribute("aria-pressed", "false");
+    }
     const bytes = new Uint8Array(await file.arrayBuffer());
     await openFile(file.name, bytes, {}, options.onFileDropped?.(file.name) ?? null);
   }

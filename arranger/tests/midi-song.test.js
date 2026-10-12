@@ -227,6 +227,43 @@ test("a small song reads into bars, sections, roles and phrases", () => {
   ]);
 });
 
+/**
+ * One bar at 120 BPM (a beat lasts 0.5 s): four staccato sixteenths of 0.1 beat, a note of 0.3
+ * beats on beat 2, and a bass under them.
+ */
+function staccatoSong() {
+  const voice = [72, 74, 72, 74].map((pitch, sixteenth) => ({ start: sixteenth * 0.125, end: sixteenth * 0.125 + 0.05, pitch, velocity: 90 }));
+  voice.push({ start: 1, end: 1.15, pitch: 76, velocity: 90 });
+  return readMidiFile(
+    writeMidiFile({
+      tempoBpm: 120,
+      tracks: [
+        { name: "Voice", channel: 0, program: 73, notes: voice },
+        { name: "Bass", channel: 1, program: 33, notes: [{ start: 0, end: 2, pitch: 36, velocity: 80 }] },
+      ],
+    }),
+  );
+}
+
+test("staccato sixteenths shorter than half a sixteenth keep one sixteenth each", () => {
+  const sheet = readLeadSheetMidi(staccatoSong(), { melodyTrack: 0 });
+  assert.deepEqual(sheet.bars[0].melody.slice(0, 4), [
+    { pitch: 72, onset: 0, duration: 0.25 },
+    { pitch: 74, onset: 0.25, duration: 0.25 },
+    { pitch: 72, onset: 0.5, duration: 0.25 },
+    { pitch: 74, onset: 0.75, duration: 0.25 },
+  ]);
+});
+
+test("a note of 0.3 beats still snaps its end to the nearest sixteenth", () => {
+  const sheet = readLeadSheetMidi(staccatoSong(), { melodyTrack: 0 });
+  // 2.0 to 2.3 beats snaps to 2.0 to 2.25, as before staccato notes kept their sixteenth.
+  assert.deepEqual(
+    sheet.bars[0].melody.filter((note) => note.onset >= 1),
+    [{ pitch: 76, onset: 2, duration: 0.25 }],
+  );
+});
+
 test("an excerpt starts at its first bar, and the tempo override and an explicit grid are kept", () => {
   const midi = smallSong({ bars: 4 });
   const sheet = readLeadSheetMidi(midi, { melodyTrack: 0, bars: [1, 3], tempoOverride: 90 });

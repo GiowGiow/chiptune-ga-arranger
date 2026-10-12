@@ -150,7 +150,10 @@ label.block { display: grid; gap: 6px; color: var(--muted); margin: 10px 0; }
 .dropzone input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .drop-title { font-weight: 700; }
 .drop-hint { color: var(--muted); font-size: .92rem; }
-.examples { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 12px; }
+/* Examples: a grid of equal cards that fills the tab, whatever the card text lengths. */
+.examples { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 8px; margin-top: 12px; }
+.examples .button-chip { width: 100%; height: 100%; align-content: start; }
+.button-chip[aria-pressed="true"] { border-color: var(--p2); background: rgba(255, 128, 14, .08); }
 .button-chip {
   display: inline-grid; text-align: left; line-height: 1.25; cursor: pointer; font: inherit; color: var(--text);
   padding: 6px 12px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255, 255, 255, .03);

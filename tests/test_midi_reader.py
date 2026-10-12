@@ -60,6 +60,35 @@ def test_midi_lead_sheet_has_quantized_melody_and_detected_chords(tmp_path):
     assert first.chords[0].tones == (0, 4, 7)
 
 
+def write_staccato_song(path, tempo=120.0):
+    """One bar: four staccato sixteenths (0.1 beat each), a 0.3-beat note on beat 2, a bass."""
+    midi = pretty_midi.PrettyMIDI(initial_tempo=tempo)
+    beat = 60.0 / tempo
+    voice = pretty_midi.Instrument(program=73, name="voice")
+    bass = pretty_midi.Instrument(program=33, name="bass")
+    for sixteenth, pitch in enumerate((72, 74, 72, 74)):
+        start = sixteenth * 0.25 * beat
+        voice.notes.append(pretty_midi.Note(90, pitch, start, start + 0.1 * beat))
+    voice.notes.append(pretty_midi.Note(90, 76, 2 * beat, 2.3 * beat))
+    bass.notes.append(pretty_midi.Note(80, 36, 0.0, 4 * beat))
+    midi.instruments += [voice, bass]
+    midi.write(str(path))
+    return path
+
+
+def test_staccato_sixteenths_shorter_than_half_a_sixteenth_keep_one_sixteenth_each(tmp_path):
+    lead_sheet = read_lead_sheet_midi(write_staccato_song(tmp_path / "song.mid"), melody_track=0)
+    melody = [(n.pitch, n.onset, n.duration) for n in lead_sheet.bars[0].melody]
+    assert melody[:4] == [(72, 0.0, 0.25), (74, 0.25, 0.25), (72, 0.5, 0.25), (74, 0.75, 0.25)]
+
+
+def test_a_note_of_0_3_beats_still_snaps_its_end_to_the_nearest_sixteenth(tmp_path):
+    lead_sheet = read_lead_sheet_midi(write_staccato_song(tmp_path / "song.mid"), melody_track=0)
+    # 2.0 to 2.3 beats snaps to 2.0 to 2.25, as before staccato notes kept their sixteenth.
+    late = [(n.pitch, n.onset, n.duration) for n in lead_sheet.bars[0].melody if n.onset >= 1.0]
+    assert late == [(76, 2.0, 0.25)]
+
+
 def test_bar_excerpt_and_sections_set_labels_roles_and_phrases(tmp_path):
     path = write_song(tmp_path / "song.mid")
     lead_sheet = read_lead_sheet_midi(

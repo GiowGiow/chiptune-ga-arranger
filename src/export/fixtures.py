@@ -11,13 +11,21 @@ principle I). This module writes that reference as JSON files, one concern per f
 - `realizations/<id>.json`: the notes of every (bar, channel, gene value) choice;
 - `tables/<id>.json`: the score tables the fitness looks up;
 - `plans/<sample>.json`: each sample's best plan (rerun from its seed), its criterion scores,
-  its fitness and its arrangement;
+  its fitness and its arrangement (see "Samples that no longer match" below);
 - `midi-songs/<id>.json`: how pretty_midi lists a MIDI song's instruments, and the lead sheet the
   MIDI reader reduces from it (only for songs whose file is in `data/raw/`);
 - `abc/<id>.abc`: the ABC writer's text of each MIDI-song lead sheet.
 
 JSON has no NaN, so a NaN (a criterion or a bass leap that does not apply) is written as null.
 Field names stay the Python ones (`phrase_end`, `tempo_bpm`); the JavaScript tests translate them.
+
+Samples that no longer match. A plan is rerun from the sample's `config.json` (seed and
+hyperparameters) on the lead sheet committed today. When the reduction of a MIDI song changes,
+its ABC lead sheet changes, and the rerun no longer reaches the best fitness the sample recorded.
+The command then prints a notice that names the sample and writes the rerun's plan anyway: the
+parity tests only need a plan scored by Python on the current lead sheet, and the notice says the
+sample itself is stale until it is made again. The test suite still checks that a sample whose
+lead sheet did not change (korobeiniki-s1) reruns to its recorded fitness.
 """
 
 import dataclasses
@@ -87,11 +95,8 @@ def write_fixtures(
         sample_names: samples to rerun; all folders of `samples_dir` by default.
         leadsheet_ids: lead sheets to export; every `*.abc` of `leadsheets_dir` by default.
         realization_ids: lead sheets whose realizations are exported (they are large).
-        log: where notices go, for example the missing MIDI files.
-
-    Raises:
-        ValueError: when a rerun sample does not reach its recorded best fitness, which means the
-            Python code no longer reproduces the samples and the fixtures would be wrong.
+        log: where notices go: the missing MIDI files and the samples whose rerun does not reach
+            their recorded best fitness.
     """
     out, samples_dir, leadsheets_dir = Path(out), Path(samples_dir), Path(leadsheets_dir)
     songs = load_sources(sources_path)
@@ -116,7 +121,7 @@ def write_fixtures(
         record = json.loads(record_path.read_text())
         sheet_id = abc_for_sample.get(name, Path(record["input_path"]).stem)
         sheet = sheets.get(sheet_id) or read_lead_sheet(leadsheets_dir / f"{sheet_id}.abc")
-        plan = plan_json(name, sheet_id, sheet, load_config(record_path), record)
+        plan = plan_json(name, sheet_id, sheet, load_config(record_path), record, log)
         _write_json(out / "plans" / f"{name}.json", plan)
 
     for song in songs:
@@ -187,13 +192,21 @@ def realizations_json(lead_sheet: LeadSheet) -> dict:
     return {"bars": realized, "no": no}
 
 
-def plan_json(name: str, sheet_id: str, lead_sheet: LeadSheet, config: dict, record: dict) -> dict:
+def plan_json(
+    name: str,
+    sheet_id: str,
+    lead_sheet: LeadSheet,
+    config: dict,
+    record: dict,
+    log: Callable[[str], None] = print,
+) -> dict:
     """Rerun a sample's GA from its record and return its plan, scores, fitness and arrangement.
 
     `config` is the record loaded as a configuration (`load_config` skips its run keys) and
-    `record` the raw record, for the seed and the recorded best fitness. The committed ABC lead
-    sheet of a MIDI song is the exact reduction the sample used, so the rerun needs no MIDI file.
-    A mismatch with the recorded best fitness raises ValueError.
+    `record` the raw record, for the seed and the recorded best fitness. The rerun reads the
+    committed ABC lead sheet, so it needs no MIDI file. When its best fitness differs from the
+    recorded one, `log` gets a notice naming the sample, and the plan of the rerun is returned
+    anyway (see the module docstring).
     """
     params = GAParams(
         population_size=config["population_size"],
@@ -211,9 +224,10 @@ def plan_json(name: str, sheet_id: str, lead_sheet: LeadSheet, config: dict, rec
         config["weights"],
     )
     if abs(result.best_fitness - record["best_fitness"]) > 1e-9:
-        raise ValueError(
-            f"{name}: rerun fitness {result.best_fitness} differs from the recorded "
-            f"{record['best_fitness']}"
+        log(
+            f"{name}: the rerun's best fitness {result.best_fitness} differs from the recorded "
+            f"{record['best_fitness']}; its lead sheet changed since the sample was made, or the "
+            f"GA did. The fixture holds the rerun's plan; remake the sample to match it again."
         )
     population = result.best_genome[np.newaxis]
     scores = criterion_scores(tables, population)

@@ -3,7 +3,7 @@
  * Channel view: the playing version drawn as glowing lines that the playhead reveals (FR-023).
  *
  * The arrangement shows one step line per pitched channel in its color (P1 blue, P2 orange,
- * TR gray) and the noise channel as ticks along the bottom; the original shows its melody in the
+ * TR gray), with a dot where each note starts, and the noise channel as ticks along the bottom; the original shows its melody in the
  * P1 color and the other parts as faint dashes. The window scrolls with the playhead, like the
  * command line's video (`src/export/video.py`), so what you see is what you hear.
  */
@@ -116,6 +116,14 @@ export function createChannelView(container) {
           drawing = true;
         }
         context.stroke();
+        // A dot on every note start, so repeated notes of one pitch do not read as one long note.
+        context.fillStyle = lineColor;
+        for (const note of line.notes) {
+          if (note.onset < start || note.onset > t) continue;
+          context.beginPath();
+          context.arc(x(note.onset), y(note.pitch), (line.width ?? 2.5) * 0.9, 0, Math.PI * 2);
+          context.fill();
+        }
         const tip = soundingPitch(path, t);
         if (tip !== null && !line.faint) {
           context.fillStyle = lineColor;

@@ -5,8 +5,10 @@
 // labels. To arrange such a song for the NES, this module reduces it to a lead sheet:
 //
 // - Melody: the notes of one chosen track. A *skyline* keeps only the highest note at each moment,
-//   so the melody is monophonic like a sung line, and onsets snap to a sixteenth-note grid
-//   (hand-played files are a few milliseconds early or late).
+//   so the melody is monophonic like a sung line, and onsets and ends snap to a sixteenth-note grid
+//   (hand-played files are a few milliseconds early or late). A very short note, whose end snaps
+//   onto its start (a staccato sixteenth, half a sixteenth long or less), keeps one sixteenth: a
+//   staccato note is still a note of the tune. The skyline then cuts it at the next onset.
 // - Chords: every half bar (2 beats), the other pitched tracks vote for the 12 pitch classes in
 //   proportion to how long each class sounds; bass tracks vote twice. The chord whose tones
 //   collect the most votes (major, minor, dominant seventh or minor seventh, on any of the 12
@@ -657,20 +659,34 @@ function checkedSections(sections, barTotal) {
 }
 
 /**
- * Skyline, snap to the grid, keep the excerpt and split notes at the bar lines.
+ * Snap to the grid, skyline, keep the excerpt and split notes at the bar lines (port of
+ * `_quantized_melody`).
+ *
+ * A note whose end snaps onto its start (half a sixteenth long or shorter) lasts one sixteenth.
  *
  * @param {BeatNote[]} notes
  * @param {number} offset first beat of the excerpt.
  * @param {number} barTotal
  * @returns {MelodyNote[][]}
+ * @example
+ * // Four staccato sixteenths of 0.1 beat, then 0.3 beats from beat 2 (midi-song.test.js,
+ * // "staccato sixteenths"):
+ * const staccato = [[0, 0.1, 72], [0.25, 0.35, 74], [0.5, 0.6, 72], [0.75, 0.85, 74], [2, 2.3, 76]];
+ * quantizedMelody(staccato, 0, 1)[0].map((n) => [n.pitch, n.onset, n.duration]);
+ * // [[72, 0, 0.25], [74, 0.25, 0.25], [72, 0.5, 0.25], [74, 0.75, 0.25], [76, 2, 0.25]]
  */
 function quantizedMelody(notes, offset, barTotal) {
   /** @type {BeatNote[]} */
-  const snapped = notes.map(([start, end, pitch]) => [snap(start) - offset, snap(end) - offset, pitch]);
+  const snapped = notes.map(([noteStart, noteEnd, pitch]) => {
+    const start = snap(noteStart) - offset;
+    const end = snap(noteEnd) - offset;
+    // A staccato note is still a note of the tune: keep one sixteenth rather than drop it.
+    return [start, end > start ? end : start + GRID, pitch];
+  });
   const endOfPiece = barTotal * BEATS_PER_BAR;
   /** @type {MelodyNote[][]} */
   const perBar = Array.from({ length: barTotal }, () => []);
-  for (const [noteStart, noteEnd, pitch] of skyline(snapped.filter(([start, end]) => end > start))) {
+  for (const [noteStart, noteEnd, pitch] of skyline(snapped)) {
     let start = Math.max(noteStart, 0.0);
     const end = Math.min(noteEnd, endOfPiece);
     while (end > start) {

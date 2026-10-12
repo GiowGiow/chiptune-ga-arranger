@@ -4,8 +4,10 @@ Many songs exist only as MIDI files made by fans: a whole band, with no chord sy
 part labels. To arrange such a song for the NES, this module reduces it to a lead sheet:
 
 - Melody: the notes of one chosen track. A *skyline* keeps only the highest note at each moment,
-  so the melody is monophonic like a sung line, and onsets snap to a sixteenth-note grid
-  (hand-played files are a few milliseconds early or late).
+  so the melody is monophonic like a sung line, and onsets and ends snap to a sixteenth-note grid
+  (hand-played files are a few milliseconds early or late). A very short note, whose end snaps
+  onto its start (a staccato sixteenth, half a sixteenth long or less), keeps one sixteenth: a
+  staccato note is still a note of the tune. The skyline then cuts it at the next onset.
 - Chords: every half bar (2 beats), the other pitched tracks vote for the 12 pitch classes in
   proportion to how long each class sounds; bass tracks vote twice. The chord whose tones collect
   the most votes (major, minor, dominant seventh or minor seventh, on any of the 12 roots) is
@@ -322,11 +324,23 @@ def _snap(beat: float) -> float:
 
 
 def _quantized_melody(notes: Sequence[Note], offset: float, n_bars: int) -> list[list]:
-    """Skyline, snap to the grid, keep the excerpt and split notes at the bar lines."""
-    snapped = [(_snap(s) - offset, _snap(e) - offset, p) for s, e, p in notes]
+    """Snap to the grid, skyline, keep the excerpt and split notes at the bar lines.
+
+    A note whose end snaps onto its start (half a sixteenth long or shorter) lasts one sixteenth.
+
+    >>> staccato = [(0.0, 0.1, 72), (0.25, 0.35, 74), (0.5, 0.6, 72), (0.75, 0.85, 74)]
+    >>> notes = _quantized_melody(staccato + [(2.0, 2.3, 76)], 0.0, 1)[0]
+    >>> [(n.pitch, n.onset, n.duration) for n in notes]
+    [(72, 0.0, 0.25), (74, 0.25, 0.25), (72, 0.5, 0.25), (74, 0.75, 0.25), (76, 2.0, 0.25)]
+    """
+    snapped = []
+    for start, end, pitch in notes:
+        start, end = _snap(start) - offset, _snap(end) - offset
+        # A staccato note is still a note of the tune: keep one sixteenth rather than drop it.
+        snapped.append((start, end if end > start else start + GRID, pitch))
     end_of_piece = n_bars * BEATS_PER_BAR
     per_bar: list[list[MelodyNote]] = [[] for _ in range(n_bars)]
-    for start, end, pitch in skyline([n for n in snapped if n[1] > n[0]]):
+    for start, end, pitch in skyline(snapped):
         start, end = max(start, 0.0), min(end, end_of_piece)
         while end > start:
             bar = int(start // BEATS_PER_BAR)
