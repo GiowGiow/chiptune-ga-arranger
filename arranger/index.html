@@ -52,9 +52,16 @@
       <h2 id="run-title">Run</h2>
       <p class="run-song" data-run-song>Choose a song first.</p>
       <div class="run-fields">
-        <label class="inline">Seed <input type="number" min="0" step="1" value="1" class="mono" data-seed></label>
-        <label class="inline">Pace
-          <select data-pace><option value="watch">watch</option><option value="full">full speed</option></select></label>
+        <div class="has-tip">
+          <label class="inline">Seed<span class="tip-mark" aria-hidden="true">?</span>
+            <input type="number" min="0" step="1" value="1" class="mono" data-seed aria-describedby="tip-seed"></label>
+          <p class="tip" id="tip-seed" role="tooltip">Starts the random generator. The same song, seed and settings always give the same arrangement; another seed gives another plan.</p>
+        </div>
+        <div class="has-tip">
+          <label class="inline">Pace<span class="tip-mark" aria-hidden="true">?</span>
+            <select data-pace aria-describedby="tip-pace"><option value="watch">watch</option><option value="full">full speed</option></select></label>
+          <p class="tip" id="tip-pace" role="tooltip">Watch runs about 400 generations per second, so you can follow the evolution; full speed finishes in about a second. The arrangement is the same.</p>
+        </div>
       </div>
       <div class="toolbar">
         <button type="button" class="button primary" data-arrange disabled>Arrange</button>
@@ -67,7 +74,7 @@
 
     <section id="settings" class="card wide" aria-labelledby="settings-title" hidden>
       <h2 id="settings-title">Settings</h2>
-      <p class="hint">The defaults are the command line's (<code>configs/default.json</code>). Focus a field to read what it changes.</p>
+      <p class="hint">The defaults are the command line's (<code>configs/default.json</code>). Hover or focus a field to read what it changes.</p>
     </section>
 
     <section id="evolution" class="card wide" aria-labelledby="evolution-title">

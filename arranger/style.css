@@ -212,9 +212,23 @@ tr.drum { color: var(--muted); }
 .setting:last-child { border-bottom: 0; }
 .setting label { font-weight: 600; font-size: .93rem; }
 .setting input { width: 100%; text-align: right; }
-.setting .help { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: .82rem; line-height: 1.4; display: none; }
-.setting:focus-within .help { display: block; }
+/* Tooltips: what a setting changes, on hover or keyboard focus, floating over the page. */
+.has-tip { position: relative; }
+.tip {
+  position: absolute; left: 0; top: calc(100% + 6px); z-index: 20; width: min(320px, 90vw); margin: 0;
+  padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: #141a2a;
+  color: var(--text); font-size: .82rem; line-height: 1.45; box-shadow: 0 8px 24px rgba(0, 0, 0, .45);
+  opacity: 0; visibility: hidden; transform: translateY(-4px); pointer-events: none;
+  transition: opacity .15s, transform .15s, visibility .15s;
+}
+.has-tip:hover .tip, .has-tip:focus-within .tip { opacity: 1; visibility: visible; transform: none; }
+.tip-mark {
+  display: inline-grid; place-items: center; width: 15px; height: 15px; margin-left: 6px; border-radius: 50%;
+  border: 1px solid var(--muted); color: var(--muted); font: 700 .65rem/1 var(--mono); vertical-align: 1px; cursor: help;
+}
+.has-tip:hover .tip-mark, .has-tip:focus-within .tip-mark { border-color: var(--no); color: var(--no); }
 .setting .field-error { grid-column: 1 / -1; margin: 0; font-size: .82rem; }
+.setting .tip { grid-column: 1 / -1; }
 .setting.invalid input { border-color: #ff9b8a; }
 .field-error:empty { display: none; }
 
@@ -292,3 +306,4 @@ footer .sep { color: var(--line); }
 .changed-chips:empty { display: none; }
 .changed-chips .changed { cursor: pointer; background: none; font: .78rem var(--mono); padding: 1px 8px; border-radius: 999px; border: 1px solid var(--p2); color: var(--p2); }
 #settings code { font-family: var(--mono); font-size: .85em; }
+@media (prefers-reduced-motion: reduce) { .tip { transition: none; } }

@@ -62,11 +62,11 @@ export function createSettingsPanel(container, options) {
   const groups = FIELDS.map(
     ({ group, fields }) => `<fieldset class="settings-group"><legend>${group}</legend>${fields
       .map(
-        ([key, label, help]) => `<div class="setting" data-setting="${key}">
-          <label for="setting-${key}" title="${help}">${label}</label>
+        ([key, label, help]) => `<div class="setting has-tip" data-setting="${key}">
+          <label for="setting-${key}">${label}<span class="tip-mark" aria-hidden="true">?</span></label>
           <input id="setting-${key}" class="mono" inputmode="decimal" data-key="${key}"
             aria-describedby="help-${key} error-${key}">
-          <p class="help" id="help-${key}">${help}</p>
+          <p class="tip" id="help-${key}" role="tooltip">${help}</p>
           <p class="field-error error" id="error-${key}" role="alert"></p>
         </div>`,
       )
