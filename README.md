@@ -324,7 +324,7 @@ Input: ABC lead sheet (Loituma melody). Settings: default configuration, seed 1.
 
 ### Ievan Polkka, fidelity weight 0
 
-FIDELITY0_VIDEO_URL
+https://github.com/user-attachments/assets/e7aa44af-152e-4d7e-8bef-cbaacab8daa5
 
 | Original | Generated (General MIDI) | Generated (chip) | Video |
 |---|---|---|---|
