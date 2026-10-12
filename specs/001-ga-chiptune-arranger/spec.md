@@ -364,6 +364,13 @@ and that each channel appears as its own line.
 - **FR-036**: A static listening page (`listen/index.html`, served by GitHub Pages from the
   repository root) MUST offer audio players for the three renderings and the video of every sample.
 
+- **FR-037**: Every MP3 written for listening (`input.mp3`, `piece.mp3`, `piece-chip.mp3`) MUST be
+  loudness-normalized (EBU R128, -16 LUFS integrated, true peak at most -1.5 dBTP), so the input and
+  the generated versions are compared at the same loudness.
+- **FR-038**: `video --input` MUST render `input.mp4`, a visualization of the original input in the
+  same style as `piece.mp4` (one glowing layer per instrument, the melody track in the P1 color),
+  in sync with `input.mp3`; the listening page shows it in a collapsible section of each song.
+
 ### Key Entities
 
 - **Lead sheet**: title, reference number, key, meter (4/4), tempo, and the ordered bars of the

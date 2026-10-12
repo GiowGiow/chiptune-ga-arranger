@@ -33,6 +33,7 @@ from export.comparison import render_comparison
 from export.experiments import run_experiments
 from export.figures import plot_evolution, plot_pianoroll
 from export.input_preview import excerpt_seconds, lead_sheet_to_midi
+from export.input_video import render_input_video
 from export.midi import write_midi
 from export.run_folder import (
     make_run_id,
@@ -107,6 +108,11 @@ def build_parser() -> argparse.ArgumentParser:
     video = commands.add_parser("video", help="render a Bach Vision Test style video of a run")
     video.add_argument("run_dir", type=Path, help="run or sample folder with piece.mid")
     video.add_argument("--fps", type=int, default=30)
+    video.add_argument(
+        "--input",
+        action="store_true",
+        help="render input.mp4 instead: the original input, drawn the same way, with input.mp3",
+    )
     video.set_defaults(handler=run_video)
 
     compare = commands.add_parser(
@@ -254,12 +260,44 @@ def run_experiment(args: argparse.Namespace) -> Path:
 
 def run_video(args: argparse.Namespace) -> Path:
     """Render `piece.mp4` with the chip audio when it exists, else the General MIDI audio."""
+    if args.input:
+        return run_input_video(args)
     audio = args.run_dir / "piece-chip.mp3"
     if not audio.exists():
         audio = args.run_dir / "piece.mp3"
     target = args.run_dir / "piece.mp4"
     if not render_video(args.run_dir / "piece.mid", audio, target, fps=args.fps):
         raise ValueError(f"no video written for {args.run_dir}")
+    print(target)
+    return target
+
+
+def run_input_video(args: argparse.Namespace) -> Path:
+    """Render `input.mp4`: the input of a run drawn like `piece.mp4`, in sync with `input.mp3`.
+
+    For an ABC lead sheet the input is `input.mid`, with the melody on its first track. For a MIDI
+    song it is the original file, cut to the bars of `input.mp3` at the times that
+    `write_input_audio` used, with the melody track recorded in `config.json`.
+    """
+    recorded = json.loads((args.run_dir / "config.json").read_text())
+    if Path(recorded["input_path"]).suffix.lower() in MIDI_SUFFIXES:
+        config = load_config()
+        config.update({key: recorded[key] for key in config if key in recorded})
+        song_path = require_song_file(
+            song_for_input(load_sources(SOURCES_PATH), recorded["input_path"])
+        )
+        lead_sheet = load_lead_sheet(song_path, config)
+        bars = config["midi"]["bars"]
+        start, end = excerpt_seconds(
+            song_path, lead_sheet.source_grid, tuple(bars) if bars else None
+        )
+        mid_path, melody_track = song_path, config["midi"]["melody_track"]
+    else:
+        mid_path, melody_track, start, end = args.run_dir / "input.mid", 0, 0.0, None
+    target = args.run_dir / "input.mp4"
+    audio = args.run_dir / "input.mp3"
+    if not render_input_video(mid_path, audio, target, melody_track, start, end, fps=args.fps):
+        raise ValueError(f"no input video written for {args.run_dir}")
     print(target)
     return target
 

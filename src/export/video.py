@@ -19,6 +19,7 @@ import math
 import shutil
 import subprocess
 import sys
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -135,23 +136,12 @@ def build_scene(
 ) -> VideoScene:
     """Build the dark figure with one glowing line per pitched channel and the drum band."""
     paths = channel_paths(midi)
-    # 100 dpi for a 1280-pixel frame; other widths change the dpi, so sizes in points keep the look.
-    dpi = 100 * width / 1280
-    # Half a pixel of slack, because the Agg canvas truncates the figure size to whole pixels.
-    figure = Figure(figsize=((width + 0.5) / dpi, (height + 0.5) / dpi), dpi=dpi)
-    figure.set_facecolor(BACKGROUND)
-    canvas = FigureCanvasAgg(figure)
-    # The axes span the full width, so the playhead at 75% of the axes is at 75% of the frame.
-    pitch_axes = figure.add_axes((0.0, 0.2, 1.0, 0.7))
-    drum_axes = figure.add_axes((0.0, 0.03, 1.0, 0.13), sharex=pitch_axes)
-    for axes in (pitch_axes, drum_axes):
-        axes.set_axis_off()
+    figure, canvas, pitch_axes, drum_axes = dark_figure(width, height)
 
     pitches = np.concatenate([y for _, y in paths.values()])
     pitches = pitches[~np.isnan(pitches)]
     low, high = (pitches.min(), pitches.max()) if len(pitches) else (48.0, 84.0)
     pitch_axes.set_ylim(low - 3, high + 3)
-    drum_axes.set_ylim(-0.8, 2.8)
 
     glow_lines, tip_dots = {}, {}
     for channel in PITCHED_CHANNELS:
@@ -175,18 +165,11 @@ def build_scene(
     hits = sorted((note.start, note.pitch) for note in drum_track.notes) if drum_track else []
     drum_onsets = np.array([onset for onset, _ in hits], dtype=float)
     drum_rows = np.array([DRUM_ROWS.get(pitch, (2, "other"))[0] for _, pitch in hits], dtype=float)
-    drum_marks = [
-        drum_axes.add_collection(LineCollection([], linewidths=lw, capstyle="round"))
-        for lw, _, _ in DRUM_LAYERS
-    ]
-
-    figure.add_artist(
-        Line2D(
-            [PLAYHEAD_FRACTION, PLAYHEAD_FRACTION], [0.02, 0.92], transform=figure.transFigure,
-            color="white", alpha=0.18, lw=1.2,
-        )
-    )  # fmt: skip
-    _draw_colored_title(figure, canvas)
+    drum_marks = add_drum_marks(drum_axes)
+    colors = {**CHANNEL_COLORS, "NO": DRUM_COLOR}
+    draw_colored_title(
+        figure, canvas, [(CHANNEL_NAMES[channel], colors[channel]) for channel in colors]
+    )
     return VideoScene(
         canvas=canvas,
         pitch_axes=pitch_axes,
@@ -200,18 +183,88 @@ def build_scene(
     )
 
 
-def _draw_colored_title(figure: Figure, canvas: FigureCanvasAgg) -> None:
-    """Write "P1 melody · P2 harmony · TR bass · NO drums" with each name in its line color."""
-    colors = {**CHANNEL_COLORS, "NO": DRUM_COLOR}
+def dark_figure(width: int, height: int) -> tuple[Figure, FigureCanvasAgg, Axes, Axes]:
+    """Return the dark figure of a video frame, its canvas, the pitch axes and the drum band.
+
+    Both axes span the full width, so the playhead at 75% of the axes is at 75% of the frame, and
+    the faint playhead line is drawn once here, since it never moves.
+    """
+    # 100 dpi for a 1280-pixel frame; other widths change the dpi, so sizes in points keep the look.
+    dpi = 100 * width / 1280
+    # Half a pixel of slack, because the Agg canvas truncates the figure size to whole pixels.
+    figure = Figure(figsize=((width + 0.5) / dpi, (height + 0.5) / dpi), dpi=dpi)
+    figure.set_facecolor(BACKGROUND)
+    canvas = FigureCanvasAgg(figure)
+    pitch_axes = figure.add_axes((0.0, 0.2, 1.0, 0.7))
+    drum_axes = figure.add_axes((0.0, 0.03, 1.0, 0.13), sharex=pitch_axes)
+    for axes in (pitch_axes, drum_axes):
+        axes.set_axis_off()
+    drum_axes.set_ylim(-0.8, 2.8)
+    figure.add_artist(
+        Line2D(
+            [PLAYHEAD_FRACTION, PLAYHEAD_FRACTION], [0.02, 0.92], transform=figure.transFigure,
+            color="white", alpha=0.18, lw=1.2,
+        )
+    )  # fmt: skip
+    return figure, canvas, pitch_axes, drum_axes
+
+
+def draw_colored_title(
+    figure: Figure,
+    canvas: FigureCanvasAgg,
+    names: Sequence[tuple[str, str]],
+    fontsize: float = 15,
+    top: float = 0.955,
+) -> None:
+    """Write the (name, color) pairs as "name · name · ...", each name in its own color.
+
+    A name that would run past the right edge starts a new line below.
+    """
     pieces = []
-    for channel in ("P1", "P2", "TR", "NO"):
-        pieces += [(CHANNEL_NAMES[channel], colors[channel]), ("  ·  ", "#8A8F99")]
+    for name, color in names:
+        pieces += [(name, color), ("  ·  ", "#8A8F99")]
     renderer = canvas.get_renderer()
-    x = 0.02
+    x, y = 0.02, top
     for text, color in pieces[:-1]:
-        artist = figure.text(x, 0.955, text, color=color, fontsize=15, va="center", weight="bold")
+        artist = figure.text(x, y, text, color=color, fontsize=fontsize, va="center", weight="bold")
         # Matplotlib has no multicolor text, so each piece starts where the previous one ends.
-        x += artist.get_window_extent(renderer).width / figure.bbox.width
+        width = artist.get_window_extent(renderer).width / figure.bbox.width
+        if x + width > 0.98 and x > 0.02:
+            x, y = 0.02, y - 1.6 * fontsize / 72 * figure.dpi / figure.bbox.height
+            artist.set_position((x, y))
+        x += width
+
+
+def add_drum_marks(drum_axes: Axes) -> list[LineCollection]:
+    """Add the glow layers of the drum marks, empty until `update_drum_marks` fills them."""
+    return [
+        drum_axes.add_collection(LineCollection([], linewidths=lw, capstyle="round"))
+        for lw, _, _ in DRUM_LAYERS
+    ]
+
+
+def update_drum_marks(
+    marks: list[LineCollection], onsets: np.ndarray, rows: np.ndarray, left: float, t: float
+) -> None:
+    """Show the drum hits between `left` and time `t`, each flashing at its onset, then fading."""
+    first, last = np.searchsorted(onsets, [left, t], side="right")
+    onsets, rows = onsets[first:last], rows[first:last]
+    flash = np.exp(-(t - onsets) / FLASH_SECONDS)
+    brightness = DRUM_TRACE_BRIGHTNESS + (1 - DRUM_TRACE_BRIGHTNESS) * flash
+    # A fresh hit is also taller, so it reads as a flash even in peripheral vision.
+    half_height = 0.3 + 0.25 * flash
+    segments = np.stack(
+        [
+            np.column_stack([onsets, rows - half_height]),
+            np.column_stack([onsets, rows + half_height]),
+        ],
+        axis=1,
+    )
+    for collection, (_, alpha, whiteness) in zip(marks, DRUM_LAYERS, strict=True):
+        colors = np.tile(to_rgba(lighten(DRUM_COLOR, whiteness)), (len(onsets), 1))
+        colors[:, 3] = alpha * brightness
+        collection.set_segments(segments)
+        collection.set_color(colors)
 
 
 def frame_at(scene: VideoScene, t: float) -> np.ndarray:
@@ -227,24 +280,7 @@ def frame_at(scene: VideoScene, t: float) -> np.ndarray:
         for dot in scene.tip_dots[channel]:
             dot.set_data(*tip)
 
-    first, last = np.searchsorted(scene.drum_onsets, [left, t], side="right")
-    onsets, rows = scene.drum_onsets[first:last], scene.drum_rows[first:last]
-    flash = np.exp(-(t - onsets) / FLASH_SECONDS)
-    brightness = DRUM_TRACE_BRIGHTNESS + (1 - DRUM_TRACE_BRIGHTNESS) * flash
-    # A fresh hit is also taller, so it reads as a flash even in peripheral vision.
-    half_height = 0.3 + 0.25 * flash
-    segments = np.stack(
-        [
-            np.column_stack([onsets, rows - half_height]),
-            np.column_stack([onsets, rows + half_height]),
-        ],
-        axis=1,
-    )
-    for marks, (_, alpha, whiteness) in zip(scene.drum_marks, DRUM_LAYERS, strict=True):
-        colors = np.tile(to_rgba(lighten(DRUM_COLOR, whiteness)), (len(onsets), 1))
-        colors[:, 3] = alpha * brightness
-        marks.set_segments(segments)
-        marks.set_color(colors)
+    update_drum_marks(scene.drum_marks, scene.drum_onsets, scene.drum_rows, left, t)
 
     scene.canvas.draw()
     return np.asarray(scene.canvas.buffer_rgba())[:, :, :3].copy()
@@ -264,27 +300,53 @@ def render_video(
     The video lasts until the end of the MIDI file plus one second (cut to the audio if that is
     shorter). Return False, with a notice, when ffmpeg or the audio file is missing.
     """
+    if not video_tools_ready(audio_path):
+        return False
+    midi = pretty_midi.PrettyMIDI(str(mid_path))
+    scene = build_scene(midi, width, height, window_seconds)
+    frame_count = math.ceil((midi.get_end_time() + 1.0) * fps)
+    encode_frames(lambda t: frame_at(scene, t), frame_count, audio_path, mp4_path, fps, width,
+                  height)  # fmt: skip
+    return True
+
+
+def video_tools_ready(audio_path: Path | str) -> bool:
+    """Return True when ffmpeg and the audio file exist; else print a notice and return False."""
     missing = [] if shutil.which("ffmpeg") else ["ffmpeg"]
     if not Path(audio_path).exists():
         missing.append(f"audio {audio_path}")
     if missing:
         print(f"video skipped: missing {', '.join(missing)}", file=sys.stderr)
-        return False
-    midi = pretty_midi.PrettyMIDI(str(mid_path))
-    scene = build_scene(midi, width, height, window_seconds)
-    frame_count = math.ceil((midi.get_end_time() + 1.0) * fps)
+    return not missing
+
+
+def encode_frames(
+    draw_frame: Callable[[float], np.ndarray],
+    frame_count: int,
+    audio_path: Path | str,
+    mp4_path: Path | str,
+    fps: int,
+    width: int,
+    height: int,
+    video_options: Sequence[str] = (),
+) -> None:
+    """Pipe `frame_count` frames, drawn at times 0, 1/fps, ..., to ffmpeg, which adds the audio.
+
+    `-shortest` ends the video with the audio when the audio is shorter. `video_options` are
+    extra encoder flags, for example a CRF that trades quality for a smaller file.
+    """
     command = [
         "ffmpeg", "-y", "-loglevel", "error",
         "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{width}x{height}", "-r", str(fps), "-i", "-",
         "-i", str(audio_path),
-        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", str(mp4_path),
+        "-c:v", "libx264", *video_options, "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest",
+        str(mp4_path),
     ]  # fmt: skip
     with subprocess.Popen(command, stdin=subprocess.PIPE) as encoder:
         try:
             for index in range(frame_count):
-                encoder.stdin.write(frame_at(scene, index / fps).tobytes())
+                encoder.stdin.write(draw_frame(index / fps).tobytes())
         except BrokenPipeError:
             pass  # ffmpeg stopped early; its exit code below reports why
     if encoder.returncode != 0:
         raise subprocess.CalledProcessError(encoder.returncode, command)
-    return True

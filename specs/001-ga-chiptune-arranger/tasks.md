@@ -242,6 +242,9 @@ tests in `tests/`. Run the tests with `uv run pytest`. Units: MIDI pitches, quar
 - [X] T058 [P] Tests, then `fetch` (download the web MIDI songs listed in `data/sources.json`, check SHA-256) and `abc` (write each MIDI reduction as an ABC lead sheet that reads back to the same lead sheet); commit the six ABC lead sheets (constitution 1.2.0)
 - [X] T059 Run the seed, random-search and ablation experiments on the six MIDI songs and add them to Table 2 of the abstract
 - [X] T060 Fix the fitness after the review: bass smoothness scores every leap of the bass line, idiom pools its counts, a fill matches only at a phrase end, NaN for criteria that do not apply, weight validation, roulette tolerance; default stopping 3000 generations / stagnation 300 (4000 / 400 for the MIDI songs), measured so that no one-gene change improves the final plans; then re-run every sample, experiment, video and comparison video
+- [X] T061 [P] Tests, then loudness normalization of every listening MP3 (FR-037); re-render the audio of the ten samples from their MIDI files, re-mux `piece.mp4`, re-render and re-upload the comparison videos
+- [X] T062 [P] Tests, then `video --input` and `src/export/input_video.py` (FR-038); render `input.mp4` for the ten samples
+- [X] T063 Redesign the listening page from a Superdesign draft (liner-notes layout, animated aurora in the channel colors, poster frames, collapsible original visualization)
 
 ## Dependencies and execution order
 

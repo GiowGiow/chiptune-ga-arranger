@@ -68,3 +68,6 @@ data/raw/
 .specify/extensions/.cache/
 .claude/launch.json
 .claude/worktrees/
+
+# Superdesign working files (design drafts live on superdesign.dev)
+.superdesign/

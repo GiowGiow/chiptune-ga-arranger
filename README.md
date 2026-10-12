@@ -297,7 +297,7 @@ soundfont and cut to the same bars.
 
 ### Ievan Polkka
 
-https://github.com/user-attachments/assets/99c51840-345a-4198-97d8-bc2bc49dde6a
+https://github.com/user-attachments/assets/3bf0bb7b-a31a-47ff-b9cc-4fdefa915eb8
 
 | Original | Generated (General MIDI) | Generated (chip) | Video |
 |---|---|---|---|
@@ -307,7 +307,7 @@ Input: ABC lead sheet (Loituma melody). Varied: default. Best fitness 0.912. Fil
 
 ### Ievan Polkka, contrast weight 0
 
-https://github.com/user-attachments/assets/ad1cb685-7217-4201-8f42-4a59e0ab2074
+https://github.com/user-attachments/assets/71e46ea0-82be-4bf0-a47e-cd894ad9d8a0
 
 | Original | Generated (General MIDI) | Generated (chip) | Video |
 |---|---|---|---|
@@ -317,7 +317,7 @@ Input: same lead sheet. Varied: hyperparameter: contrast weight 0. Best fitness 
 
 ### Korobeiniki (Tetris theme)
 
-https://github.com/user-attachments/assets/ed86c752-3502-4d88-819d-08527809bdf2
+https://github.com/user-attachments/assets/d9213a11-9394-4832-a063-dfd7ac4a0b5d
 
 | Original | Generated (General MIDI) | Generated (chip) | Video |
 |---|---|---|---|
@@ -327,7 +327,7 @@ Input: ABC lead sheet. Varied: default. Best fitness 0.922. Files and notes: [ko
 
 ### Korobeiniki, seed 2
 
-https://github.com/user-attachments/assets/2db22bab-f7a2-440a-aad0-40713cbeeffc
+https://github.com/user-attachments/assets/67b0a38b-c3c7-4ca5-aa69-256e6b8eab10
 
 | Original | Generated (General MIDI) | Generated (chip) | Video |
 |---|---|---|---|
@@ -337,7 +337,7 @@ Input: same lead sheet. Varied: seed 2. Best fitness 0.936. Files and notes: [ko
 
 ### Voa Voa (Chiclete com Banana)
 
-https://github.com/user-attachments/assets/98330022-99aa-4a24-a5ba-5c3d18ca5851
+https://github.com/user-attachments/assets/46fc19e9-d85f-4d2e-a9c1-3cae9aae9c2b
 
 | Original | Generated (General MIDI) | Generated (chip) | Video |
 |---|---|---|---|
@@ -347,7 +347,7 @@ Input: MIDI, bars 8–56. Varied: beat grid re-estimated (110 BPM). Best fitness
 
 ### Mulher de Fases (Raimundos)
 
-https://github.com/user-attachments/assets/729d8893-a89e-42a3-8c57-ea96e56264ef
+https://github.com/user-attachments/assets/48e0348a-4b8b-410c-bbf6-74ba0b314aba
 
 | Original | Generated (General MIDI) | Generated (chip) | Video |
 |---|---|---|---|
@@ -357,7 +357,7 @@ Input: MIDI, bars 8–40. Varied: melody: harmonica track. Best fitness 0.896. F
 
 ### Amor I Love You (Marisa Monte)
 
-https://github.com/user-attachments/assets/6f264358-9aed-4a30-94af-263ae51860e7
+https://github.com/user-attachments/assets/e94da227-9dfa-401c-af68-7cc1cdedfb1b
 
 | Original | Generated (General MIDI) | Generated (chip) | Video |
 |---|---|---|---|
@@ -367,7 +367,7 @@ Input: MIDI, bars 0–56. Varied: melody: flute track. Best fitness 0.833. Files
 
 ### Por Você (Barão Vermelho)
 
-https://github.com/user-attachments/assets/db636566-d785-40f3-93da-748810e7ba9e
+https://github.com/user-attachments/assets/4aba3706-2c88-4fd3-95e0-dcd7eaeed1a8
 
 | Original | Generated (General MIDI) | Generated (chip) | Video |
 |---|---|---|---|
@@ -377,7 +377,7 @@ Input: MIDI, bars 4–48. Varied: melody: flute track. Best fitness 0.896. Files
 
 ### Aquarela (Toquinho)
 
-https://github.com/user-attachments/assets/3817c82d-7437-4acc-b5e5-8bc74fa71341
+https://github.com/user-attachments/assets/92e76147-4e57-4d09-b384-c397432a9e27
 
 | Original | Generated (General MIDI) | Generated (chip) | Video |
 |---|---|---|---|
@@ -387,7 +387,7 @@ Input: MIDI, bars 4–36. Varied: melody: clarinet track. Best fitness 0.895. Fi
 
 ### Fico Assim Sem Você (Adriana Calcanhotto)
 
-https://github.com/user-attachments/assets/7f29034f-1020-4e59-94bf-a92bbf5ac99c
+https://github.com/user-attachments/assets/78bfe0fa-7884-493e-a075-6dec0ca33e5e
 
 | Original | Generated (General MIDI) | Generated (chip) | Video |
 |---|---|---|---|

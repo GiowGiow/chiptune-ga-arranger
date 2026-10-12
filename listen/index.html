@@ -3,13 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>NES GA Arranger: Listen</title>
-<meta name="description" content="Listening page of the DCC831 TP1 genetic algorithm that arranges songs for the NES sound chip: original input, General MIDI and chip renderings, and the visualizer video of every curated sample.">
+<title>Chiptune GA Arranger: Listen</title>
+<meta name="description" content="Listening page of a genetic algorithm that arranges songs for the NES sound chip: the original input, the General MIDI and NES chip renderings, and the visualizer videos of every curated sample.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <style>
-  /* Colors follow the visualizer videos: dark background and one color per NES channel. */
+  /* Design: Superdesign draft "Aurora Edition" (liner-notes tracklist), implemented by hand.
+     Colors are the visualizer's: a dark ground and the four NES channel colors, nothing else. */
   :root {
     --bg: #0B0E17;
-    --card: #141a2a;
+    --glass: rgba(20, 26, 42, 0.62);
     --line: #25304a;
     --text: #e6e9f0;
     --muted: #9aa3b5;
@@ -17,93 +21,234 @@
     --p2: #FF800E;
     --tr: #CFCFCF;
     --no: #FFBC79;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   }
   * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
   body {
     margin: 0;
     background: var(--bg);
     color: var(--text);
-    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font: 16px/1.6 Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    overflow-x: hidden;
   }
-  main { max-width: 960px; margin: 0 auto; padding: 32px 16px 64px; }
-  h1 { font-size: 1.7rem; line-height: 1.25; margin: 0 0 8px; }
-  h2 { font-size: 1.2rem; margin: 0; }
-  a { color: var(--p1); }
-  .lead { color: var(--muted); margin: 0 0 8px; }
-  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 16px 0 28px; color: var(--muted); font-size: 0.9rem; }
-  .legend span::before { content: ""; display: inline-block; width: 18px; height: 3px; margin-right: 6px; vertical-align: middle; background: var(--c); box-shadow: 0 0 6px var(--c); }
-  .song { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 18px; margin: 0 0 20px; }
-  .song header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; align-items: baseline; }
-  .meta { color: var(--muted); font-size: 0.9rem; margin: 4px 0 14px; }
-  .fitness { color: var(--no); font-variant-numeric: tabular-nums; font-size: 0.9rem; }
-  .tracks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-  .track { min-width: 0; }
-  .track h3 { font-size: 0.85rem; font-weight: 600; margin: 0 0 6px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
-  .track.gm h3 { color: var(--p1); }
-  .track.chip h3 { color: var(--p2); }
-  audio { width: 100%; height: 40px; }
-  video { display: block; width: 100%; margin: 0 0 14px; border-radius: 6px; background: #000; aspect-ratio: 16 / 9; }
-  footer { color: var(--muted); font-size: 0.85rem; margin-top: 32px; }
-  @media (max-width: 720px) {
-    .tracks { grid-template-columns: 1fr; }
+  a { color: var(--p1); text-underline-offset: 3px; }
+  a:hover { color: var(--no); }
+  :focus-visible { outline: 2px solid var(--no); outline-offset: 3px; border-radius: 6px; }
+
+  /* Living aurora: four blurred blades in the channel colors drift and breathe behind everything. */
+  .aurora { position: fixed; inset: 0; z-index: -3; overflow: hidden; background: var(--bg); }
+  .blade { position: absolute; border-radius: 50%; filter: blur(90px); mix-blend-mode: screen; }
+  .blade.p1 { background: var(--p1); width: 62vw; height: 42vh; top: -12vh; left: -14vw; opacity: .55; animation: drift1 22s ease-in-out infinite alternate; }
+  .blade.p2 { background: var(--p2); width: 52vw; height: 48vh; bottom: -14vh; right: -12vw; opacity: .45; animation: drift2 18s ease-in-out infinite alternate; }
+  .blade.no { background: var(--no); width: 38vw; height: 30vh; top: 42vh; left: 18vw; opacity: .28; animation: drift3 15s ease-in-out infinite alternate; }
+  .blade.tr { background: var(--tr); width: 28vw; height: 36vh; top: 18vh; right: 16vw; opacity: .16; animation: drift4 20s ease-in-out infinite alternate; }
+  @keyframes drift1 { from { transform: translate(0, 0) rotate(0) scale(1); } to { transform: translate(12vw, 16vh) rotate(14deg) scale(1.2); opacity: .32; } }
+  @keyframes drift2 { from { transform: translate(0, 0) rotate(0) scale(1.15); } to { transform: translate(-16vw, -10vh) rotate(-10deg) scale(.9); opacity: .25; } }
+  @keyframes drift3 { from { transform: translate(0, 0) scale(1); } to { transform: translate(18vw, -18vh) scale(1.3); opacity: .14; } }
+  @keyframes drift4 { from { transform: translate(0, 0) scale(1.1); } to { transform: translate(-10vw, 22vh) scale(.85); opacity: .08; } }
+  /* Film grain and a vignette, so the aurora reads as light rather than a flat gradient. */
+  .grain {
+    position: fixed; inset: 0; z-index: -2; pointer-events: none;
+    background:
+      radial-gradient(ellipse at center, rgba(11,14,23,.15) 0%, rgba(11,14,23,.78) 100%),
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='.06'/></svg>");
+  }
+
+  main { max-width: 1120px; margin: 0 auto; padding: 72px 16px 80px; }
+
+  /* Hero */
+  .hero { max-width: 760px; margin-bottom: 64px; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 10px; padding: 6px 14px; border-radius: 999px;
+    background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(12px);
+    color: var(--muted); font-size: .85rem;
+  }
+  h1 { font-size: clamp(2.1rem, 5vw, 3.6rem); line-height: 1.08; font-weight: 800; letter-spacing: -.02em; margin: 20px 0 16px; }
+  .gradient {
+    background: linear-gradient(90deg, var(--p1), var(--no) 55%, var(--p2));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .lead { color: #c9cfdb; font-size: 1.08rem; margin: 0 0 12px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 26px 0 24px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 999px;
+    font-weight: 600; font-size: .95rem; text-decoration: none; transition: transform .2s, box-shadow .2s;
+  }
+  .pill.solid { background: var(--text); color: #0B0E17; box-shadow: 0 0 0 1px #000, 0 0 18px rgba(255,255,255,.18); }
+  .pill.ghost { color: var(--text); border: 1px solid var(--line); background: var(--glass); backdrop-filter: blur(12px); }
+  .pill:hover { transform: translateY(-2px); color: var(--text); }
+  .pill.solid:hover { color: #0B0E17; box-shadow: 0 0 0 1px #000, 0 0 26px rgba(255,188,121,.45); }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; border-radius: 999px;
+    background: rgba(11,14,23,.55); border: 1px solid var(--line); font-size: .82rem; color: var(--muted);
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c); flex: none; }
+
+  /* Sections */
+  .section-label { display: flex; align-items: center; gap: 14px; margin: 56px 0 22px; }
+  .section-label h2 { font-size: 1.35rem; margin: 0; letter-spacing: -.01em; }
+  .section-label .rule { flex: 1; height: 1px; background: linear-gradient(90deg, var(--line), transparent); }
+  .eq { display: inline-flex; align-items: flex-end; gap: 3px; height: 18px; }
+  .eq i { width: 4px; height: 10px; border-radius: 2px 2px 0 0; background: var(--c); animation: eq 1s ease-in-out infinite alternate; }
+  .eq i:nth-child(1) { --c: var(--p1); animation-delay: .1s; }
+  .eq i:nth-child(2) { --c: var(--p2); animation-delay: .45s; }
+  .eq i:nth-child(3) { --c: var(--tr); animation-delay: .25s; }
+  .eq i:nth-child(4) { --c: var(--no); animation-delay: .6s; }
+  @keyframes eq { from { height: 4px; } to { height: 18px; } }
+
+  /* Track cards */
+  .track { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 16px; margin-bottom: 26px; }
+  .num { font-family: var(--mono); font-weight: 700; font-size: 1.6rem; color: var(--p1); opacity: .85; padding-top: 18px; text-align: right; }
+  .card {
+    position: relative; min-width: 0; padding: 20px; border-radius: 16px;
+    background: var(--glass); border: 1px solid var(--line);
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    transition: box-shadow .35s;
+  }
+  /* Gradient border in the channel colors, shown on hover and keyboard focus. */
+  .card::before {
+    content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 1px; pointer-events: none;
+    background: linear-gradient(135deg, var(--p1), var(--no), var(--p2));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude; opacity: 0; transition: opacity .35s;
+  }
+  .card:hover::before, .card:focus-within::before { opacity: .8; }
+  .card:hover { box-shadow: 0 18px 50px -18px rgba(95,158,209,.35); }
+  .card-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+  video { display: block; width: 100%; aspect-ratio: 16 / 9; border-radius: 10px; background: #000; box-shadow: 0 10px 30px -12px rgba(0,0,0,.8); }
+  .info { min-width: 0; }
+  .info h3 { margin: 0; font-size: 1.25rem; line-height: 1.25; }
+  .artist { color: var(--muted); font-size: .92rem; margin-top: 2px; }
+  .fitness {
+    display: inline-block; margin: 10px 0 8px; padding: 2px 10px; border-radius: 999px;
+    font-family: var(--mono); font-size: .8rem; color: var(--no); background: rgba(255,188,121,.08); border: 1px solid rgba(255,188,121,.25);
+  }
+  .note { color: #c3c9d6; font-size: .9rem; margin: 0 0 14px; }
+  .player { margin-bottom: 12px; }
+  .player label { display: flex; align-items: center; gap: 8px; font-size: .74rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--c); margin-bottom: 5px; }
+  audio { display: block; width: 100%; height: 38px; }
+  .files { font-size: .88rem; }
+  details { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 14px; }
+  summary { cursor: pointer; list-style: none; color: var(--muted); font-weight: 600; font-size: .92rem; display: inline-flex; align-items: center; gap: 10px; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: ""; width: 0; height: 0; border-left: 7px solid var(--p1); border-top: 5px solid transparent; border-bottom: 5px solid transparent; transition: transform .2s; }
+  details[open] summary::before { transform: rotate(90deg); }
+  summary:hover { color: var(--text); }
+  details video { margin-top: 14px; }
+  .details-note { color: var(--muted); font-size: .85rem; margin: 10px 0 0; }
+
+  footer { margin-top: 64px; color: var(--muted); font-size: .88rem; text-align: center; }
+
+  /* Cards rise into view once, as the page scrolls. */
+  .reveal { opacity: 0; transform: translateY(28px); transition: opacity .8s cubic-bezier(.2,.8,.2,1), transform .8s cubic-bezier(.2,.8,.2,1); }
+  .reveal.shown { opacity: 1; transform: none; }
+
+  @media (max-width: 900px) {
+    .card-grid { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 640px) {
+    main { padding-top: 48px; }
+    .track { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+    .num { text-align: left; padding: 0; font-size: 1.2rem; }
+    .card { padding: 14px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .blade, .eq i { animation: none !important; }
+    .reveal { opacity: 1; transform: none; transition: none; }
+    html { scroll-behavior: auto; }
   }
 </style>
 </head>
 <body>
+<div class="aurora" aria-hidden="true"><span class="blade p1"></span><span class="blade p2"></span><span class="blade no"></span><span class="blade tr"></span></div>
+<div class="grain" aria-hidden="true"></div>
 <main>
-  <h1>A genetic algorithm that arranges songs for the NES sound chip</h1>
-  <p class="lead">DCC831 Generative AI for Music (UFMG, 2026/2), Assignment 1. Every song has three
-  renderings: the original input, the generated arrangement with General MIDI timbres, and the same
-  arrangement on our NES chip synthesizer. The video plays the chip version and draws each
-  channel as a glowing line.</p>
-  <p class="lead">For an ABC tune, the original is the lead sheet played plainly. For a MIDI song,
-  the original is the fan-made MIDI file itself, rendered with the same soundfont and cut to the
-  same bars. Code, method and paper: <a href="https://github.com/GiowGiow/chiptune-ga-arranger">GiowGiow/chiptune-ga-arranger</a>.</p>
-  <div class="legend" aria-label="Channel colors in the videos">
-    <span style="--c: var(--p1)">P1 pulse: melody</span>
-    <span style="--c: var(--p2)">P2 pulse: harmony</span>
-    <span style="--c: var(--tr)">TR triangle: bass</span>
-    <span style="--c: var(--no)">NO noise: drums</span>
-  </div>
-  <div id="songs"></div>
-  <footer>The audio is rendered only from MIDI files: FluidSynth with the FluidR3_GM soundfont,
-  or the project's own chip synthesizer (pulse, triangle and noise waveforms).</footer>
+  <header class="hero">
+    <span class="eyebrow"><span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span>DCC831 Generative AI for Music · UFMG 2026/2 · Assignment 1</span>
+    <h1>A genetic algorithm that arranges songs for the <span class="gradient">NES sound chip</span></h1>
+    <p class="lead">Every song has three renderings: the original input, the generated arrangement with
+    General MIDI timbres, and the same arrangement on our NES chip synthesizer. The video plays the
+    chip version and draws each channel as a glowing line.</p>
+    <p class="lead">For an ABC tune, the original is the lead sheet played plainly. For a MIDI song, it
+    is the fan-made MIDI file itself, rendered with the same soundfont and cut to the same bars.</p>
+    <div class="actions">
+      <a class="pill solid" href="https://github.com/GiowGiow/chiptune-ga-arranger">
+        <svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        Code and method
+      </a>
+      <a class="pill ghost" href="../paper/tp1.pdf">Read the abstract (PDF)</a>
+    </div>
+    <div class="legend" aria-label="Channel colors in the videos">
+      <span class="chip"><span class="dot" style="--c: var(--p1)"></span>P1 pulse · melody</span>
+      <span class="chip"><span class="dot" style="--c: var(--p2)"></span>P2 pulse · harmony</span>
+      <span class="chip"><span class="dot" style="--c: var(--tr)"></span>TR triangle · bass</span>
+      <span class="chip"><span class="dot" style="--c: var(--no)"></span>NO noise · drums</span>
+    </div>
+  </header>
+
+  <div id="tracks"></div>
+
+  <footer>The audio is rendered only from MIDI files: FluidSynth with the FluidR3_GM soundfont, or the
+  project's own chip synthesizer (pulse, triangle and noise waveforms). Page design drafted with
+  Superdesign.</footer>
 </main>
 <script>
   // One entry per folder in samples/; the text matches the "Generated pieces" section of the README.
-  const SAMPLES = [
-    ["ievan-polkka-s1", "Ievan Polkka", "ABC lead sheet (Loituma melody). Varied: default.", "0.912"],
-    ["ievan-polkka-s1-contrast0", "Ievan Polkka, contrast weight 0", "Same lead sheet. Varied: contrast weight 0 (fitness not comparable).", "0.887"],
-    ["korobeiniki-s1", "Korobeiniki (Tetris theme)", "ABC lead sheet. Varied: default.", "0.922"],
-    ["korobeiniki-s2", "Korobeiniki, seed 2", "Same lead sheet. Varied: seed 2.", "0.936"],
-    ["voa-voa-s1", "Voa Voa (Chiclete com Banana)", "MIDI, bars 8–56. Beat grid re-estimated (110 BPM).", "0.853"],
-    ["mulher-de-fases-s1", "Mulher de Fases (Raimundos)", "MIDI, bars 8–40. Melody: harmonica track.", "0.896"],
-    ["amor-i-love-you-s1", "Amor I Love You (Marisa Monte)", "MIDI, bars 0–56. Melody: flute track.", "0.833"],
-    ["por-voce-s1", "Por Você (Barão Vermelho)", "MIDI, bars 4–48. Melody: flute track.", "0.896"],
-    ["aquarela-s1", "Aquarela (Toquinho)", "MIDI, bars 4–36. Melody: clarinet track.", "0.895"],
-    ["fico-assim-sem-voce-s1", "Fico Assim Sem Você (Adriana Calcanhotto)", "MIDI, bars 10–58. Melody: flute track.", "0.891"],
+  const SECTIONS = [
+    ["Folk tunes", [
+      ["ievan-polkka-s1", "Ievan Polkka", "Traditional (Loituma's version)", "ABC lead sheet (Loituma melody). Default configuration, seed 1.", "0.912"],
+      ["ievan-polkka-s1-contrast0", "Ievan Polkka, contrast weight 0", "Traditional (Loituma's version)", "Same lead sheet, contrast weight 0 (fitness not comparable).", "0.887"],
+      ["korobeiniki-s1", "Korobeiniki", "Traditional (the Tetris theme)", "ABC lead sheet. Default configuration, seed 1.", "0.922"],
+      ["korobeiniki-s2", "Korobeiniki, seed 2", "Traditional (the Tetris theme)", "Same lead sheet, seed 2.", "0.936"],
+    ]],
+    ["Brazilian songs", [
+      ["voa-voa-s1", "Voa Voa", "Chiclete com Banana", "MIDI, bars 8–56, beat grid re-estimated at 110 BPM.", "0.853"],
+      ["mulher-de-fases-s1", "Mulher de Fases", "Raimundos", "MIDI, bars 8–40, melody on the harmonica track.", "0.896"],
+      ["amor-i-love-you-s1", "Amor I Love You", "Marisa Monte", "MIDI, bars 0–56, melody on the flute track.", "0.833"],
+      ["por-voce-s1", "Por Você", "Barão Vermelho", "MIDI, bars 4–48, melody on the flute track.", "0.896"],
+      ["aquarela-s1", "Aquarela", "Toquinho", "MIDI, bars 4–36, melody on the clarinet track.", "0.895"],
+      ["fico-assim-sem-voce-s1", "Fico Assim Sem Você", "Adriana Calcanhotto", "MIDI, bars 10–58, melody on the flute track.", "0.891"],
+    ]],
   ];
-  const TRACKS = [
-    ["input.mp3", "Original", "original"],
-    ["piece.mp3", "Generated · General MIDI", "gm"],
-    ["piece-chip.mp3", "Generated · NES chip", "chip"],
+  const PLAYERS = [
+    ["input.mp3", "Original", "var(--tr)"],
+    ["piece.mp3", "Generated · General MIDI", "var(--p1)"],
+    ["piece-chip.mp3", "Generated · NES chip", "var(--p2)"],
   ];
-  const songs = document.getElementById("songs");
-  for (const [folder, title, meta, fitness] of SAMPLES) {
-    const base = `../samples/${folder}/`;
-    const section = document.createElement("section");
-    section.className = "song";
-    section.id = folder;
-    const tracks = TRACKS.map(([file, label, cls]) =>
-      `<div class="track ${cls}"><h3>${label}</h3>` +
-      `<audio controls preload="none" src="${base}${file}"></audio></div>`).join("");
-    section.innerHTML =
-      `<header><h2>${title}</h2><span class="fitness">best fitness ${fitness}</span></header>` +
-      `<p class="meta">${meta} <a href="https://github.com/GiowGiow/chiptune-ga-arranger/tree/main/samples/${folder}">Files and notes</a></p>` +
-      `<video controls preload="metadata" src="${base}piece.mp4#t=0.5"` +
-      ` aria-label="${title}: the four channels in sync with the chip audio"></video>` +
-      `<div class="tracks">${tracks}</div>`;
-    songs.appendChild(section);
+  const REPO = "https://github.com/GiowGiow/chiptune-ga-arranger/tree/main/samples/";
+  const root = document.getElementById("tracks");
+  let number = 0;
+  for (const [label, songs] of SECTIONS) {
+    const head = document.createElement("div");
+    head.className = "section-label";
+    head.innerHTML = `<h2>${label}</h2><span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="rule"></span>`;
+    root.appendChild(head);
+    for (const [folder, title, artist, note, fitness] of songs) {
+      number += 1;
+      const base = `../samples/${folder}/`;
+      const players = PLAYERS.map(([file, name, color], i) => {
+        const id = `${folder}-${i}`;
+        return `<div class="player"><label for="${id}" style="--c: ${color}"><span class="dot" style="--c: ${color}"></span>${name}</label>` +
+          `<audio id="${id}" controls preload="none" src="${base}${file}"></audio></div>`;
+      }).join("");
+      const track = document.createElement("article");
+      track.className = "track reveal";
+      track.id = folder;
+      track.innerHTML =
+        `<div class="num" aria-hidden="true">${String(number).padStart(2, "0")}</div>` +
+        `<div class="card"><div class="card-grid">` +
+        `<video controls preload="none" poster="${base}poster.jpg" src="${base}piece.mp4" aria-label="${title}: the four NES channels in sync with the chip version"></video>` +
+        `<div class="info"><h3>${title}</h3><div class="artist">${artist}</div>` +
+        `<span class="fitness">best fitness ${fitness}</span><p class="note">${note}</p>${players}` +
+        `<a class="files" href="${REPO}${folder}">Files and listening notes →</a></div></div>` +
+        `<details><summary>Original visualization</summary>` +
+        `<video controls preload="none" src="${base}input.mp4" aria-label="${title}: the original input, every instrument as a glowing line"></video>` +
+        `<p class="details-note">The input as the arranger received it, every instrument drawn as a glowing line; the melody track is blue.</p></details>` +
+        `</div>`;
+      root.appendChild(track);
+    }
   }
   // Only one player sounds at a time: starting one pauses the others.
   document.addEventListener("play", (event) => {
@@ -111,6 +256,18 @@
       if (media !== event.target) media.pause();
     }
   }, true);
+  // Reveal the cards as they scroll into view (everything is shown at once without IntersectionObserver).
+  const cards = document.querySelectorAll(".reveal");
+  if ("IntersectionObserver" in window) {
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) { entry.target.classList.add("shown"); observer.unobserve(entry.target); }
+      }
+    }, { rootMargin: "0px 0px -8% 0px" });
+    cards.forEach((card) => observer.observe(card));
+  } else {
+    cards.forEach((card) => card.classList.add("shown"));
+  }
 </script>
 </body>
 </html>

@@ -19,7 +19,9 @@ These are the basic waveforms seen in the course (square/pulse, triangle and noi
 on audio representation), here in the coarse form the chip produces. Like `export.audio`, the
 audio is made only from the generated MIDI file: tracks are found by name (P1, P2, TR, NO), each
 note is synthesized with numpy, the channels are mixed with fixed gains and the mix is scaled to
-peak at -3 dBFS. ffmpeg then compresses it to MP3.
+peak at -3 dBFS. Then `export.audio.normalize_loudness` brings it to the loudness shared by every
+rendering (-16 LUFS, as two identical channels) and ffmpeg compresses it to MP3, so that the chip
+version, the General MIDI version and the input sound equally loud when compared by ear.
 
 Reference: C. Donahue, H. H. Mao and J. McAuley, "The NES Music Database: a multi-instrumental
 dataset with expressive performance attributes", ISMIR 2018 (channel roles, 4 duty cycles, 15
@@ -29,7 +31,6 @@ volume levels for pulse and noise, no volume for the triangle).
 import functools
 import math
 import shutil
-import subprocess
 import sys
 import wave
 from dataclasses import dataclass
@@ -39,6 +40,7 @@ import numpy as np
 import pretty_midi
 
 from arrangement.model import HIHAT, KICK, SNARE
+from export.audio import normalize_loudness
 
 SAMPLE_RATE = 44100
 
@@ -241,7 +243,7 @@ def write_wav(samples: np.ndarray, path: Path | str, sample_rate: int = SAMPLE_R
 def render_chip_mp3(
     mid_path: Path | str, mp3_path: Path | str, sample_rate: int = SAMPLE_RATE
 ) -> bool:
-    """Render `mid_path` with chip sounds to `mp3_path`.
+    """Render `mid_path` with chip sounds to `mp3_path`, at the loudness shared by every rendering.
 
     Returns False, with a notice on stderr, when ffmpeg is missing.
     """
@@ -253,10 +255,7 @@ def render_chip_mp3(
     wav_path = mp3_path.with_suffix(".wav")
     write_wav(samples, wav_path, sample_rate)
     try:
-        encode = ["ffmpeg", "-y", "-loglevel", "error", "-i", str(wav_path)]
-        subprocess.run(
-            [*encode, "-codec:a", "libmp3lame", "-qscale:a", "4", str(mp3_path)], check=True
-        )
+        normalize_loudness(wav_path, mp3_path)
     finally:
         wav_path.unlink(missing_ok=True)
     return True
