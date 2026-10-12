@@ -13,6 +13,7 @@ import {
   settingsHash,
   validateSettings,
 } from "../src/core/settings.js";
+import { importConfig } from "../src/ui/settings-form.js";
 import { repoRoot } from "./helpers.js";
 
 const defaultConfig = JSON.parse(readFileSync(join(repoRoot, "configs/default.json"), "utf8"));
@@ -109,4 +110,111 @@ test("the config record holds the CLI keys, then the run keys, in the CLI's orde
   assert.equal(record.git_dirty, null);
   assert.equal(record.audio, false);
   assert.deepEqual(record.weights, defaultConfig.weights);
+});
+
+// Allowed values (spec 003, contracts/config.md)
+
+const EVERY_VALUE = {
+  p2: ["hold", "arp16", "arp32", "echo", "third"],
+  tr: ["root", "octave_pump", "root_fifth", "walking"],
+  no: ["none", "half_time", "eighth_beat", "sixteenth_beat", "fill"],
+  p1_octave: [0, 12, -12],
+};
+
+/** A run record of the default settings with `allowed` replaced by the given lists. */
+function recordWith(/** @type {Record<string, unknown> | undefined} */ allowed) {
+  const settings = defaultSettings(defaultConfig);
+  if (allowed === undefined) delete settings.allowed;
+  else settings.allowed = allowed;
+  return configRecord({
+    settings,
+    inputName: "korobeiniki.abc",
+    inputSha256: "ab".repeat(32),
+    commit: "dev",
+    created: "2026-10-12T15:04:05Z",
+    runId: "korobeiniki-s1-12345678",
+    bestFitness: 0.92,
+    stopReason: "stagnation",
+    generations: 1886,
+    app: { name: "chiptune-ga-arranger web", pace: "watch" },
+  });
+}
+
+test("the default settings allow every value of every gene", () => {
+  const settings = defaultSettings(defaultConfig);
+  assert.deepEqual(settings.allowed, EVERY_VALUE);
+  assert.deepEqual(settings.allowed, defaultConfig.allowed);
+});
+
+test("an allowed list in any order, with some values left out, is valid", () => {
+  const settings = defaultSettings(defaultConfig);
+  settings.allowed.p2 = ["third", "hold"];
+  settings.allowed.p1_octave = [-12, 0];
+  assert.deepEqual(validateSettings(settings), []);
+});
+
+test("each invalid allowed list gives the command line's message, named allowed.<gene>", () => {
+  const p2Values = "hold, arp16, arp32, echo, third";
+  /** @type {[string, unknown, string][]} */
+  const cases = [
+    ["p2", "hold", "allowed.p2 must be a list of P2 textures"],
+    ["tr", null, "allowed.tr must be a list of TR textures"],
+    ["no", { none: true }, "allowed.no must be a list of NO patterns"],
+    ["p1_octave", 0, "allowed.p1_octave must be a list of P1 octaves"],
+    ["no", [], "allowed.no must keep at least one value"],
+    ["p2", ["hold", "arp64"], `allowed.p2: unknown value "arp64"; valid values: ${p2Values}`],
+    ["p1_octave", [0, 24], 'allowed.p1_octave: unknown value "24"; valid values: 0, 12, -12'],
+    ["p1_octave", ["12"], 'allowed.p1_octave: unknown value "12"; valid values: 0, 12, -12'],
+    ["tr", ["walking", "root", "walking"], 'allowed.tr: "walking" is listed twice'],
+  ];
+  for (const [gene, value, message] of cases) {
+    const settings = defaultSettings(defaultConfig);
+    settings.allowed[gene] = value;
+    assert.deepEqual(validateSettings(settings), [{ field: `allowed.${gene}`, message }]);
+  }
+});
+
+test("allowed lists report their first problem, as the command line does", () => {
+  const settings = defaultSettings(defaultConfig);
+  settings.allowed.p2 = ["arp64", "hold", "hold"];
+  settings.allowed.tr = ["root", "root", "bass"];
+  assert.deepEqual(validateSettings(settings).map((m) => m.message), [
+    'allowed.p2: unknown value "arp64"; valid values: hold, arp16, arp32, echo, third',
+    'allowed.tr: "root" is listed twice',
+  ]);
+});
+
+test("every gene with an invalid allowed list gets its own message", () => {
+  const settings = defaultSettings(defaultConfig);
+  settings.allowed.p2 = [];
+  settings.allowed.no = [];
+  assert.deepEqual(validateSettings(settings).map((m) => m.field), ["allowed.p2", "allowed.no"]);
+});
+
+test("the config record carries the allowed values of the run", () => {
+  const allowed = { ...EVERY_VALUE, p2: ["hold", "arp16", "echo", "third"] };
+  assert.deepEqual(recordWith(allowed).allowed, allowed);
+});
+
+test("importing a config record restores its allowed values", () => {
+  const allowed = { ...EVERY_VALUE, p2: ["hold", "arp16", "echo", "third"], p1_octave: [0] };
+  const imported = importConfig(JSON.stringify(recordWith(allowed)), defaultSettings(defaultConfig));
+  assert.deepEqual(imported.allowed, allowed);
+});
+
+test("importing a record without allowed (made before the setting) allows every value", () => {
+  const record = recordWith(undefined);
+  assert.equal("allowed" in record, false);
+  const imported = importConfig(JSON.stringify(record), defaultSettings(defaultConfig));
+  assert.deepEqual(imported.allowed, EVERY_VALUE);
+});
+
+test("importing some allowed genes keeps the others at their defaults", () => {
+  const text = JSON.stringify({ allowed: { p2: ["hold", "arp16"] } });
+  const imported = importConfig(text, defaultSettings(defaultConfig));
+  assert.deepEqual(imported.allowed, { ...EVERY_VALUE, p2: ["hold", "arp16"] });
+  assert.throws(
+    () => importConfig(JSON.stringify({ allowed: { drums: ["none"] } }), defaultSettings(defaultConfig)),
+    { message: "unknown configuration key 'allowed.drums'" },
+  );
 });

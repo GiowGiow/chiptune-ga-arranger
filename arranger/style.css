@@ -278,6 +278,26 @@ tr.drum { color: var(--muted); }
 .setting .tip { grid-column: 1 / -1; right: 0; width: auto; }
 .setting.invalid input { border-color: #ff9b8a; }
 .field-error:empty { display: none; }
+/* Allowed textures: one fieldset per channel, its values in two columns, which fit the drawer at
+   any width down to a 375 px phone. A changed channel is bold like a changed setting. */
+.allowed-textures .hint { margin: 0 0 4px; font-size: .82rem; }
+.allowed-gene { border: 0; margin: 0; padding: 6px 0; min-width: 0; border-bottom: 1px solid rgba(37, 48, 74, .5); }
+.settings-group .allowed-gene legend { display: flex; align-items: center; gap: 8px; margin: 0; padding: 0; color: var(--text); font-size: .93rem; font-weight: 400; }
+.settings-group .allowed-gene.changed legend { font-weight: 700; }
+.settings-group .allowed-gene.invalid legend { color: #ff9b8a; }
+.allowed-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 10px; margin-top: 2px; }
+.allowed-value label { display: flex; align-items: flex-start; gap: 6px; padding: 3px 0; font-size: .86rem; line-height: 1.3; cursor: pointer; }
+/* The box lines up with the first line of a label that wraps. */
+.allowed-value input { flex: none; width: 15px; height: 15px; margin: 2px 0 0; padding: 0; accent-color: var(--p1); }
+.allowed-value .tip-mark { margin-left: 5px; }
+/* A tooltip in the right column opens leftward, so it stays inside the drawer. */
+.allowed-value:nth-child(even) .tip { left: auto; right: 0; }
+.allowed-gene .setting-note { margin-top: 2px; }
+.allowed-gene .field-error { margin: 4px 0 0; font-size: .82rem; }
+/* Warnings, not errors: the run may go on, but a criterion or a channel has nothing left to do. */
+.allowed-warnings { display: grid; gap: 4px; margin-top: 8px; }
+.allowed-warnings:empty { display: none; }
+.allowed-warnings p { margin: 0; padding-left: 8px; border-left: 2px solid var(--no); color: var(--no); font-size: .82rem; }
 
 /* Run list. */
 .run-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }

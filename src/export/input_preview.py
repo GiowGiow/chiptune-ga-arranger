@@ -11,7 +11,8 @@ from pathlib import Path
 
 import pretty_midi
 
-from leadsheet.midi_reader import meter_offset_beats
+from leadsheet.meter import bar_starts
+from leadsheet.midi_reader import excerpt_bars, main_meter
 from leadsheet.model import LeadSheet
 
 PIANO, ACOUSTIC_BASS = 0, 32
@@ -24,8 +25,7 @@ def lead_sheet_to_midi(lead_sheet: LeadSheet) -> pretty_midi.PrettyMIDI:
     melody = pretty_midi.Instrument(PIANO, name="melody")
     chords = pretty_midi.Instrument(PIANO, name="chords")
     bass = pretty_midi.Instrument(ACOUSTIC_BASS, name="bass")
-    for bar in lead_sheet.bars:
-        bar_start = bar.index * lead_sheet.beats_per_bar
+    for bar, bar_start in zip(lead_sheet.bars, bar_starts(lead_sheet.bars), strict=True):
         for note in bar.melody:
             start = (bar_start + note.onset) * seconds_per_beat
             end = (bar_start + note.onset + note.duration) * seconds_per_beat
@@ -46,21 +46,25 @@ def excerpt_seconds(
     """Return the start and end, in seconds, of a bar excerpt of a MIDI recording.
 
     `source_grid` is the (tempo, first downbeat) grid on which the song was read; a grid with
-    downbeat 0.0 at the file's first tempo is the file's own tick grid, whose bar 0 is the first
-    4/4 bar (a count-in in another meter is skipped, see `meter_offset_beats`). Without `bars`,
-    the whole file is used, from that bar on.
+    downbeat 0.0 at the file's first tempo is the file's own tick grid, whose bars follow its
+    time-signature map (see `bar_map`). Without `bars`, the excerpt is the reader's default: from
+    the first to the last bar that holds a pitched note.
     """
     source = pretty_midi.PrettyMIDI(str(path))
     bpm, downbeat = source_grid
     if downbeat == 0.0 and bpm == float(source.get_tempo_changes()[1][0]):
-        first_tick = round(meter_offset_beats(source) * source.resolution)
-        ticks_per_bar = 4 * source.resolution
+        the_map, first, end = excerpt_bars(source, bars)
+        start_beat = the_map[first].start
+        end_beat = the_map[end - 1].start + the_map[end - 1].length
         if bars is None:
-            return source.tick_to_time(first_tick), source.get_end_time()
-        start = source.tick_to_time(first_tick + bars[0] * ticks_per_bar)
-        end = source.tick_to_time(first_tick + bars[1] * ticks_per_bar)
-        return start, end
+            return _beat_seconds(source, start_beat), source.get_end_time()
+        return _beat_seconds(source, start_beat), _beat_seconds(source, end_beat)
     if bars is None:
         return 0.0, source.get_end_time()
-    seconds_per_bar = 4 * 60.0 / bpm
+    seconds_per_bar = main_meter(source).bar_beats * 60.0 / bpm
     return downbeat + bars[0] * seconds_per_bar, downbeat + bars[1] * seconds_per_bar
+
+
+def _beat_seconds(source: pretty_midi.PrettyMIDI, beat: float) -> float:
+    """The time in seconds of a beat on the file's own tick grid."""
+    return source.tick_to_time(round(beat * source.resolution))

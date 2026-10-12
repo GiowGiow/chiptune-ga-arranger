@@ -6,6 +6,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  ALL_ALLOWED,
   GENE_SIZES,
   GENES_PER_BAR,
   NO,
@@ -16,6 +17,7 @@ import {
   P2_TEXTURES,
   TR,
   TR_TEXTURES,
+  allowedGenes,
   decode,
   randomPopulation,
 } from "../src/core/genome.js";
@@ -72,6 +74,96 @@ test("randomPopulation rejects a size that is not a positive integer", () => {
   const rng = createRandom(1);
   assert.throws(() => randomPopulation(rng, 0, 2), RangeError);
   assert.throws(() => randomPopulation(rng, 3, 2.5), RangeError);
+});
+
+// Allowed values (spec 003, research R12)
+
+/** Every value of every gene but arp32 (P2 gene value 2). */
+const NO_ARP32 = [[0, 1, 3, 4], [0, 1, 2, 3], [0, 1, 2, 3, 4], [0, 1, 2]];
+
+test("by default every value of every gene is allowed, and the list cannot be changed", () => {
+  assert.deepEqual(ALL_ALLOWED, [[0, 1, 2, 3, 4], [0, 1, 2, 3], [0, 1, 2, 3, 4], [0, 1, 2]]);
+  assert.ok(Object.isFrozen(ALL_ALLOWED));
+  for (const values of ALL_ALLOWED) assert.ok(Object.isFrozen(values));
+});
+
+test("allowedGenes turns value names into sorted gene values, column by column", () => {
+  const allowed = {
+    p2: ["hold", "arp16", "echo", "third"],
+    tr: ["root", "octave_pump", "root_fifth", "walking"],
+    no: ["none", "half_time", "eighth_beat", "sixteenth_beat", "fill"],
+    p1_octave: [0, 12, -12],
+  };
+  assert.deepEqual(allowedGenes(allowed), NO_ARP32);
+});
+
+test("allowedGenes ignores the order of each list", () => {
+  const allowed = {
+    p2: ["third", "hold"],
+    tr: ["walking", "root"],
+    no: ["fill", "none", "half_time"],
+    p1_octave: [-12, 0],
+  };
+  assert.deepEqual(allowedGenes(allowed), [[0, 4], [0, 3], [0, 1, 4], [0, 2]]);
+});
+
+test("allowedGenes rejects a value name that no gene has", () => {
+  const allowed = { p2: ["arp64"], tr: ["root"], no: ["none"], p1_octave: [0] };
+  assert.throws(() => allowedGenes(allowed), RangeError);
+});
+
+test("with every value allowed, randomPopulation makes the same draws as without the setting", () => {
+  const omitted = createRandom(1);
+  const allAllowed = createRandom(1);
+  const plain = randomPopulation(omitted, 5, 7);
+  assert.deepEqual(randomPopulation(allAllowed, 5, 7, ALL_ALLOWED), plain);
+  assert.equal(allAllowed.uint32(), omitted.uint32(), "the generators end in the same state");
+});
+
+test("randomPopulation keeps the population that seed 1 gave before the setting existed", () => {
+  const rng = createRandom(1);
+  const population = randomPopulation(rng, 2, 2);
+  assert.deepEqual(Array.from(population), [4, 3, 0, 0, 2, 1, 4, 2, 2, 2, 1, 2, 3, 0, 3, 2]);
+  assert.equal(rng.uint32(), 1197866444);
+});
+
+test("with arp32 disallowed, no plan of a large population holds it", () => {
+  const population = randomPopulation(createRandom(2), 200, 32, NO_ARP32);
+  for (let index = P2; index < population.length; index += GENES_PER_BAR) {
+    assert.notEqual(population[index], 2, `gene ${index} is arp32`);
+  }
+});
+
+test("randomPopulation draws a position among the allowed values, in storage order", () => {
+  const allowed = [[1, 4], [3], [0, 2, 4], [0, 2]];
+  const reference = createRandom(3);
+  const expected = Array.from({ length: 4 * 3 * 4 }, (_, index) => {
+    const values = allowed[index % 4];
+    return values[reference.integer(0, values.length)];
+  });
+  const rng = createRandom(3);
+  assert.deepEqual(Array.from(randomPopulation(rng, 4, 3, allowed)), expected);
+  assert.equal(rng.uint32(), reference.uint32());
+});
+
+test("randomPopulation reaches every allowed value and no other", () => {
+  const allowed = [[1, 4], [3], [0, 2, 4], [0, 2]];
+  const population = randomPopulation(createRandom(4), 100, 4, allowed);
+  for (let gene = 0; gene < GENES_PER_BAR; gene++) {
+    const seen = new Set();
+    for (let index = gene; index < population.length; index += GENES_PER_BAR) {
+      seen.add(population[index]);
+    }
+    assert.deepEqual([...seen].sort(), allowed[gene], `gene ${gene}`);
+  }
+});
+
+test("the JSDoc examples of allowedGenes and randomPopulation hold", () => {
+  const allowed = { p2: ["third", "hold"], tr: ["root"], no: ["fill"], p1_octave: [0] };
+  assert.deepEqual(allowedGenes(allowed), [[0, 4], [0], [4], [0]]);
+  const noArp32 = randomPopulation(createRandom(1), 3, 2, NO_ARP32);
+  assert.equal(noArp32.length, 24);
+  assert.equal(noArp32.some((gene, i) => i % 4 === P2 && gene === 2), false);
 });
 
 test("decode turns the genes 1, 3, 4, 2 into readable choices", () => {

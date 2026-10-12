@@ -1,0 +1,10 @@
+% Written for the chiptune-ga-arranger tests (spec 003): an 8-bar tune in 7/8, felt 2 + 2 + 3.
+X:1
+T:Test Seven
+M:7/8
+L:1/8
+Q:1/4=160
+K:D
+P:A
+"D"F2 A2 d3 | "G"B2 d2 g3 | "A7"e2 c2 A3 | "D"d2 F2 A3 |
+"Em"G2 B2 e3 | "A7"c2 e2 a3 | "G"g2 f2 "A7"e3 | "D"d4 A3 |

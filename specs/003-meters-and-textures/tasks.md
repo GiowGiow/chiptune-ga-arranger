@@ -33,7 +33,7 @@ comes before the code it covers, and the test must fail first for the expected r
 **Purpose**: The test tunes that every meter story uses. These are the project's own tunes,
 which may be committed (research R13).
 
-- [ ] T001 [P] Write seven original ABC test tunes in `tests/data/meters/`. Each has chord
+- [X] T001 [P] Write seven original ABC test tunes in `tests/data/meters/`. Each has chord
   symbols on its strong beats, a `T:`, a tempo in quarter notes (`Q:1/4=…`, also for 6/8,
   9/8 and 12/8), `K:` and complete bars, with no pickup, no repeats, and every note on
   the sixteenth grid:
@@ -47,7 +47,8 @@ which may be committed (research R13).
   - `changes.abc`: M:4/4 with inline `[M:2/4]`, `[M:3/4]` and back to `[M:4/4]`, 8 bars.
 
   Add a header comment `% Written for the chiptune-ga-arranger tests (spec 003).`
-- [ ] T002 [P] Add the meter terms to `docs/glossary.md`: meter, simple meter, compound meter,
+- [ ] T002 [P] Add the meter terms to the README (the repository has no `docs/` folder; spec 002 defined
+  its terms in a "Terms used here" paragraph of the README, so this follows it): meter, simple meter, compound meter,
   irregular meter, beat grouping, strong beat, time-signature map and allowed values. Each needs
   a one-sentence definition and a 3/4 or 6/8 example.
 
@@ -58,7 +59,7 @@ which may be committed (research R13).
 **Purpose**: The `Meter` value type in both languages (data-model "Meter"). It blocks every meter
 story. US3 does not need it.
 
-- [ ] T003 [P] Write the failing tests in `tests/test_meter.py`:
+- [X] T003 [P] Write the failing tests in `tests/test_meter.py`:
   - the 9-row table of data-model "Meter" (`bar_beats`, `beats`, `strong`, `steps`);
   - `parse_meter("C") == parse_meter("4/4")`, and `"C|"` is 2/2;
   - the exact error text for `"11/16"` and `"3/8"`, with the bar number;
@@ -67,7 +68,7 @@ story. US3 does not need it.
     `(0,)`);
   - `groups` for 4/4 `((0, 2), (2, 2))`, 5/4 `((0, 3), (3, 2))` and 3/4 `((0, 3),)`;
   - `bar_starts` and `total_beats` for bars of 4/4, 2/4 and 3/4 (`[0, 4, 6]`, 9).
-- [ ] T004 Implement `src/leadsheet/meter.py`:
+- [X] T004 Implement `src/leadsheet/meter.py`:
   - `Meter` (a frozen dataclass with `numerator` and `denominator`, plus the derived properties
     `bar_beats`, `beats`, `strong` and `steps`);
   - `SUPPORTED_METERS`, `FOUR_FOUR`, `parse_meter(text, bar_number=None)`, `beat_onsets`,
@@ -75,9 +76,9 @@ story. US3 does not need it.
 
   The module docstring explains beats, strong beats, and simple, compound and irregular meters.
   Add doctests. T003 must pass.
-- [ ] T005 [P] Write the failing tests in `arranger/tests/meter.test.js`, mirroring T003.
+- [X] T005 [P] Write the failing tests in `arranger/tests/meter.test.js`, mirroring T003.
   `parseMeter` throws an `Error` with the same text.
-- [ ] T006 Implement `core/meter.js`, a port of `meter.py` with frozen objects
+- [X] T006 Implement `core/meter.js`, a port of `meter.py` with frozen objects
   (`{numerator, denominator, barBeats, beats, strong, steps}`) and the same helper names in
   camelCase. Add the module header comment and JSDoc examples. T005 must pass.
 
@@ -96,13 +97,13 @@ the app, with checkboxes and tooltips. Defaults give identical results.
 
 ### Tests for User Story 3
 
-- [ ] T007 [P] [US3] Write the failing config tests in `tests/test_config.py`:
+- [X] T007 [P] [US3] Write the failing config tests in `tests/test_config.py`:
   - `load_config()["allowed"]` equals the full default of contracts/config.md;
   - `--set 'allowed.p2=["hold","arp16"]'` replaces only `p2`;
   - a run record without `allowed` loads the default;
   - each error message of contracts/config.md (not a list, empty, unknown value, duplicate,
     unknown sub-key).
-- [ ] T008 [P] [US3] Write the failing GA tests in `tests/test_genome_operators.py`:
+- [X] T008 [P] [US3] Write the failing GA tests in `tests/test_genome_operators.py`:
   - `allowed_genes(default)` equals `tuple(tuple(range(s)) for s in GENE_SIZES)`;
   - with the default, `random_population(rng, m, n, allowed)` equals today's draw for seed 0;
   - `mutate(..., allowed=default)` equals today's result for a fixed seed and rate 0.3;
@@ -110,29 +111,29 @@ the app, with checkboxes and tooltips. Defaults give identical results.
     at rate 1;
   - a gene with one allowed value never changes at rate 1;
   - mutation stays inside the allowed tuple.
-- [ ] T009 [P] [US3] Write the failing evolution test in `tests/test_evolution.py`:
+- [X] T009 [P] [US3] Write the failing evolution test in `tests/test_evolution.py`:
   - `evolve` with `GAParams(..., allowed=…)` that disallows arp32 never logs a best plan with
     arp32 (check `best_genome` and `initial_best_genome`) on Korobeiniki, with 30 generations;
   - `GAParams` with the default `allowed` reproduces the committed `samples/korobeiniki-s1`
     best fitness (this test already exists; keep it).
-- [ ] T010 [P] [US3] Write the failing JS tests in `arranger/tests/genome.test.js`,
+- [X] T010 [P] [US3] Write the failing JS tests in `arranger/tests/genome.test.js`,
   `arranger/tests/operators.test.js` and `arranger/tests/evolution.test.js`:
   - `randomPopulation` and `mutate` with `allowed` omitted, or equal to all values, make the same
     `rng` calls as today (compare against a recorded population for seed 1);
   - a disallowed value never appears;
   - a one-value gene never changes and draws no shift;
   - `createGAParams` rejects an empty allowed list.
-- [ ] T011 [P] [US3] Write the failing settings tests in `arranger/tests/settings.test.js`:
+- [X] T011 [P] [US3] Write the failing settings tests in `arranger/tests/settings.test.js`:
   - `checkSettings` reports the contracts/config.md messages;
   - the default settings hold `allowed`;
   - the exported run record carries `allowed`, and importing it restores it.
 
 ### Implementation for User Story 3
 
-- [ ] T012 [US3] Add `allowed` to `configs/default.json` (the contracts/config.md shape) and
+- [X] T012 [US3] Add `allowed` to `configs/default.json` (the contracts/config.md shape) and
   validate it in `src/config.py` (`_check_allowed`, called from `load_config`) with the exact
   messages. T007 must pass.
-- [ ] T013 [US3] Implement the allowed draws:
+- [X] T013 [US3] Implement the allowed draws:
   - in `src/ga/genome.py`: `ALL_ALLOWED`, `allowed_genes(allowed)`, and
     `random_population(rng, m, n_bars, allowed=ALL_ALLOWED)`, which draws `rng.integers(0, k)`
     per column and maps it through the tuple;
@@ -141,7 +142,7 @@ the app, with checkboxes and tooltips. Defaults give identical results.
     R12).
 
   Write the docstrings with doctests. T008 must pass.
-- [ ] T014 [US3] Add `allowed: tuple[tuple[int, ...], ...] = ALL_ALLOWED` to `GAParams` in
+- [X] T014 [US3] Add `allowed: tuple[tuple[int, ...], ...] = ALL_ALLOWED` to `GAParams` in
   `src/ga/evolution.py` and pass it to `random_population` and `mutate`. Then pass it on from the
   callers:
   - in `src/main.py`: `allowed_genes(config["allowed"])`;
@@ -149,30 +150,30 @@ the app, with checkboxes and tooltips. Defaults give identical results.
   - in `src/export/experiments.py`, so the random-search baseline draws allowed values.
 
   T009 must pass, and so must the whole `uv run pytest`.
-- [ ] T015 [US3] Port the allowed draws:
+- [X] T015 [US3] Port the allowed draws:
   - in `core/genome.js`: `ALL_ALLOWED`, `allowedGenes(allowed)` from value names, and
     `randomPopulation(rng, m, nBars, allowed = ALL_ALLOWED)`;
   - in `core/operators.js`: `mutate(rng, genes, rate, allowed = ALL_ALLOWED)`;
   - in `core/evolution.js`: `createGAParams` accepts and freezes `allowed` and passes it to both.
 
   T010 must pass, and so must `determinism.test.js`, which holds the Korobeiniki SHA pin.
-- [ ] T016 [US3] Add `allowed` to `core/settings.js`: defaults from `configs/default.json`,
+- [X] T016 [US3] Add `allowed` to `core/settings.js`: defaults from `configs/default.json`,
   validation in `checkSettings` with the same messages, the run record, and import. Pass it from
   `src/runner.js` and `src/worker.js` into `createGAParams`. T011 must pass.
-- [ ] T017 [US3] Write the failing UI tests in `arranger/tests/settings-panel.test.js` and
+- [X] T017 [US3] Write the failing UI tests in `arranger/tests/settings-panel.test.js` and
   `arranger/tests/settings-form.test.js`:
   - an "Allowed textures" group with 17 checkboxes (5 + 4 + 5 + 3), each with a `.tip`;
   - the arp32 tooltip contains "32nd";
   - unticking writes `settings.allowed`;
   - the three warnings of contracts/config.md appear and disappear;
   - an all-unticked gene shows the validation error.
-- [ ] T018 [US3] Implement the group in `arranger/src/ui/settings-panel.js` and
+- [X] T018 [US3] Implement the group in `arranger/src/ui/settings-panel.js` and
   `arranger/src/ui/settings-form.js`. Use one fieldset per channel (P2 harmony, TR bass, NO drums,
   P1 melody octave), labels with readable names, (i) tooltips in the existing `.has-tip`/`.tip`
   style, and the warnings under the group. Add only the minimal styles needed to
   `arranger/style.css`. The "changed setting" marks of the drawer must cover `allowed`.
   T017 must pass.
-- [ ] T019 [US3] Add an SC-004 test in `tests/test_evolution.py`: for each of the 8 committed
+- [X] T019 [US3] Add an SC-004 test in `tests/test_evolution.py`: for each of the 8 committed
   lead sheets and seeds 1–3, with `max_generations=40` and arp32 disallowed, no plan of the
   final population has arp32. Run it, and mark it `slow` if it takes more than 20 s.
 
@@ -191,7 +192,7 @@ exported in their own meter. 4/4 stays byte-identical.
 
 ### Model, realizers, tables and fitness (Python first)
 
-- [ ] T020 [US1] Write the failing tests in `tests/test_textures.py`:
+- [X] T020 [US1] Write the failing tests in `tests/test_textures.py`:
   - every 4/4 realization equals the committed `arranger/tests/fixtures/realizations/korobeiniki.json`;
   - a 3/4 bar with one C chord gives:
     - TR root_fifth (36, 0, 1), (43, 1, 1), (43, 2, 1);
@@ -204,13 +205,13 @@ exported in their own meter. 4/4 stays byte-identical.
   - a 2/2 bar gives half_time with kick 0 and hi-hat at 2.
 
   Use the research R3 table.
-- [ ] T021 [US1] Add `meter: Meter = FOUR_FOUR` (the last field) to `Bar` in
+- [X] T021 [US1] Add `meter: Meter = FOUR_FOUR` (the last field) to `Bar` in
   `src/leadsheet/model.py`, remove `LeadSheet.beats_per_bar`, and update the docstrings (a bar
   spans `[0, meter.bar_beats)`). Fix every user of `beats_per_bar`:
   - `src/arrangement/assemble.py`, via `bar_starts`;
   - `src/export/input_preview.py`;
   - `src/leadsheet/abc_writer.py`, temporarily: refuse a non-4/4 bar until T031.
-- [ ] T022 [US1] Make the realizers in `src/arrangement/textures.py` read `bar.meter`, following
+- [X] T022 [US1] Make the realizers in `src/arrangement/textures.py` read `bar.meter`, following
   research R3:
   - the echo cut at `bar_beats`;
   - the pump with `2 × bar_beats` eighths;
@@ -220,11 +221,11 @@ exported in their own meter. 4/4 stays byte-identical.
     the strong beats instead of the `_DRUM_STEPS` table.
 
   Keep the module docstring's explanation and update its doctests. T020 must pass.
-- [ ] T023 [US1] Write the failing tests in `tests/test_tables.py` and `tests/test_fitness.py`:
+- [X] T023 [US1] Write the failing tests in `tests/test_tables.py` and `tests/test_fitness.py`:
   - `act_no` has shape (n, 5), and every row equals today's vector on Korobeiniki;
   - a 3/4 bar's activity is computed over 12 steps;
   - `fitness` and `criterion_scores` of every committed `plans/*.json` fixture plan are unchanged.
-- [ ] T024 [US1] Update the tables and the fitness:
+- [X] T024 [US1] Update the tables and the fitness:
   - in `src/ga/tables.py`: per-bar `steps`, `_activity(notes, steps)` and
     `_sounding_grid(notes, steps)`, `act_no` per bar with `realize_no(pattern, bar.meter)`, and
     docstrings;
@@ -232,14 +233,14 @@ exported in their own meter. 4/4 stays byte-identical.
     the doctest tables to `act_no=np.zeros((1, 5))`.
 
   T023 must pass.
-- [ ] T025 [US1] Write the failing tests in `tests/test_validation.py` and
+- [X] T025 [US1] Write the failing tests in `tests/test_validation.py` and
   `tests/test_assemble.py`:
   - assembling a 4/4, 2/4 and 3/4 lead sheet puts the bars at 0, 4 and 6;
   - `Arrangement.meters` is copied from the bars;
   - a 3/4 TR note at beat 2 that is not a chord tone is allowed, but one at beat 1 is not;
   - a note crossing a 3/4 bar end is reported as "crosses the bar end";
   - every message format is unchanged in 4/4.
-- [ ] T026 [US1] Implement the per-bar validation and assembly:
+- [X] T026 [US1] Implement the per-bar validation and assembly:
   - in `src/arrangement/model.py`: add `meters: tuple[Meter, ...] = ()` to `Arrangement`;
   - in `src/arrangement/assemble.py`: fill `meters` and pass `bar.meter` to `realize_no`;
   - in `src/arrangement/validation.py`: bar starts from the lead sheet, per-bar length, and
@@ -249,7 +250,7 @@ exported in their own meter. 4/4 stays byte-identical.
 
 ### Readers and writers (Python)
 
-- [ ] T027 [US1] Write the failing tests in `tests/test_abc_reader.py`:
+- [X] T027 [US1] Write the failing tests in `tests/test_abc_reader.py`:
   - `waltz.abc` reads 16 bars of 3/4 with phrase marks as in 4/4;
   - `polka.abc` reads 16 bars of 2/4 (not 8), and a 4-bar phrase lasts 8 beats;
   - `M:C|` reads 2/2;
@@ -257,7 +258,7 @@ exported in their own meter. 4/4 stays byte-identical.
   - a 3/4 bar with 4 beats fails, naming the bar;
   - a pickup still fails;
   - every committed `data/leadsheets/*.abc` reads exactly as its `arranger/tests/fixtures/leadsheets/<id>.json`, plus `meter` 4/4.
-- [ ] T028 [US1] Implement meters in `src/leadsheet/abc_reader.py`:
+- [X] T028 [US1] Implement meters in `src/leadsheet/abc_reader.py`:
   - `_scan_body` records each bar's meter (header `M:`, inline `[M:x]`, body `M:` line; research
     R6);
   - `_check_meter` uses `parse_meter`;
@@ -267,7 +268,7 @@ exported in their own meter. 4/4 stays byte-identical.
   - update the module docstring (4/4 only → the supported meters).
 
   T027 must pass.
-- [ ] T029 [US1] Write the failing tests in `tests/test_midi_reader.py`. Build the files in the
+- [X] T029 [US1] Write the failing tests in `tests/test_midi_reader.py`. Build the files in the
   tests with pretty_midi:
   - `bar_map` on a file with a 3/4 time signature at 0 lists bars every 3 beats;
   - a file without time signatures is 4/4;
@@ -280,7 +281,7 @@ exported in their own meter. 4/4 stays byte-identical.
     (skip when `data/raw` is missing);
   - the reductions in `arranger/tests/fixtures/midi-songs/*.json` are unchanged, apart from
     `meter`.
-- [ ] T030 [US1] Implement the time-signature map in `src/leadsheet/midi_reader.py`:
+- [X] T030 [US1] Implement the time-signature map in `src/leadsheet/midi_reader.py`:
   - `bar_map(midi)` replaces `meter_offset_beats`;
   - the default excerpt runs from the first to the last pitched bar;
   - per-bar offsets in `_quantized_melody`;
@@ -292,7 +293,7 @@ exported in their own meter. 4/4 stays byte-identical.
   Update `excerpt_seconds` in `src/export/input_preview.py` to use `bar_map`. Update every
   importer of `meter_offset_beats` (grep `src/` and `tests/`). T029 and `tests/test_input_preview.py`
   must pass.
-- [ ] T031 [US1] Write the failing round-trip tests in `tests/test_abc_writer.py`:
+- [X] T031 [US1] Write the failing round-trip tests in `tests/test_abc_writer.py`:
   - writing then reading `waltz`, `polka` and `changes` gives the same lead sheet;
   - every committed 4/4 lead sheet writes the same text as `arranger/tests/fixtures/abc/*.abc`.
 
@@ -443,7 +444,7 @@ arrange bar by bar with no violation.
 
 ## Phase 7: Polish and cross-cutting concerns
 
-- [ ] T050 [P] Update `docs/explanation.md`: a section "Meters" (beats, strong beats, how each
+- [ ] T050 [P] Update the README's "Method" section (there is no `docs/explanation.md`): a part "Meters" (beats, strong beats, how each
   texture adapts, chord spans) and "Allowed textures" (why arp16 and arp32 tie, and how the GA
   draws only allowed values).
 - [ ] T051 [P] Update `README.md`:

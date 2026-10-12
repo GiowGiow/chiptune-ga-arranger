@@ -8,14 +8,22 @@
  * run list's chips. Importing follows the command line's rules (`src/config.py`): run keys are
  * skipped, `role_map` takes any part label, and any other unknown key is refused, so a typo is
  * caught instead of silently ignored.
+ *
+ * The values each gene may take (`allowed`, spec 003) are checkboxes instead: the ticked boxes
+ * become one list per gene, and a few choices earn a warning, because they quietly disable a
+ * fitness criterion or a channel without being errors.
  */
 
+import { NO_PATTERNS, P1_OCTAVES, P2_TEXTURES, TR_TEXTURES } from "../core/genome.js";
 import { RUN_RECORD_KEYS } from "../core/settings.js";
 
 /** @typedef {import("../core/settings.js").Settings} Settings */
 
 /** Sections whose keys are free part labels, as in `src/config.py`. */
 const FREE_KEY_SECTIONS = ["role_map"];
+
+/** The values of each gene under `allowed`, in gene order. */
+const GENE_VALUES = Object.freeze({ p2: P2_TEXTURES, tr: TR_TEXTURES, no: NO_PATTERNS, p1_octave: P1_OCTAVES });
 
 /**
  * Apply text field values (dotted keys) to a copy of `base`.
@@ -113,6 +121,58 @@ export function weightShares(weights) {
   return Object.fromEntries(
     Object.entries(weights).map(([name, weight]) => [name, total > 0 ? weight / total : 0]),
   );
+}
+
+/**
+ * The allowed values of each gene from the ticked checkboxes of the "Allowed textures" group.
+ *
+ * Each list keeps the gene order, whatever order the boxes were ticked in, so ticking every box
+ * back gives exactly the default lists and the setting no longer shows as changed. A checkbox
+ * value is text, so the octaves are matched by their text and come back as numbers.
+ *
+ * @param {Record<string, string[]>} ticked the ticked values of each gene, as checkbox text
+ * @returns {Settings["allowed"]} one list per gene; empty for a gene with no box ticked
+ * @example
+ * allowedFromForm({p2: ["third", "hold"], tr: ["root"], no: ["none"], p1_octave: ["-12", "0"]})
+ * // {p2: ["hold", "third"], tr: ["root"], no: ["none"], p1_octave: [0, -12]}
+ */
+export function allowedFromForm(ticked) {
+  return /** @type {Settings["allowed"]} */ (
+    Object.fromEntries(
+      Object.entries(GENE_VALUES).map(([gene, values]) => [
+        gene,
+        values.filter((value) => (ticked[gene] ?? []).includes(String(value))),
+      ]),
+    )
+  );
+}
+
+/**
+ * Warnings for allowed lists that are valid but switch something off (contracts/config.md).
+ *
+ * The idiom criterion rewards arpeggios on single-chord bars, the fidelity criterion rewards the
+ * written octave, and the drum pattern "none" is silence: without those values, the criterion
+ * or the channel has nothing left to do. The warnings follow the channel order.
+ *
+ * @param {Partial<Settings["allowed"]>} allowed
+ * @returns {string[]} the warnings to show under the group; empty when nothing is switched off
+ * @example
+ * allowedWarnings({...defaults.allowed, no: ["none"]}) // ["The noise channel stays silent."]
+ */
+export function allowedWarnings(allowed) {
+  const listed = (/** @type {unknown} */ values) => (Array.isArray(values) ? values : []);
+  const p2 = listed(allowed.p2);
+  const no = listed(allowed.no);
+  /** @type {string[]} */
+  const warnings = [];
+  if (!p2.includes("arp16") && !p2.includes("arp32")) {
+    warnings.push("Without arpeggios, the idiom criterion can no longer reward single-chord bars.");
+  }
+  if (no.length === 1 && no[0] === "none") warnings.push("The noise channel stays silent.");
+  if (!listed(allowed.p1_octave).includes(0)) {
+    warnings.push("Without the written octave, the fidelity criterion scores 0 in every bar.");
+  }
+  return warnings;
 }
 
 /**

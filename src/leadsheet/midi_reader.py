@@ -8,38 +8,41 @@ part labels. To arrange such a song for the NES, this module reduces it to a lea
   (hand-played files are a few milliseconds early or late). A very short note, whose end snaps
   onto its start (a staccato sixteenth, half a sixteenth long or less), keeps one sixteenth: a
   staccato note is still a note of the tune. The skyline then cuts it at the next onset.
-- Chords: every half bar (2 beats), the other pitched tracks vote for the 12 pitch classes in
+- Chords: over each group of the bar's meter (from one strong beat to the next: half bars in
+  4/4, the whole bar in 3/4), the other pitched tracks vote for the 12 pitch classes in
   proportion to how long each class sounds; bass tracks vote twice. The chord whose tones collect
   the most votes (major, minor, dominant seventh or minor seventh, on any of the 12 roots) is
   chosen, with a bonus when its root is the bass note.
 - Form: the student marks where each section starts (for example bar 0 is "A" and bar 8 is "B");
   sections, roles and phrases then follow the same rules as the ABC reader.
 
-Time is measured in beats on a *beat grid*. A MIDI file made in a sequencer already has one: its
-ticks. A file recorded live may not: "Voa Voa" says 120 BPM but was played at about 110 BPM, so its
-notes drift across the file's bar lines. When the drum onsets do not fit the file's own grid,
-the grid is estimated from the recording: the tempo whose sixteenth-note grid best explains the
-drum onsets, the sixteenth with the most onsets as the beat, and the beat where the bass plays
-its longest notes as the downbeat.
+Time is measured in quarter-note beats on a *beat grid*. A MIDI file made in a sequencer already
+has one: its ticks. A file recorded live may not: "Voa Voa" says 120 BPM but was played at about
+110 BPM, so its notes drift across the file's bar lines. When the drum onsets do not fit the
+file's own grid, the grid is estimated from the recording: the tempo whose sixteenth-note grid
+best explains the drum onsets, the sixteenth with the most onsets as the beat, and the beat where
+the bass plays its longest notes as the downbeat.
 
-Only 4/4 is supported. A file may open with a few bars in another meter, such as a 3/4 count-in
-before a 4/4 song: on the file's own grid those bars are a lead-in, and bar 0 is the first 4/4 bar.
-A change to another meter inside the music would move every later bar line, so it is refused.
+Bar lines come from the file's *time-signature map*: bar 0 starts on the file's first beat, in
+4/4 until the first time signature, and each time signature starts a new bar in its meter (see
+`bar_map`). A count-in in another meter is part of the map; by default the excerpt starts on the
+first bar that holds a pitched note, so a drum-only count-in is left out. On an estimated grid
+the song is read in one meter, the one that lasts longest in the map.
 """
 
 import math
 from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
 import pretty_midi
 
 from leadsheet.abc_reader import phrase_marks, section_role
+from leadsheet.meter import FOUR_FOUR, Meter, groups, parse_meter
 from leadsheet.model import Bar, ChordSegment, LeadSheet, MelodyNote
 
-BEATS_PER_BAR = 4
 GRID = 0.25  # sixteenth note, in beats
-CHORD_SPAN = 2.0  # one chord decision per half bar
 PITCH_CLASS_NAMES = ("C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B")
 
 # Chord qualities as intervals from the root, in the order root, third, fifth, seventh.
@@ -67,8 +70,13 @@ def grid_strength(onsets: np.ndarray, bpm: float | np.ndarray) -> np.ndarray:
     return np.abs(phases.mean(axis=0)).squeeze()
 
 
-def estimate_beat_grid(midi: pretty_midi.PrettyMIDI) -> tuple[float, float, float]:
-    """Return (tempo BPM, first downbeat in seconds, grid strength) estimated from the notes."""
+def estimate_beat_grid(
+    midi: pretty_midi.PrettyMIDI, beats_per_bar: int = 4
+) -> tuple[float, float, float]:
+    """Return (tempo BPM, first downbeat in seconds, grid strength) estimated from the notes.
+
+    `beats_per_bar` is the bar length in quarter notes, among which the downbeat is chosen.
+    """
     drums = [n.start for i in midi.instruments if i.is_drum for n in i.notes]
     pitched = [n.start for i in midi.instruments if not i.is_drum for n in i.notes]
     onsets = np.unique(np.round(np.array(drums or pitched), 3))
@@ -89,59 +97,106 @@ def estimate_beat_grid(midi: pretty_midi.PrettyMIDI) -> tuple[float, float, floa
     positions = np.round((all_onsets - first_step) / step).astype(int) % 4
     beat_shift = int(np.argmax(np.bincount(positions, minlength=4)))
     first_beat = first_step + beat_shift * step
-    # The downbeat is the beat (of 4) on which the bass plays the longest notes.
+    # The downbeat is the beat (of the bar's beats) on which the bass plays the longest notes.
     beat = 4 * step
-    weights = np.zeros(4)
+    weights = np.zeros(beats_per_bar)
     for instrument in midi.instruments:
         if instrument.is_drum or not instrument.notes:
             continue
         if np.mean([n.pitch for n in instrument.notes]) >= BASS_TRACK_MAX_MEAN_PITCH:
             continue
         for n in instrument.notes:
-            weights[int(round((n.start - first_beat) / beat)) % 4] += n.end - n.start
-    downbeat = (first_beat + int(np.argmax(weights)) * beat) % (4 * beat)
+            weights[int(round((n.start - first_beat) / beat)) % beats_per_bar] += n.end - n.start
+    downbeat = (first_beat + int(np.argmax(weights)) * beat) % (beats_per_bar * beat)
     return bpm, downbeat, strength
 
 
-def meter_offset_beats(midi: pretty_midi.PrettyMIDI) -> float:
-    """Return the beat (ticks / resolution) on which the file's 4/4 music starts.
+@dataclass(frozen=True)
+class MapBar:
+    """One bar of a MIDI file's time-signature map.
 
-    Time signatures before the first 4/4 one are a lead-in (a count-in, for example): on the
-    file's own grid, bar 0 starts on the tick of that 4/4 time signature. A file without time
-    signatures is 4/4 from the start.
+    Attributes:
+        start: the beat (quarter notes on the file's grid) where the bar starts.
+        length: the bar's length in beats; shorter than its meter when a time signature that
+            does not fall on a bar line cuts it.
+        signature: (numerator, denominator) of the time signature in effect, as the file writes
+            it, supported or not.
+    """
+
+    start: float
+    length: float
+    signature: tuple[int, int]
+
+    @property
+    def meter(self) -> Meter:
+        """The bar's meter; ValueError when the file uses a meter the arranger does not support."""
+        return parse_meter(f"{self.signature[0]}/{self.signature[1]}")
+
+
+def bar_map(midi: pretty_midi.PrettyMIDI) -> list[MapBar]:
+    """List every bar of the file on its own tick grid (beats = ticks / resolution).
+
+    Bar 0 starts on beat 0, in 4/4 until the first time signature, as the MIDI standard says.
+    Each time signature starts a new bar at its tick, and bars follow each other until the end
+    of the last note.
 
     >>> midi = pretty_midi.PrettyMIDI(initial_tempo=120.0)
-    >>> meter_offset_beats(midi)
-    0.0
-    >>> midi.time_signature_changes = [  # two 3/4 bars of count-in, 4/4 from 3 s on
-    ...     pretty_midi.TimeSignature(3, 4, 0.0),
-    ...     pretty_midi.TimeSignature(4, 4, 3.0),
-    ... ]
-    >>> meter_offset_beats(midi)
-    6.0
-
-    Raises:
-        ValueError: when no time signature is 4/4, or when the meter changes from 4/4 to another
-            one (the message names the meter, its bar counted from the offset and its time).
+    >>> midi.time_signature_changes = [  # one 3/4 bar of count-in, 4/4 from 1.5 s (beat 3) on
+    ...     pretty_midi.TimeSignature(3, 4, 0.0), pretty_midi.TimeSignature(4, 4, 1.5)]
+    >>> piano = pretty_midi.Instrument(program=0)
+    >>> piano.notes.append(pretty_midi.Note(90, 60, 1.5, 5.5))  # beats 3 to 11
+    >>> midi.instruments.append(piano)
+    >>> [(bar.start, str(bar.meter)) for bar in bar_map(midi)]
+    [(0.0, '3/4'), (3.0, '4/4'), (7.0, '4/4')]
     """
-    changes = midi.time_signature_changes
-    if not changes:
-        return 0.0
-    supported = [(c.numerator, c.denominator) == (4, 4) for c in changes]
-    if not any(supported):
-        meter = f"{changes[0].numerator}/{changes[0].denominator}"
-        raise ValueError(f"only 4/4 MIDI files are supported; this file is in {meter}")
-    start = supported.index(True)
-    offset = float(midi.time_to_tick(changes[start].time) / midi.resolution)
-    for change, is_supported in zip(changes[start:], supported[start:], strict=True):
-        if not is_supported:
-            beat = midi.time_to_tick(change.time) / midi.resolution
-            bar = math.floor((beat - offset) / BEATS_PER_BAR)
-            raise ValueError(
-                f"the file changes to {change.numerator}/{change.denominator} at bar {bar} "
-                f"({change.time:.1f} s); only 4/4 is supported"
-            )
-    return offset
+    changes: dict[float, tuple[int, int]] = {}
+    for change in midi.time_signature_changes:
+        beat = midi.time_to_tick(change.time) / midi.resolution
+        changes[float(beat)] = (change.numerator, change.denominator)  # the last one at a tick wins
+    ends = [n.end for instrument in midi.instruments for n in instrument.notes]
+    last_beat = midi.time_to_tick(max(ends)) / midi.resolution if ends else 0.0
+    change_beats = sorted(changes)
+    signature, position, next_change = (4, 4), 0.0, 0
+    bars: list[MapBar] = []
+    while True:
+        while next_change < len(change_beats) and change_beats[next_change] <= position + 1e-9:
+            signature = changes[change_beats[next_change]]
+            next_change += 1
+        if position >= last_beat - 1e-3 and bars:
+            return bars
+        length = signature[0] * 4 / signature[1]
+        if next_change < len(change_beats):
+            length = min(length, change_beats[next_change] - position)
+        bars.append(MapBar(position, length, signature))
+        position += length
+
+
+def _bars_with_notes(bars: Sequence[MapBar], onsets: Sequence[float], ends: Sequence[float]):
+    """The default excerpt: from the bar of the first onset to the bar where the last note ends."""
+    starts = [bar.start for bar in bars]
+    first = max(0, int(np.searchsorted(starts, min(onsets) + 1e-9, side="right")) - 1)
+    last = max(0, int(np.searchsorted(starts, max(ends) - 1e-3, side="right")) - 1)
+    return first, last + 1
+
+
+def excerpt_bars(
+    midi: pretty_midi.PrettyMIDI, bars: tuple[int, int] | None, beats=None
+) -> tuple[list[MapBar], int, int]:
+    """The time-signature map of the file and the excerpt (first bar, end bar) to read.
+
+    Without `bars`, the excerpt runs from the first bar that holds a pitched note to the bar
+    where the last pitched note ends, so a drum-only count-in or silence is left out.
+    `beats` turns seconds into grid beats (by default the file's ticks).
+    """
+    to_beats = beats or (lambda seconds: midi.time_to_tick(seconds) / midi.resolution)
+    the_map = bar_map(midi)
+    if bars is not None:
+        return the_map, bars[0], bars[1]
+    pitched = [n for i in midi.instruments if not i.is_drum for n in i.notes]
+    first, end = _bars_with_notes(
+        the_map, [to_beats(n.start) for n in pitched], [to_beats(n.end) for n in pitched]
+    )
+    return the_map, first, end
 
 
 def skyline(notes: Sequence[Note]) -> list[Note]:
@@ -210,8 +265,9 @@ def read_lead_sheet_midi(
             notes are merged by the skyline.
         phrase_length: bars per phrase.
         role_map: part label to "verse"/"chorus", as in the ABC reader.
-        bars: optional excerpt (first bar, end bar), 0-based with the end excluded. On the file's
-            own grid, bar 0 is the first 4/4 bar (see `meter_offset_beats`).
+        bars: optional excerpt (first bar, end bar), 0-based with the end excluded, counted on
+            the file's time-signature map (see `bar_map`). By default, from the first to the last
+            bar that holds a pitched note.
         sections: (bar inside the excerpt, label) pairs where each section starts; default one
             section "A".
         tempo_override: tempo in BPM; by default the tempo of the beat grid.
@@ -219,8 +275,9 @@ def read_lead_sheet_midi(
             "auto" keeps the file's ticks when the drums fit them, else estimates the grid.
 
     Raises:
-        ValueError: for a missing or drum melody track, or a meter that is not 4/4 after the
-            lead-in (see `meter_offset_beats`).
+        ValueError: for a missing or drum melody track; for a bar of the excerpt in an
+            unsupported meter or cut short by a time-signature change (the message names the
+            bar); for an estimated grid in a meter whose bar is not a whole number of quarters.
     """
     midi = pretty_midi.PrettyMIDI(str(path))
     melody_tracks = [melody_track] if isinstance(melody_track, int) else list(melody_track)
@@ -229,7 +286,6 @@ def read_lead_sheet_midi(
             raise ValueError(f"melody track {track} does not exist")
         if midi.instruments[track].is_drum:
             raise ValueError(f"track {track} is a drum track and cannot be the melody")
-    meter_offset = meter_offset_beats(midi)
 
     file_bpm = float(midi.get_tempo_changes()[1][0])
     if grid == "auto":
@@ -245,20 +301,22 @@ def read_lead_sheet_midi(
         fits_file = (
             drum_beats.size == 0 or grid_strength(drum_beats, 60.0) >= FILE_GRID_MIN_STRENGTH
         )
-        grid = "file" if fits_file else estimate_beat_grid(midi)[:2]
+        grid = "file" if fits_file else estimate_beat_grid(midi, _whole_beats(main_meter(midi)))[:2]
     if grid == "file":
         source_grid = (file_bpm, 0.0)
 
         def beats(seconds: float) -> float:
             return midi.time_to_tick(seconds) / midi.resolution
 
+        the_map, first_bar, end_bar = excerpt_bars(midi, bars)
     else:
         grid_bpm, downbeat = float(grid[0]), float(grid[1])
         source_grid = (grid_bpm, downbeat)
-        meter_offset = 0.0  # a grid of its own starts on its own downbeat
 
         def beats(seconds: float) -> float:
             return (seconds - downbeat) * grid_bpm / 60.0
+
+        the_map, first_bar, end_bar = _grid_excerpt(midi, main_meter(midi), beats, bars)
 
     tracks = []
     for index, instrument in enumerate(midi.instruments):
@@ -267,19 +325,16 @@ def read_lead_sheet_midi(
         notes = [(beats(n.start), beats(n.end), n.pitch) for n in instrument.notes]
         mean_pitch = sum(p for _, _, p in notes) / len(notes)
         tracks.append((index, notes, mean_pitch < BASS_TRACK_MAX_MEAN_PITCH))
-    last_beat = max(end for _, notes, _ in tracks for _, end, _ in notes)
-    first_bar, end_bar = (
-        bars
-        if bars is not None
-        else (0, math.ceil((last_beat - meter_offset) / BEATS_PER_BAR - 1e-3))
-    )
-    offset = meter_offset + first_bar * BEATS_PER_BAR
-    n_bars = end_bar - first_bar
+    excerpt = the_map[first_bar:end_bar]
+    meters = [_checked_meter(bar, first_bar + index, midi) for index, bar in enumerate(excerpt)]
+    offset = excerpt[0].start
+    bar_starts = [bar.start - offset for bar in excerpt]
+    n_bars = len(excerpt)
 
     melody_notes = [n for index, notes, _ in tracks if index in melody_tracks for n in notes]
-    melody = _quantized_melody(melody_notes, offset, n_bars)
+    melody = _quantized_melody(melody_notes, offset, bar_starts, meters)
     harmony = [(notes, is_bass) for index, notes, is_bass in tracks if index not in melody_tracks]
-    chords = _chords(harmony, offset, n_bars)
+    chords = _chords(harmony, offset, bar_starts, meters)
 
     starts = dict(sections) if sections else {0: "A"}
     labels, section_ids, current, section = [], [], starts.get(0, "A"), 0
@@ -299,6 +354,7 @@ def read_lead_sheet_midi(
             role=section_role(labels[b], role_map),
             phrase=marks[b][0],
             phrase_end=marks[b][1],
+            meter=meters[b],
         )
         for b in range(n_bars)
     )
@@ -306,6 +362,60 @@ def read_lead_sheet_midi(
     return LeadSheet(
         title=Path(path).stem, key="", tempo_bpm=tempo, bars=lead_bars, source_grid=source_grid
     )
+
+
+def main_meter(midi: pretty_midi.PrettyMIDI) -> Meter:
+    """The meter that lasts longest in the file's time-signature map (4/4 without one).
+
+    An estimated or explicit beat grid reads the whole song in this meter.
+    """
+    totals: dict[tuple[int, int], float] = {}
+    for bar in bar_map(midi):
+        totals[bar.signature] = totals.get(bar.signature, 0.0) + bar.length
+    if not midi.time_signature_changes or not totals:
+        return FOUR_FOUR
+    signature = max(totals, key=lambda key: totals[key])
+    return parse_meter(f"{signature[0]}/{signature[1]}")
+
+
+def _whole_beats(meter: Meter) -> int:
+    """The bar length of a meter in whole quarter notes, for the downbeat search."""
+    if meter.bar_beats != int(meter.bar_beats):
+        raise ValueError(
+            f'a {meter} song needs the file\'s own beat grid (midi.grid = "file"): its bar is '
+            f"not a whole number of quarter notes, so its downbeat cannot be estimated"
+        )
+    return int(meter.bar_beats)
+
+
+def _grid_excerpt(midi, meter: Meter, beats, bars: tuple[int, int] | None):
+    """Bars of one meter from the grid's downbeat on, and the excerpt to read in them."""
+    ends = [beats(n.end) for instrument in midi.instruments for n in instrument.notes]
+    count = max(1, math.ceil(max(ends) / meter.bar_beats - 1e-3))
+    signature = (meter.numerator, meter.denominator)
+    the_map = [MapBar(b * meter.bar_beats, meter.bar_beats, signature) for b in range(count)]
+    if bars is not None:
+        return the_map, bars[0], bars[1]
+    pitched = [n for i in midi.instruments if not i.is_drum for n in i.notes]
+    first, end = _bars_with_notes(
+        the_map, [beats(n.start) for n in pitched], [beats(n.end) for n in pitched]
+    )
+    return the_map, first, end
+
+
+def _checked_meter(bar: MapBar, index: int, midi: pretty_midi.PrettyMIDI) -> Meter:
+    """The meter of a bar inside the excerpt; ValueError naming the bar when it cannot be read."""
+    try:
+        meter = bar.meter
+    except ValueError as error:
+        raise ValueError(f"bar {index}: {error}") from None
+    if abs(bar.length - meter.bar_beats) > 1e-6:
+        seconds = midi.tick_to_time(int(round(bar.start * midi.resolution)))
+        raise ValueError(
+            f"bar {index} ({seconds:.1f} s) lasts {bar.length:g} beats instead of "
+            f"{meter.bar_beats:g}: a time signature cuts it short; leave it out of midi.bars"
+        )
+    return meter
 
 
 def _tempo_at_beat(midi: pretty_midi.PrettyMIDI, beat: float) -> float:
@@ -323,13 +433,16 @@ def _snap(beat: float) -> float:
     return round(beat / GRID) * GRID
 
 
-def _quantized_melody(notes: Sequence[Note], offset: float, n_bars: int) -> list[list]:
+def _quantized_melody(
+    notes: Sequence[Note], offset: float, bar_starts: Sequence[float], meters: Sequence[Meter]
+) -> list[list]:
     """Snap to the grid, skyline, keep the excerpt and split notes at the bar lines.
 
+    `offset` is the excerpt's first beat; `bar_starts` are the bars' starts from it.
     A note whose end snaps onto its start (half a sixteenth long or shorter) lasts one sixteenth.
 
     >>> staccato = [(0.0, 0.1, 72), (0.25, 0.35, 74), (0.5, 0.6, 72), (0.75, 0.85, 74)]
-    >>> notes = _quantized_melody(staccato + [(2.0, 2.3, 76)], 0.0, 1)[0]
+    >>> notes = _quantized_melody(staccato + [(2.0, 2.3, 76)], 0.0, [0.0], [FOUR_FOUR])[0]
     >>> [(n.pitch, n.onset, n.duration) for n in notes]
     [(72, 0.0, 0.25), (74, 0.25, 0.25), (72, 0.5, 0.25), (74, 0.75, 0.25), (76, 2.0, 0.25)]
     """
@@ -338,25 +451,35 @@ def _quantized_melody(notes: Sequence[Note], offset: float, n_bars: int) -> list
         start, end = _snap(start) - offset, _snap(end) - offset
         # A staccato note is still a note of the tune: keep one sixteenth rather than drop it.
         snapped.append((start, end if end > start else start + GRID, pitch))
-    end_of_piece = n_bars * BEATS_PER_BAR
-    per_bar: list[list[MelodyNote]] = [[] for _ in range(n_bars)]
+    end_of_piece = bar_starts[-1] + meters[-1].bar_beats
+    per_bar: list[list[MelodyNote]] = [[] for _ in bar_starts]
     for start, end, pitch in skyline(snapped):
         start, end = max(start, 0.0), min(end, end_of_piece)
         while end > start:
-            bar = int(start // BEATS_PER_BAR)
-            bar_end = (bar + 1) * BEATS_PER_BAR
+            bar = int(np.searchsorted(bar_starts, start, side="right")) - 1
+            bar_end = bar_starts[bar] + meters[bar].bar_beats
             piece = min(end, bar_end)
-            per_bar[bar].append(MelodyNote(pitch, start - bar * BEATS_PER_BAR, piece - start))
+            per_bar[bar].append(MelodyNote(pitch, start - bar_starts[bar], piece - start))
             start = piece
     return per_bar
 
 
-def _chords(tracks: Sequence[tuple[Sequence[Note], bool]], offset: float, n_bars: int) -> list:
-    """One chord decision per half bar, merged within each bar; silence keeps the last chord."""
-    spans_per_bar = int(BEATS_PER_BAR / CHORD_SPAN)
+def _chords(
+    tracks: Sequence[tuple[Sequence[Note], bool]],
+    offset: float,
+    bar_starts: Sequence[float],
+    meters: Sequence[Meter],
+) -> list:
+    """One chord decision per group of each bar's meter (from one strong beat to the next: half
+    bars in 4/4, the whole bar in 3/4), merged within each bar; silence keeps the last chord."""
+    spans = [
+        (bar, offset + start + onset, length)
+        for bar, (start, meter) in enumerate(zip(bar_starts, meters, strict=True))
+        for onset, length in groups(meter)
+    ]
     decisions: list[tuple[str, int, tuple] | None] = []
-    for span in range(n_bars * spans_per_bar):
-        lo, hi = offset + span * CHORD_SPAN, offset + (span + 1) * CHORD_SPAN
+    for _, lo, length in spans:
+        hi = lo + length
         weights, bass = [0.0] * 12, None
         for notes, is_bass in tracks:
             for start, end, pitch in notes:
@@ -372,18 +495,13 @@ def _chords(tracks: Sequence[tuple[Sequence[Note], bool]], offset: float, n_bars
     for decision in decisions:
         previous = decision or previous
         filled.append(previous)
-    per_bar = []
-    for bar in range(n_bars):
-        segments: list[ChordSegment] = []
-        for position in range(spans_per_bar):
-            symbol, root, tones = filled[bar * spans_per_bar + position]
-            onset = position * CHORD_SPAN
-            if segments and segments[-1].symbol == symbol:
-                last = segments[-1]
-                segments[-1] = ChordSegment(
-                    symbol, root, tones, last.onset, last.duration + CHORD_SPAN
-                )
-            else:
-                segments.append(ChordSegment(symbol, root, tones, onset, CHORD_SPAN))
-        per_bar.append(segments)
+    per_bar: list[list[ChordSegment]] = [[] for _ in bar_starts]
+    for (bar, lo, length), (symbol, root, tones) in zip(spans, filled, strict=True):
+        segments = per_bar[bar]
+        onset = lo - offset - bar_starts[bar]
+        if segments and segments[-1].symbol == symbol:
+            last = segments[-1]
+            segments[-1] = ChordSegment(symbol, root, tones, last.onset, last.duration + length)
+        else:
+            segments.append(ChordSegment(symbol, root, tones, onset, length))
     return per_bar

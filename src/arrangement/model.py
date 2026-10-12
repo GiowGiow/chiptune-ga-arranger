@@ -12,6 +12,8 @@ triangle 21-108, Donahue et al., 2018); the pulse range starts one semitone high
 
 from dataclasses import dataclass
 
+from leadsheet.meter import Meter
+
 CHANNELS = ("P1", "P2", "TR", "NO")
 
 # Inclusive MIDI pitch ranges of the pitched channels (NO has no pitch range).
@@ -62,9 +64,12 @@ class Arrangement:
         tempo_bpm: tempo in quarter notes per minute.
         genome: the arrangement plan, one (P2, TR, NO, P1-octave) gene tuple per bar.
         channels: notes per channel name ("P1", "P2", "TR", "NO"), with onsets from the piece start.
+        meters: the meter of each bar, in bar order; empty means every bar is 4/4 (an arrangement
+            written by hand, as in the examples).
     """
 
     title: str
     tempo_bpm: float
     genome: tuple[tuple[int, int, int, int], ...]
     channels: dict[str, tuple[ChannelNote, ...]]
+    meters: tuple[Meter, ...] = ()

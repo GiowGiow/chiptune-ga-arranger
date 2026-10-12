@@ -283,6 +283,34 @@ test("an elite as large as the population gives an error", async () => {
   assert.match(messages[0].message, /elite_count/);
 });
 
+test("the run draws only the allowed values of the settings", async () => {
+  const { runner, posted } = fakeWorld();
+  const allowed = {
+    p2: ["echo"],
+    tr: ["walking"],
+    no: ["none", "fill"],
+    p1_octave: [0],
+  };
+  await runner.handle(runMessage("narrow", "full", smallSettings({ allowed })));
+  const done = messagesOf(posted).at(-1);
+  assert.equal(done.type, "done", JSON.stringify(done));
+  for (const plan of [done.bestPlan, done.initialBestPlan]) {
+    for (let start = 0; start < plan.length; start += 4) {
+      assert.deepEqual([plan[start], plan[start + 1], plan[start + 3]], [3, 3, 0], `gene ${start}`);
+      assert.ok([0, 4].includes(plan[start + 2]), `gene ${start + 2} = ${plan[start + 2]}`);
+    }
+  }
+});
+
+test("an empty allowed list gives the settings error and no run", async () => {
+  const { runner, posted } = fakeWorld();
+  const allowed = { ...structuredClone(DEFAULT_CONFIG.allowed), no: [] };
+  await runner.handle(runMessage("bad", "full", smallSettings({ allowed })));
+  const messages = messagesOf(posted);
+  assert.deepEqual(messages.map((message) => message.type), ["error"]);
+  assert.equal(messages[0].message, "allowed.no must keep at least one value");
+});
+
 test("a second run cancels the first, which never sends done", async () => {
   /** @type {(value?: unknown) => void} */
   let firstProgress = () => {};

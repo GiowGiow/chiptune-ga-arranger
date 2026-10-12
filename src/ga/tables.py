@@ -5,8 +5,10 @@ octaves), so every (bar, gene value) choice can be realized into notes and measu
 the GA starts. The fitness of a plan then only looks values up in these tables, which keeps the
 thousands of fitness evaluations of a run fast and keeps the notes out of the GA loop.
 
-Activity measures how busy a channel is in a bar: min(1, onsets / 16), so one onset on every
-sixteenth note (or more) counts as fully active, and silence as 0.
+Activity measures how busy a channel is in a bar: min(1, onsets / steps), where steps is the
+number of sixteenth notes in the bar (16 in 4/4, 12 in 3/4), so one onset on every sixteenth note
+(or more) counts as fully active, and silence as 0. Measuring each bar on its own grid keeps a 3/4
+bar as busy as a 4/4 bar with the same rhythm.
 
 The bass is measured as a *line*: the notes a listener follows as the bass melody. For most TR
 textures that is every note. For the octave pump it is only the roots on the beats: the upper
@@ -35,8 +37,9 @@ class ScoreTables:
         act_p1: (n, 3) melody activity for each octave gene.
         act_p2: (n, 5) P2 activity for each P2 texture.
         act_tr: (n, 4) TR activity for each TR texture.
-        act_no: (5,) NO activity for each drum pattern (the same in every bar).
-        reg_both: (n, 3, 5) sixteenth steps where P1 (octave gene) and P2 (texture) both sound.
+        act_no: (n, 5) NO activity for each drum pattern (it depends on the bar's meter).
+        reg_both: (n, 3, 5) sixteenth steps of the bar where P1 (octave gene) and P2 (texture)
+            both sound.
         reg_ok: (n, 3, 5) sixteenth steps where both sound and P2 is lower than P1.
         bass_inner: (n, 4) mean leap score over consecutive notes of the bass line inside bar b
             for each TR texture; NaN when the line has a single note in the bar.
@@ -64,8 +67,7 @@ class ScoreTables:
     is_chorus: np.ndarray
 
 
-# Sixteenth-note steps of a 4/4 bar: the grid on which register overlaps are counted.
-STEPS_PER_BAR = 16
+# A sixteenth note, the step of the grid on which activity and register overlaps are counted.
 STEP = 0.25
 
 OCTAVE_PUMP = TR_TEXTURES.index("octave_pump")
@@ -94,30 +96,33 @@ def build_tables(lead_sheet: LeadSheet) -> ScoreTables:
     bass_inner_leaps = np.zeros((n, len(TR_TEXTURES)), dtype=int)
     bass_first = np.zeros((n, len(TR_TEXTURES)))
     bass_last = np.zeros((n, len(TR_TEXTURES)))
+    act_no = np.zeros((n, len(NO_PATTERNS)))
     for b, bar in enumerate(bars):
         next_bar = bars[b + 1] if b + 1 < n else None
+        steps = bar.meter.steps
         melody_grids = []
         for octave in range(len(P1_OCTAVES)):
             notes = realize_p1(bar, octave)
-            act_p1[b, octave] = _activity(notes)
-            melody_grids.append(_sounding_grid(notes))
+            act_p1[b, octave] = _activity(notes, steps)
+            melody_grids.append(_sounding_grid(notes, steps))
         for texture in range(len(P2_TEXTURES)):
             notes = realize_p2(bar, texture)
-            act_p2[b, texture] = _activity(notes)
-            harmony = _sounding_grid(notes)
+            act_p2[b, texture] = _activity(notes, steps)
+            harmony = _sounding_grid(notes, steps)
             for octave, melody in enumerate(melody_grids):
                 both = (melody >= 0) & (harmony >= 0)
                 reg_both[b, octave, texture] = both.sum()
                 reg_ok[b, octave, texture] = (both & (harmony < melody)).sum()
         for texture in range(len(TR_TEXTURES)):
             notes = realize_tr(bar, texture, next_bar)
-            act_tr[b, texture] = _activity(notes)
+            act_tr[b, texture] = _activity(notes, steps)
             line = bass_line(texture, [note.pitch for note in notes])
             bass_first[b, texture], bass_last[b, texture] = line[0], line[-1]
             bass_inner_leaps[b, texture] = len(line) - 1
             if len(line) > 1:
                 bass_inner[b, texture] = _leap_score(np.abs(np.diff(line))).mean()
-    act_no = np.array([_activity(realize_no(pattern)) for pattern in range(len(NO_PATTERNS))])
+        for pattern in range(len(NO_PATTERNS)):
+            act_no[b, pattern] = _activity(realize_no(pattern, bar.meter), steps)
     # Leap from the line's last note in bar b (texture i) to its first in bar b + 1 (texture j).
     leaps = np.abs(bass_last[:-1, :, np.newaxis] - bass_first[1:, np.newaxis, :])
     return ScoreTables(
@@ -150,15 +155,15 @@ def bass_line(tr_texture: int, pitches: list[int]) -> list[int]:
     return pitches[::2] if tr_texture == OCTAVE_PUMP else pitches
 
 
-def _activity(notes) -> float:
-    return min(1.0, len(notes) / STEPS_PER_BAR)
+def _activity(notes, steps: int) -> float:
+    return min(1.0, len(notes) / steps)
 
 
-def _sounding_grid(notes) -> np.ndarray:
-    """Pitch sounding at the start of each sixteenth step, or -1 when the channel rests."""
-    grid = np.full(STEPS_PER_BAR, -1)
+def _sounding_grid(notes, steps: int) -> np.ndarray:
+    """Pitch sounding at the start of each sixteenth step of the bar, or -1 when it rests."""
+    grid = np.full(steps, -1)
     for note in notes:
-        for step in range(STEPS_PER_BAR):
+        for step in range(steps):
             if note.onset <= step * STEP + 1e-9 < note.onset + note.duration:
                 grid[step] = note.pitch
     return grid

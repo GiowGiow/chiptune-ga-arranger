@@ -8,11 +8,17 @@ concrete notes, reading the bar's melody and chords from the lead sheet:
 - P2 adds a harmony texture: a held root, a fast arpeggio (the chip-music way of sounding a whole
   chord on a channel that plays one note at a time), an echo of the melody, or a line under it.
 - TR plays a bass line: held roots, an octave "pump", root-fifth, or a walking line.
-- NO plays a drum pattern on a grid of sixteen sixteenth-note steps.
+- NO plays a drum pattern on the bar's grid of sixteenth-note steps.
 
 Every NES channel plays one note at a time, so every realizer returns a monophonic line: notes
-sorted by onset that never overlap and stay inside the bar [0, 4]. Onsets are in beats from the
-bar start. Realizers are pure functions, so the same bar and gene always give the same notes.
+sorted by onset that never overlap and stay inside the bar. Onsets are in beats from the bar
+start. Realizers are pure functions, so the same bar and gene always give the same notes.
+
+The bar's meter (see `leadsheet.meter`) shapes the bass and the drums: the bass plays one note
+per beat and the root on strong beats, and the drums kick on strong beats and hit the snare on
+weak ones. A waltz bar (3/4) thus gets "oom-pah-pah" and a 6/8 bar a kick on its first eighth and
+a snare on its fourth. In 4/4 these rules give exactly the patterns of a four-beat bar: root,
+fifth, root, fifth; kick on beats 1 and 3, snare on 2 and 4.
 """
 
 import math
@@ -33,12 +39,11 @@ from arrangement.model import (
     ChannelNote,
 )
 from ga.genome import NO_PATTERNS, P1_OCTAVES, P2_TEXTURES, TR_TEXTURES
+from leadsheet.meter import FOUR_FOUR, Meter, beat_onsets
 from leadsheet.model import Bar, ChordSegment
 
-BEATS_PER_BAR = 4.0
-
 # Note lengths in beats (a beat is a quarter note).
-QUARTER, EIGHTH, SIXTEENTH, THIRTY_SECOND = 1.0, 0.5, 0.25, 0.125
+EIGHTH, SIXTEENTH, THIRTY_SECOND = 0.5, 0.25, 0.125
 
 # Interval sizes in semitones.
 OCTAVE = 12
@@ -133,12 +138,13 @@ def _p2_arpeggio(bar: Bar, step: float) -> list[ChannelNote]:
 
 
 def _p2_echo(bar: Bar) -> list[ChannelNote]:
+    bar_end = bar.meter.bar_beats
     notes = []
     for note in bar.melody:
         onset = note.onset + EIGHTH
-        if onset >= BEATS_PER_BAR:
+        if onset >= bar_end:
             continue  # the echo of the bar's last eighth would fall into the next bar
-        duration = min(note.duration, BEATS_PER_BAR - onset)
+        duration = min(note.duration, bar_end - onset)
         notes.append(ChannelNote(note.pitch, onset, duration, VELOCITY_ECHO))
     return notes
 
@@ -206,11 +212,18 @@ def _bass_fifth(chord: ChordSegment) -> int:
     return _chord_tone_above(_bass_root(chord), chord, 2, fallback=PERFECT_FIFTH)
 
 
-def _quarter_notes(pitches: list[int]) -> list[ChannelNote]:
+def _one_per_beat(bar: Bar, pitches: list[int]) -> list[ChannelNote]:
+    """One bass note per beat of the bar's meter, each lasting the whole beat."""
+    onsets = beat_onsets(bar.meter)
     return [
-        ChannelNote(pitch, beat * QUARTER, QUARTER, VELOCITY_TR)
-        for beat, pitch in enumerate(pitches)
+        ChannelNote(pitch, onset, length, VELOCITY_TR)
+        for pitch, onset, length in zip(pitches, onsets, bar.meter.beats, strict=True)
     ]
+
+
+def _chords_on_beats(bar: Bar) -> list[ChordSegment]:
+    """The chord in effect at the start of each beat."""
+    return [bar.chord_at(onset) for onset in beat_onsets(bar.meter)]
 
 
 def _tr_root(bar: Bar) -> list[ChannelNote]:
@@ -222,7 +235,7 @@ def _tr_root(bar: Bar) -> list[ChannelNote]:
 
 def _tr_octave_pump(bar: Bar) -> list[ChannelNote]:
     notes = []
-    for eighth in range(8):
+    for eighth in range(round(bar.meter.bar_beats / EIGHTH)):
         onset = eighth * EIGHTH
         # Even eighths play the root and odd eighths jump an octave up: the bouncing NES bass.
         pitch = _bass_root(bar.chord_at(onset)) + (OCTAVE if eighth % 2 else 0)
@@ -231,38 +244,45 @@ def _tr_octave_pump(bar: Bar) -> list[ChannelNote]:
 
 
 def _tr_root_fifth(bar: Bar) -> list[ChannelNote]:
-    chords = [bar.chord_at(beat * QUARTER) for beat in range(4)]
-    return _quarter_notes(
+    # The root anchors the strong beats and the fifth fills the weak ones: root, fifth, root,
+    # fifth in 4/4, and the waltz's "oom-pah-pah" (root, fifth, fifth) in 3/4.
+    strong = bar.meter.strong
+    return _one_per_beat(
+        bar,
         [
-            _bass_root(chords[0]),
-            _bass_fifth(chords[1]),
-            _bass_root(chords[2]),
-            _bass_fifth(chords[3]),
-        ]
+            _bass_root(chord) if beat in strong else _bass_fifth(chord)
+            for beat, chord in enumerate(_chords_on_beats(bar))
+        ],
     )
+
+
+# The chord tones a walking line climbs through, one per beat, before its last beat.
+_WALKING_STEPS = (_bass_root, _bass_third, _bass_fifth)
 
 
 def _tr_walking(bar: Bar, next_bar: Bar | None) -> list[ChannelNote]:
-    chords = [bar.chord_at(beat * QUARTER) for beat in range(4)]
-    # Beat 4 is a chromatic approach: one semitone below the root that the next bar starts on.
-    # The last bar of the piece has no next root to lead to, so it repeats the fifth.
-    approach = _bass_fifth(chords[3]) if next_bar is None else _bass_root(next_bar.chords[0]) - 1
-    return _quarter_notes(
-        [_bass_root(chords[0]), _bass_third(chords[1]), _bass_fifth(chords[2]), approach]
-    )
+    chords = _chords_on_beats(bar)
+    climb = [_WALKING_STEPS[beat % 3](chord) for beat, chord in enumerate(chords[:-1])]
+    # The last beat is a chromatic approach: one semitone below the root that the next bar
+    # starts on. The last bar of the piece has no next root to lead to, so it repeats the fifth.
+    approach = _bass_fifth(chords[-1]) if next_bar is None else _bass_root(next_bar.chords[0]) - 1
+    return _one_per_beat(bar, [*climb, approach])
 
 
 def realize_tr(bar: Bar, texture_gene: int, next_bar: Bar | None) -> tuple[ChannelNote, ...]:
     """Play the TR bass texture the gene selects (an index into `TR_TEXTURES`).
 
     Roots are placed in the bass register 28-39, and each note uses the chord in effect at its
-    onset. The triangle has no volume control, so every note has the same velocity.
+    onset. The triangle has no volume control, so every note has the same velocity. "Beat" means
+    a beat of the bar's meter: a quarter note in 4/4, a dotted quarter in 6/8.
 
     - root: the root, sustained for each chord segment;
     - octave_pump: eighth notes alternating the root and the root one octave up;
-    - root_fifth: quarter notes root, fifth, root, fifth;
-    - walking: quarter notes root, third, fifth, then one semitone below the root of `next_bar`
-      (the fifth again when `next_bar` is None, at the end of the piece).
+    - root_fifth: one note per beat, the root on strong beats and the fifth on weak beats
+      (root, fifth, root, fifth in 4/4);
+    - walking: one note per beat climbing root, third, fifth (and again), then on the last beat
+      one semitone below the root of `next_bar` (the fifth again when `next_bar` is None, at the
+      end of the piece).
 
     >>> from leadsheet.model import ChordSegment
     >>> c = ChordSegment("C", 0, (0, 4, 7), 0.0, 4.0)
@@ -286,46 +306,74 @@ def realize_tr(bar: Bar, texture_gene: int, next_bar: Bar | None) -> tuple[Chann
 
 # --- NO: the drum pattern --------------------------------------------------------------------
 
-STEPS_PER_BAR = 16
-EVERY_BEAT = range(0, STEPS_PER_BAR, 4)
-EVERY_EIGHTH = range(0, STEPS_PER_BAR, 2)
-EVERY_SIXTEENTH = range(STEPS_PER_BAR)
-
-# The sixteenth-note steps of each drum in each pattern, written as a drummer thinks of them
-# ("hi-hat on every eighth"). Where drums share a step, `_DRUM_PRIORITY` decides who plays.
-_DRUM_STEPS: dict[str, dict[int, tuple[int, ...] | range]] = {
-    "none": {},
-    "half_time": {KICK: (0,), SNARE: (8,), HIHAT: EVERY_BEAT},
-    "eighth_beat": {KICK: (0, 8), SNARE: (4, 12), HIHAT: EVERY_EIGHTH},
-    "sixteenth_beat": {KICK: (0, 8, 11), SNARE: (4, 12), HIHAT: EVERY_SIXTEENTH},
-    # The eighth beat for three beats, then a snare roll on the fourth beat leads into the next bar.
-    "fill": {KICK: (0, 8), SNARE: (4, 12, 13, 14, 15), HIHAT: range(0, 12, 2)},
-}
-
 # The noise channel sounds one hit at a time: the kick wins over the snare, the snare over the
 # hi-hat, as a drummer would drop the hi-hat to play the accented drum.
 _DRUM_PRIORITY = (KICK, SNARE, HIHAT)
 
+STEPS_PER_BEAT = 4  # sixteenth-note steps in a quarter note
 
-def realize_no(pattern_gene: int) -> tuple[ChannelNote, ...]:
+
+def drum_steps(pattern: str, meter: Meter = FOUR_FOUR) -> dict[int, set[int]]:
+    """The sixteenth-note steps of each drum in a pattern, built from the meter's beats.
+
+    A drummer thinks of the patterns in beats: the kick marks the strong beats, the snare the
+    weak ones and the hi-hat keeps time. Steps count sixteenth notes from the bar start.
+
+    >>> {drum: sorted(steps) for drum, steps in drum_steps("eighth_beat").items()}
+    {36: [0, 8], 38: [4, 12], 42: [0, 2, 4, 6, 8, 10, 12, 14]}
+    >>> from leadsheet.meter import parse_meter
+    >>> jig = drum_steps("eighth_beat", parse_meter("6/8"))  # kick on eighth 1, snare on 4
+    >>> {drum: sorted(steps) for drum, steps in jig.items()}
+    {36: [0], 38: [6], 42: [0, 2, 4, 6, 8, 10]}
+    """
+    beat_steps = [round(onset * STEPS_PER_BEAT) for onset in beat_onsets(meter)]
+    strong = [beat_steps[beat] for beat in meter.strong]
+    weak = [step for beat, step in enumerate(beat_steps) if beat not in meter.strong]
+    eighths = set(range(0, meter.steps, 2))
+    if pattern == "none":
+        return {}
+    if pattern == "half_time":
+        # Kick on beat 1 and snare on the next strong beat (beat 3 in 4/4), if the bar has one.
+        return {KICK: {0}, SNARE: set(strong[1:2]), HIHAT: set(beat_steps)}
+    if pattern == "eighth_beat":
+        return {KICK: set(strong), SNARE: set(weak), HIHAT: eighths}
+    if pattern == "sixteenth_beat":
+        # A pickup kick on the last sixteenth of the last strong beat pushes into the next beat.
+        last_strong = meter.strong[-1]
+        pickup = beat_steps[last_strong] + round(meter.beats[last_strong] * STEPS_PER_BEAT) - 1
+        return {KICK: {*strong, pickup}, SNARE: set(weak), HIHAT: set(range(meter.steps))}
+    # "fill": the eighth beat until the last beat, then a snare roll on every sixteenth of it
+    # leads into the next bar. The last beat is always weak, so the roll replaces its snare.
+    roll = beat_steps[-1]
+    return {
+        KICK: {step for step in strong if step < roll},
+        SNARE: {step for step in weak if step < roll} | set(range(roll, meter.steps)),
+        HIHAT: {step for step in eighths if step < roll},
+    }
+
+
+def realize_no(pattern_gene: int, meter: Meter = FOUR_FOUR) -> tuple[ChannelNote, ...]:
     """Play the NO drum pattern the gene selects (an index into `NO_PATTERNS`).
 
-    The bar is a grid of 16 sixteenth-note steps; each hit lasts one step.
+    The bar is a grid of sixteenth-note steps (16 in 4/4, 12 in 3/4); each hit lasts one step.
+    "Strong" and "weak" beats are those of the meter (see `drum_steps`).
 
     - none: silence;
-    - half_time: kick on beat 1, snare on beat 3, hi-hat on beats 2 and 4;
-    - eighth_beat: kick on beats 1 and 3, snare on 2 and 4, hi-hat on the off-beat eighths;
-    - sixteenth_beat: kick on beats 1 and 3 and the last sixteenth of beat 3, snare on 2 and 4,
-      hi-hat on every other sixteenth;
-    - fill: the eighth beat for three beats, then four snare sixteenths.
+    - half_time: kick on beat 1, snare on the second strong beat if the meter has one (beat 3 in
+      4/4), hi-hat on every beat;
+    - eighth_beat: kick on the strong beats, snare on the weak beats, hi-hat on the off-beat
+      eighths (in 4/4: kick on 1 and 3, snare on 2 and 4);
+    - sixteenth_beat: the eighth beat plus a kick on the last sixteenth of the last strong beat,
+      hi-hat on the other sixteenths;
+    - fill: the eighth beat until the last beat, then a snare on each of its sixteenths.
 
     >>> [(note.onset, note.pitch) for note in realize_no(NO_PATTERNS.index("half_time"))]
     [(0.0, 36), (1.0, 42), (2.0, 38), (3.0, 42)]
     """
-    drum_steps = _DRUM_STEPS[NO_PATTERNS[pattern_gene]]
+    steps = drum_steps(NO_PATTERNS[pattern_gene], meter)
     notes = []
-    for step in range(STEPS_PER_BAR):
-        drums_on_step = [drum for drum in _DRUM_PRIORITY if step in drum_steps.get(drum, ())]
+    for step in range(meter.steps):
+        drums_on_step = [drum for drum in _DRUM_PRIORITY if step in steps.get(drum, ())]
         if drums_on_step:
             drum = drums_on_step[0]
             notes.append(ChannelNote(drum, step * SIXTEENTH, SIXTEENTH, DRUM_VELOCITY[drum]))

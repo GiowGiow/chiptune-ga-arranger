@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from ga.genome import GENE_SIZES, OCT, P2, decode, random_population
+from ga.genome import ALL_ALLOWED, GENE_SIZES, OCT, P2, allowed_genes, decode, random_population
 from ga.operators import elite_indices, mutate, one_point_crossover, roulette_select
 
 
@@ -232,3 +232,79 @@ def test_mutation_is_the_same_for_the_same_seed():
     np.testing.assert_array_equal(
         mutate(rng(5), population, rate=0.3), mutate(rng(5), population, rate=0.3)
     )
+
+
+# --- allowed values (spec 003, US3) ---------------------------------------------------------
+
+DEFAULT_ALLOWED = {
+    "p2": ["hold", "arp16", "arp32", "echo", "third"],
+    "tr": ["root", "octave_pump", "root_fifth", "walking"],
+    "no": ["none", "half_time", "eighth_beat", "sixteenth_beat", "fill"],
+    "p1_octave": [0, 12, -12],
+}
+NO_ARP32 = DEFAULT_ALLOWED | {"p2": ["third", "hold", "arp16", "echo"]}  # any order
+ARP32 = 2
+
+
+def test_allowed_genes_turns_value_names_into_sorted_gene_values_per_column():
+    assert allowed_genes(DEFAULT_ALLOWED) == ALL_ALLOWED
+    assert tuple(tuple(range(size)) for size in GENE_SIZES) == ALL_ALLOWED
+    assert allowed_genes(NO_ARP32)[P2] == (0, 1, 3, 4)
+    assert allowed_genes(DEFAULT_ALLOWED | {"p1_octave": [-12, 0]})[OCT] == (0, 2)
+
+
+def test_with_every_value_allowed_the_random_population_is_the_same_as_before():
+    generator = rng(0)
+    expected = generator.integers(0, GENE_SIZES, size=(5, 7, 4))
+    after_expected = generator.random()
+
+    generator = rng(0)
+    population = random_population(generator, 5, 7, ALL_ALLOWED)
+
+    assert np.array_equal(population, expected)
+    assert generator.random() == after_expected  # the same numbers were drawn
+
+
+def test_with_every_value_allowed_mutation_is_the_same_as_before():
+    plans = random_population(rng(1), 6, 5)
+    generator = rng(2)
+    mutating = generator.random(plans.shape) < 0.3
+    shift = generator.integers(1, GENE_SIZES, size=plans.shape)
+    expected = np.where(mutating, (plans + shift) % np.array(GENE_SIZES), plans)
+    after_expected = generator.random()
+
+    generator = rng(2)
+    mutated = mutate(generator, plans, 0.3, allowed=ALL_ALLOWED)
+
+    assert np.array_equal(mutated, expected)
+    assert generator.random() == after_expected
+
+
+def test_a_disallowed_value_never_appears_in_the_population_or_after_mutation():
+    allowed = allowed_genes(NO_ARP32)
+    generator = rng(3)
+    population = random_population(generator, 200, 8, allowed)
+    assert not (population[..., P2] == ARP32).any()
+    for _ in range(50):
+        population = mutate(generator, population, 1.0, allowed=allowed)
+        assert not (population[..., P2] == ARP32).any()
+
+
+def test_mutation_moves_a_gene_only_among_its_allowed_values():
+    allowed = allowed_genes(DEFAULT_ALLOWED | {"no": ["none", "fill"]})
+    generator = rng(4)
+    population = random_population(generator, 50, 4, allowed)
+    for _ in range(20):
+        population = mutate(generator, population, 1.0, allowed=allowed)
+        assert set(np.unique(population[..., 2])) <= {0, 4}
+
+
+def test_a_gene_with_one_allowed_value_never_changes():
+    allowed = allowed_genes(DEFAULT_ALLOWED | {"tr": ["walking"]})
+    population = random_population(rng(5), 30, 4, allowed)
+    assert (population[..., 1] == 3).all()
+
+    mutated = mutate(rng(6), population, 1.0, allowed=allowed)
+
+    assert (mutated[..., 1] == 3).all()
+    assert (mutated[..., P2] != population[..., P2]).all()  # the other genes still mutate

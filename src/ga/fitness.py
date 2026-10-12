@@ -88,7 +88,7 @@ def _contrast(tables: ScoreTables, population: np.ndarray) -> np.ndarray:
     density = (
         tables.act_p2[bars, population[:, :, P2]]
         + tables.act_tr[bars, population[:, :, TR]]
-        + tables.act_no[population[:, :, NO]]
+        + tables.act_no[bars, population[:, :, NO]]
     ) / 3
     lift = density[:, chorus].mean(axis=1) - density[:, ~chorus].mean(axis=1)
     # Equal densities score 0.5, so the GA is pushed toward a denser chorus, not just allowed.
@@ -153,7 +153,7 @@ def criterion_scores(tables: ScoreTables, population: np.ndarray) -> dict[str, n
 
     >>> one_bar = ScoreTables(
     ...     act_p1=np.ones((1, 3)), act_p2=np.array([[0.0, 1.0, 1.0, 0.5, 0.5]]),
-    ...     act_tr=np.zeros((1, 4)), act_no=np.zeros(5), reg_both=np.zeros((1, 3, 5)),
+    ...     act_tr=np.zeros((1, 4)), act_no=np.zeros((1, 5)), reg_both=np.zeros((1, 3, 5)),
     ...     reg_ok=np.zeros((1, 3, 5)), bass_inner=np.full((1, 4), np.nan),
     ...     bass_inner_leaps=np.zeros((1, 4), dtype=int), bass_across=np.ones((0, 4, 4)),
     ...     single_chord=np.array([True]), phrase_end=np.array([False]),
@@ -181,7 +181,7 @@ def fitness(tables: ScoreTables, population: np.ndarray, weights: dict[str, floa
 
     >>> one_bar = ScoreTables(
     ...     act_p1=np.ones((1, 3)), act_p2=np.array([[0.0, 1.0, 1.0, 0.5, 0.5]]),
-    ...     act_tr=np.zeros((1, 4)), act_no=np.zeros(5), reg_both=np.zeros((1, 3, 5)),
+    ...     act_tr=np.zeros((1, 4)), act_no=np.zeros((1, 5)), reg_both=np.zeros((1, 3, 5)),
     ...     reg_ok=np.zeros((1, 3, 5)), bass_inner=np.full((1, 4), np.nan),
     ...     bass_inner_leaps=np.zeros((1, 4), dtype=int), bass_across=np.ones((0, 4, 4)),
     ...     single_chord=np.array([True]), phrase_end=np.array([False]),

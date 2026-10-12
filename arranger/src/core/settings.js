@@ -4,7 +4,8 @@
  *
  * The browser arranger uses the same settings as the command line (`configs/default.json`, read
  * by `src/config.py`): population size, stopping limits, mutation rate, elite count, phrase
- * length, tempo override, the seven fitness weights and, for a MIDI song, the lead-sheet options.
+ * length, tempo override, the seven fitness weights, the values each gene may take (`allowed`)
+ * and, for a MIDI song, the lead-sheet options.
  * The seed is a setting too, because the same input, seed and settings give the same arrangement
  * (constitution, principle I).
  *
@@ -17,6 +18,8 @@
  * key, then the run keys. `uv run src/main.py arrange <input> --config <file> --seed <seed>`
  * accepts it, because the command line skips the run keys (contracts/cli.md).
  */
+
+import { NO_PATTERNS, P1_OCTAVES, P2_TEXTURES, TR_TEXTURES } from "./genome.js";
 
 /** Largest seed: the generator is seeded with one unsigned 32-bit integer. */
 export const MAX_SEED = 4294967295;
@@ -41,7 +44,8 @@ export const RUN_RECORD_KEYS = Object.freeze([
  * @typedef {Record<string, any> & {
  *   seed: number, population_size: number, max_generations: number, stagnation_window: number,
  *   mutation_rate: number, elite_count: number, phrase_length: number, tempo_bpm: number | null,
- *   role_map: Record<string, string>, weights: Record<string, number>, midi: Record<string, any>
+ *   role_map: Record<string, string>, weights: Record<string, number>, midi: Record<string, any>,
+ *   allowed: {p2: string[], tr: string[], no: string[], p1_octave: number[]}
  * }} Settings
  */
 
@@ -63,8 +67,10 @@ export function defaultSettings(defaultConfig) {
  * Check every setting against its valid range (data-model.md, Settings).
  *
  * The rules are those of the command line: at least one place in the population must be left
- * for children (elite count below the population size), and the fitness is a weighted mean, so
- * the weights must be finite, at least 0 and not all 0.
+ * for children (elite count below the population size), the fitness is a weighted mean, so the
+ * weights must be finite, at least 0 and not all 0, and each gene must keep at least one allowed
+ * value, with no unknown or repeated one. The `allowed` messages are those of `src/config.py`,
+ * one per gene (its first problem).
  *
  * @param {Settings} settings
  * @returns {SettingMessage[]} one message per invalid field; empty when all are valid
@@ -118,7 +124,49 @@ export function validateSettings(settings) {
   if (weightsValid && weightSum === 0) {
     add("weights", "the weights must not all be 0: the fitness would have nothing to score");
   }
+  for (const [gene, [valid, plural]] of Object.entries(GENE_VALUES)) {
+    const problem = allowedProblem(gene, settings.allowed?.[gene], valid, plural);
+    if (problem !== null) add(`allowed.${gene}`, problem);
+  }
   return messages;
+}
+
+/**
+ * The values each gene may take, in gene order, and how messages name them (as in
+ * `src/config.py`).
+ * @type {Record<string, [readonly (string | number)[], string]>}
+ */
+const GENE_VALUES = {
+  p2: [P2_TEXTURES, "P2 textures"],
+  tr: [TR_TEXTURES, "TR textures"],
+  no: [NO_PATTERNS, "NO patterns"],
+  p1_octave: [P1_OCTAVES, "P1 octaves"],
+};
+
+/**
+ * The first reason the GA could not draw from one gene's allowed list, or null.
+ *
+ * A gene needs at least one value, or its bars would have nothing to play; an unknown or
+ * repeated value is most likely a typo in a hand-written config.
+ *
+ * @param {string} gene the key under `allowed`, for example "p2"
+ * @param {unknown} values the list the settings give
+ * @param {readonly (string | number)[]} valid the gene's values, in gene order
+ * @param {string} plural how the message names the values, for example "P2 textures"
+ * @returns {string | null}
+ */
+function allowedProblem(gene, values, valid, plural) {
+  if (!Array.isArray(values)) return `allowed.${gene} must be a list of ${plural}`;
+  if (values.length === 0) return `allowed.${gene} must keep at least one value`;
+  for (const value of values) {
+    if (!valid.includes(value)) {
+      return `allowed.${gene}: unknown value "${value}"; valid values: ${valid.join(", ")}`;
+    }
+    if (values.indexOf(value) !== values.lastIndexOf(value)) {
+      return `allowed.${gene}: "${value}" is listed twice`;
+    }
+  }
+  return null;
 }
 
 /**

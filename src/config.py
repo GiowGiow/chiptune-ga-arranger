@@ -47,8 +47,9 @@ def load_config(path: Path | str | None = None, overrides: Sequence[str] = ()) -
     Dotted keys reach nested values (`weights.contrast=3`). Values are parsed as JSON, and a value
     that is not valid JSON is kept as a string (`role_map.A=chorus`). The file may be a run record
     (a run folder's `config.json`): its RUN_RECORD_KEYS are skipped. A ValueError rejects an
-    unknown key and criterion weights that are not finite numbers of at least 0, or that are all
-    0, since the fitness is their weighted mean.
+    unknown key, criterion weights that are not finite numbers of at least 0 or that are all 0
+    (the fitness is their weighted mean), and `allowed` lists that are empty or hold an unknown or
+    repeated value.
 
     >>> load_config(overrides=["weights.contrast=3"])["weights"]["contrast"]
     3
@@ -64,6 +65,7 @@ def load_config(path: Path | str | None = None, overrides: Sequence[str] = ()) -
             raise ValueError(f"override {item!r} must look like key=value")
         _set_dotted(config, key.strip(), _parse_value(raw_value.strip()))
     _check_weights(config["weights"])
+    _check_allowed(config["allowed"])
     return config
 
 
@@ -91,6 +93,36 @@ def _check_weights(weights: dict) -> None:
             raise ValueError(f"weights.{name} must be finite and at least 0, got {weight!r}")
     if sum(weights.values()) == 0:
         raise ValueError("the weights must not all be 0: the fitness would have nothing to score")
+
+
+# The values each gene may take, in gene order, and how messages name them (spec 003 FR-012).
+GENE_VALUES = {
+    "p2": (("hold", "arp16", "arp32", "echo", "third"), "P2 textures"),
+    "tr": (("root", "octave_pump", "root_fifth", "walking"), "TR textures"),
+    "no": (("none", "half_time", "eighth_beat", "sixteenth_beat", "fill"), "NO patterns"),
+    "p1_octave": ((0, 12, -12), "P1 octaves"),
+}
+
+
+def _check_allowed(allowed: dict) -> None:
+    """Reject `allowed` lists that the GA could not draw from.
+
+    A gene needs at least one value, or its bars would have nothing to play; an unknown or
+    repeated value is most likely a typo in a hand-written config.
+    """
+    for gene, (valid, plural) in GENE_VALUES.items():
+        values = allowed[gene]
+        if not isinstance(values, list):
+            raise ValueError(f"allowed.{gene} must be a list of {plural}")
+        if not values:
+            raise ValueError(f"allowed.{gene} must keep at least one value")
+        for value in values:
+            # bool is an int in Python: True would otherwise pass as the octave 1.
+            if isinstance(value, bool) or value not in valid:
+                listed = ", ".join(str(v) for v in valid)
+                raise ValueError(f'allowed.{gene}: unknown value "{value}"; valid values: {listed}')
+            if values.count(value) > 1:
+                raise ValueError(f'allowed.{gene}: "{value}" is listed twice')
 
 
 def _parse_value(raw_value: str) -> object:

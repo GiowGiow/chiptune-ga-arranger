@@ -12,6 +12,7 @@ from config import load_config
 from leadsheet.abc_reader import read_lead_sheet, read_lead_sheet_text
 from leadsheet.abc_writer import lead_sheet_to_abc
 from leadsheet.chords import chord_tones
+from leadsheet.meter import parse_meter
 from leadsheet.model import Bar, ChordSegment, LeadSheet, MelodyNote
 from leadsheet.sources import file_sha256, load_sources
 
@@ -254,6 +255,39 @@ def test_the_hand_written_lead_sheets_read_back_unchanged(name):
     lead_sheet = read_lead_sheet(LEADSHEETS / f"{name}.abc")
 
     assert round_trip(lead_sheet) == lead_sheet
+
+
+METER_TUNES = sorted((ROOT / "tests" / "data" / "meters").glob("*.abc"))
+
+
+@pytest.mark.parametrize("path", METER_TUNES, ids=[path.stem for path in METER_TUNES])
+def test_a_lead_sheet_in_any_supported_meter_reads_back_unchanged(path):
+    lead_sheet = read_lead_sheet(path)
+
+    assert round_trip(lead_sheet) == lead_sheet
+
+
+def test_the_header_declares_the_first_bar_meter_and_a_change_is_written_inline():
+    text = lead_sheet_to_abc(read_lead_sheet(ROOT / "tests" / "data" / "meters" / "changes.abc"))
+    lines = text.splitlines()
+
+    assert "M:4/4" in lines
+    assert "[M:2/4]" in text and "[M:3/4]" in text
+    assert text.count("[M:") == 3  # 2/4, 3/4 and back to 4/4
+    waltz = lead_sheet_to_abc(read_lead_sheet(ROOT / "tests" / "data" / "meters" / "waltz.abc"))
+    assert "M:3/4" in waltz.splitlines()
+    assert "[M:" not in waltz
+
+
+def test_a_seven_eight_bar_holds_fourteen_sixteenths():
+    seven = parse_meter("7/8")
+    melody = (MelodyNote(62, 0.0, 3.5),)
+    one_bar = Bar(0, melody, (chord("D", 0.0, 3.5),), "A", "verse", 0, False, seven)
+    second = Bar(1, melody, (chord("D", 0.0, 3.5),), "A", "verse", 0, True, seven)
+
+    text = lead_sheet_to_abc(sheet(one_bar, second))
+
+    assert '"D"D14 |' in text
 
 
 def sample_config(song) -> dict:

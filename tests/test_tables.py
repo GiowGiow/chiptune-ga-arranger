@@ -8,6 +8,7 @@ from ga.fitness import criterion_scores
 from ga.genome import NO_PATTERNS, P2_TEXTURES, TR, TR_TEXTURES, random_population
 from ga.tables import build_tables
 from leadsheet.abc_reader import read_lead_sheet
+from leadsheet.meter import parse_meter
 from leadsheet.model import Bar, ChordSegment, LeadSheet, MelodyNote
 
 C = ChordSegment("C", 0, (0, 4, 7), 0.0, 4.0)
@@ -34,21 +35,58 @@ def test_tables_have_one_entry_per_bar_and_gene_value():
     assert tables.act_p1.shape == (2, 3)
     assert tables.act_p2.shape == (2, 5)
     assert tables.act_tr.shape == (2, 4)
-    assert tables.act_no.shape == (5,)
+    assert tables.act_no.shape == (2, 5)
     assert tables.reg_both.shape == tables.reg_ok.shape == (2, 3, 5)
     assert tables.bass_inner.shape == tables.bass_inner_leaps.shape == (2, 4)
     assert tables.bass_across.shape == (1, 4, 4)
 
 
-def test_activity_counts_onsets_per_bar_over_sixteen():
+def test_activity_counts_onsets_per_bar_over_its_sixteen_steps_in_four_four():
     tables = build_tables(two_bar_lead_sheet())
     assert tables.act_p1[0, 0] == 4 / 16
     assert tables.act_p1[1, 0] == 1 / 16
     for texture in ("arp16", "arp32"):
         assert (tables.act_p2[:, P2_TEXTURES.index(texture)] == 1.0).all()
-    assert tables.act_no[NO_PATTERNS.index("none")] == 0.0
-    assert tables.act_no[NO_PATTERNS.index("sixteenth_beat")] == 1.0
+    assert (tables.act_no[:, NO_PATTERNS.index("none")] == 0.0).all()
+    assert (tables.act_no[:, NO_PATTERNS.index("sixteenth_beat")] == 1.0).all()
     assert tables.act_tr[0, TR_TEXTURES.index("octave_pump")] == 8 / 16
+
+
+def test_a_three_four_bar_is_measured_on_its_twelve_sixteenth_steps():
+    waltz = parse_meter("3/4")
+    c = ChordSegment("C", 0, (0, 4, 7), 0.0, 3.0)
+    quarters = tuple(MelodyNote(72, float(beat), 1.0) for beat in range(3))
+    bar = Bar(0, quarters, (c,), "A", "verse", 0, True, waltz)
+
+    tables = build_tables(LeadSheet("waltz", "c major", 120.0, (bar,)))
+
+    assert tables.act_p1[0, 0] == 3 / 12
+    assert tables.act_tr[0, TR_TEXTURES.index("octave_pump")] == 6 / 12
+    assert tables.act_no[0, NO_PATTERNS.index("eighth_beat")] == 6 / 12
+    assert tables.act_no[0, NO_PATTERNS.index("sixteenth_beat")] == 1.0
+    # P2 holds C3 under the melody C5 on all 12 steps.
+    hold = P2_TEXTURES.index("hold")
+    assert tables.reg_both[0, 0, hold] == tables.reg_ok[0, 0, hold] == 12
+
+
+def test_the_drum_activity_of_a_bar_follows_its_meter():
+    four = Bar(0, (), (C,), "A", "verse", 0, False)
+    three = Bar(
+        1,
+        (),
+        (ChordSegment("C", 0, (0, 4, 7), 0.0, 3.0),),
+        "A",
+        "verse",
+        0,
+        True,
+        parse_meter("3/4"),
+    )
+
+    tables = build_tables(LeadSheet("mixed", "", 120.0, (four, three)))
+
+    fill = NO_PATTERNS.index("fill")
+    assert tables.act_no[0, fill] == 10 / 16  # 6 hits before beat 4, then 4 snare sixteenths
+    assert tables.act_no[1, fill] == 8 / 12  # 4 hits before beat 3, then 4 snare sixteenths
 
 
 def test_register_counts_sixteenth_steps_where_p2_sounds_below_p1():

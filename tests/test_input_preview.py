@@ -23,10 +23,13 @@ def test_excerpt_times_follow_the_grid_of_the_recording(tmp_path):
     assert excerpt_seconds(path, (100.0, 0.5), (1, 2)) == (2.9, 5.3)
 
 
-def test_excerpt_times_start_on_the_first_four_four_bar_after_a_count_in(tmp_path):
-    path = write_count_in_song(tmp_path / "song.mid")  # 120 BPM, 4/4 from 3 s on
-    assert excerpt_seconds(path, (120.0, 0.0), (0, 2)) == pytest.approx((3.0, 7.0))
-    assert excerpt_seconds(path, (120.0, 0.0), (1, 2)) == pytest.approx((5.0, 7.0))
-    assert excerpt_seconds(path, (120.0, 0.0), None)[0] == pytest.approx(3.0)
+def test_excerpt_times_count_bars_from_the_first_bar_of_the_time_signature_map(tmp_path):
+    path = write_count_in_song(tmp_path / "song.mid")  # 120 BPM: two 3/4 bars, 4/4 from 3 s on
+    assert excerpt_seconds(path, (120.0, 0.0), (0, 2)) == pytest.approx((0.0, 3.0))
+    assert excerpt_seconds(path, (120.0, 0.0), (3, 4)) == pytest.approx((5.0, 7.0))
+    # The default excerpt starts on the first bar with a pitched note: the pickup's 3/4 bar.
+    assert excerpt_seconds(path, (120.0, 0.0), None)[0] == pytest.approx(1.5)
+    drums_only = write_count_in_song(tmp_path / "drums.mid", pickup=False)
+    assert excerpt_seconds(drums_only, (120.0, 0.0), None)[0] == pytest.approx(3.0)
     # An estimated grid has its own downbeat: the count-in does not move it.
     assert excerpt_seconds(path, (100.0, 0.5), (1, 2)) == (2.9, 5.3)

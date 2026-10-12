@@ -1,6 +1,7 @@
 """Behavior of the GA loop on a tiny arrangement problem whose best plan is known."""
 
 import dataclasses
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -25,7 +26,7 @@ def busy_melody_tables() -> ScoreTables:
         act_p1=np.ones((n, 3)),
         act_p2=np.tile([0.0, 1.0, 1.0, 0.5, 0.5], (n, 1)),
         act_tr=np.zeros((n, 4)),
-        act_no=np.zeros(5),
+        act_no=np.zeros((n, 5)),
         reg_both=np.zeros((n, 3, 5)),
         reg_ok=np.zeros((n, 3, 5)),
         bass_inner=np.full((n, 4), np.nan),
@@ -146,3 +147,59 @@ def test_ga_params_refuse_an_elite_that_fills_the_whole_population():
             mutation_rate=0.01,
             elite_count=4,
         )
+
+
+# --- allowed values (spec 003, US3) ---------------------------------------------------------
+
+ECHO = 3
+
+
+def test_the_ga_uses_only_allowed_values_even_when_a_disallowed_one_would_score_best():
+    # Hold would win complementarity in every bar, but only echo and third are allowed.
+    allowed = ((ECHO, 4), (0, 1, 2, 3), (0, 1, 2, 3, 4), (0, 1, 2))
+    params = dataclasses.replace(PARAMS, allowed=allowed)
+
+    result = run(params=params)
+
+    assert set(result.best_genome[:, P2]) <= {ECHO, 4}
+    assert set(result.initial_best_genome[:, P2]) <= {ECHO, 4}
+
+
+def test_ga_params_from_a_config_carry_the_allowed_values():
+    from config import load_config
+    from ga.evolution import ga_params
+
+    config = load_config(overrides=['allowed.p2=["hold","arp16","echo","third"]'])
+
+    params = ga_params(config)
+
+    assert params.allowed[P2] == (0, 1, 3, 4)
+    assert params.population_size == config["population_size"]
+
+
+def test_ga_params_refuse_a_gene_without_allowed_values():
+    with pytest.raises(ValueError, match="every gene needs at least one allowed value"):
+        dataclasses.replace(PARAMS, allowed=((), (0,), (0,), (0,)))
+
+
+LEAD_SHEETS = sorted((Path(__file__).resolve().parent.parent / "data" / "leadsheets").glob("*.abc"))
+
+
+@pytest.mark.parametrize("path", LEAD_SHEETS, ids=[path.stem for path in LEAD_SHEETS])
+def test_with_arp32_disallowed_no_run_uses_it_on_any_committed_lead_sheet(path):
+    # Spec 003 SC-004: 0% of the bars use arp32, on every committed lead sheet and seeds 1-3.
+    from config import load_config
+    from ga.evolution import ga_params
+    from ga.tables import build_tables
+    from leadsheet.abc_reader import read_lead_sheet
+
+    config = load_config(overrides=['allowed.p2=["hold","arp16","echo","third"]'])
+    params = dataclasses.replace(ga_params(config), max_generations=40)
+    lead_sheet = read_lead_sheet(path)
+    tables = build_tables(lead_sheet)
+    for seed in (1, 2, 3):
+        result = evolve(
+            np.random.default_rng(seed), tables, len(lead_sheet.bars), params, config["weights"]
+        )
+        assert not (result.best_genome[:, P2] == 2).any()
+        assert not (result.initial_best_genome[:, P2] == 2).any()

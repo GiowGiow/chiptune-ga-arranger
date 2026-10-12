@@ -8,6 +8,8 @@ the very same lead sheet. Each choice below keeps that round trip exact:
 - Lengths: the unit note length is a sixteenth (`L:1/16`), so "C4" is a quarter note and every
   onset and duration on the sixteenth-note grid is a whole number of units. Rests (`z`) fill the
   silence between notes.
+- Meter: `M:` gives the first bar's meter, and a bar whose meter differs from the bar before it
+  starts with an inline field such as `[M:3/4]`, which both readers follow.
 - Chords: a chord symbol is written just before the note or rest that starts with the chord. When
   the chord changes while a note sounds, the note is written as two tied pieces (`G4- "G"G4`),
   which the reader joins back into one note.
@@ -29,10 +31,10 @@ from itertools import accumulate
 from music21 import key
 
 from leadsheet.abc_reader import phrase_marks
+from leadsheet.meter import FOUR_FOUR
 from leadsheet.model import Bar, LeadSheet
 
-UNITS_PER_BEAT = 4  # L:1/16: a sixteenth note is the unit, four to a beat
-UNITS_PER_BAR = 4 * UNITS_PER_BEAT
+UNITS_PER_BEAT = 4  # L:1/16: a sixteenth note is the unit, four to a quarter-note beat
 TEMPO_DECIMALS = 6
 LETTER_PITCH_CLASSES = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
 ACCIDENTAL_SIGNS = {-2: "__", -1: "_", 0: "=", 1: "^", 2: "^^"}
@@ -62,14 +64,14 @@ def lead_sheet_to_abc(
     and `source_grid` comes back as None.
 
     Args:
-        lead_sheet: the lead sheet to write (4/4, melody and chords on the sixteenth-note grid).
+        lead_sheet: the lead sheet to write (melody and chords on the sixteenth-note grid).
         phrase_length: bars per phrase that the reader will use.
         comments: lines written as `%` comments at the top of the file (for the provenance).
 
     Raises:
-        ValueError: for a lead sheet ABC cannot hold: a meter other than 4/4, a note off the
-            sixteenth-note grid, overlapping melody notes, chords that leave a gap, or phrases
-            that `phrase_length` cannot reproduce. The message names the bar when it can.
+        ValueError: for a lead sheet ABC cannot hold: a note off the sixteenth-note grid,
+            overlapping melody notes, chords that leave a gap, or phrases that `phrase_length`
+            cannot reproduce. The message names the bar when it can.
 
     >>> from leadsheet.model import ChordSegment, MelodyNote
     >>> c = ChordSegment("C", 0, (0, 4, 7), onset=0.0, duration=2.0)
@@ -87,11 +89,11 @@ def lead_sheet_to_abc(
     P:A
     "C"C4 ^F4- "G"^F8 |
     """
-    if lead_sheet.beats_per_bar != 4:
-        raise ValueError(f"only 4/4 can be written, not {lead_sheet.beats_per_bar} beats per bar")
     key_field, signature, sharps = _key(lead_sheet.key)
+    bars = lead_sheet.bars
+    first_meter = bars[0].meter if bars else FOUR_FOUR
     lines = ["%abc-2.1", *(f"% {line}".rstrip() for line in comments)]
-    lines += ["X:1", f"T:{lead_sheet.title}", "M:4/4", "L:1/16"]
+    lines += ["X:1", f"T:{lead_sheet.title}", f"M:{first_meter}", "L:1/16"]
     lines.append(f"Q:1/4={_tempo_text(lead_sheet.tempo_bpm)}")
     if round(lead_sheet.tempo_bpm, TEMPO_DECIMALS) != lead_sheet.tempo_bpm:
         lines.append(
@@ -100,7 +102,6 @@ def lead_sheet_to_abc(
         )
     lines.append(f"K:{key_field}")
 
-    bars = lead_sheet.bars
     phrase_line: list[str] = []
     for index, starts_part in enumerate(_part_starts(bars, phrase_length)):
         new_phrase = index == 0 or starts_part or bars[index].phrase != bars[index - 1].phrase
@@ -110,7 +111,9 @@ def lead_sheet_to_abc(
         # Bars before the first P: line have the empty label, so they need no P: line.
         if starts_part and (index > 0 or bars[index].label):
             lines.append(f"P:{bars[index].label}")
-        phrase_line.append(_bar_text(bars[index], signature, sharps))
+        meter_change = index > 0 and bars[index].meter != bars[index - 1].meter
+        inline_meter = f"[M:{bars[index].meter}]" if meter_change else ""
+        phrase_line.append(inline_meter + _bar_text(bars[index], signature, sharps))
     if phrase_line:
         lines.append(" | ".join(phrase_line) + " |")
     return "\n".join(lines) + "\n"
@@ -180,13 +183,14 @@ def _units(beats: float, bar: Bar, what: str) -> int:
 def _bar_text(bar: Bar, signature: dict[str, int], sharps: int) -> str:
     """Write one bar: chord symbols, notes, tied pieces and rests, separated by spaces."""
     chord_starts = _chord_starts(bar)
+    bar_units = round(bar.meter.bar_beats * UNITS_PER_BEAT)
     # Pieces of time in sixteenth units: (start, end, MIDI pitch or None for a rest).
     pieces: list[tuple[int, int, int | None]] = []
     position = 0
     for note in bar.melody:
         start = _units(note.onset, bar, "onset")
         end = _units(note.onset + note.duration, bar, "note end")
-        if start < position or end <= start or end > UNITS_PER_BAR:
+        if start < position or end <= start or end > bar_units:
             raise ValueError(
                 f"bar {bar.index + 1}: melody notes overlap or leave the bar; an ABC lead sheet "
                 "holds one note at a time, inside its bar"
@@ -195,8 +199,8 @@ def _bar_text(bar: Bar, signature: dict[str, int], sharps: int) -> str:
             pieces.append((position, start, None))
         pieces.append((start, end, note.pitch))
         position = end
-    if position < UNITS_PER_BAR:
-        pieces.append((position, UNITS_PER_BAR, None))
+    if position < bar_units:
+        pieces.append((position, bar_units, None))
 
     tokens, marked_letters = [], set()
     for start, end, pitch in pieces:
@@ -227,10 +231,10 @@ def _chord_starts(bar: Bar) -> dict[int, str]:
             break
         starts[start] = segment.symbol
         position = _units(segment.onset + segment.duration, bar, "chord end")
-    if position != UNITS_PER_BAR or len(starts) != len(bar.chords):
+    if position != round(bar.meter.bar_beats * UNITS_PER_BEAT) or len(starts) != len(bar.chords):
         raise ValueError(
-            f"bar {bar.index + 1}: the chord segments must cover the bar from beat 0 to beat 4 "
-            "without gaps or overlaps"
+            f"bar {bar.index + 1}: the chord segments must cover the bar from its start to its "
+            "end without gaps or overlaps"
         )
     return starts
 

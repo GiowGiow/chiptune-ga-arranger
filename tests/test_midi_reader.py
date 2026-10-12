@@ -162,11 +162,11 @@ def test_a_file_on_its_own_grid_keeps_the_file_tempo(tmp_path):
     assert lead_sheet.source_grid == (pytest.approx(120.0), 0.0)
 
 
-def write_count_in_song(path, tempo=120.0):
+def write_count_in_song(path, tempo=120.0, pickup=True):
     """Two 3/4 bars of count-in, then four 4/4 bars (C, G, C, G) from 3 s on, at 120 BPM.
 
-    Drums play every beat; a pickup G4 sounds on the last count-in beat. The melody plays C5 or
-    D5 for two beats on each 4/4 downbeat.
+    Drums play every beat. With `pickup`, a G4 sounds on the last count-in beat; without it the
+    count-in is drums only. The melody plays C5 or D5 for two beats on each 4/4 downbeat.
     """
     beat = 60.0 / tempo
     lead_in = 2 * 3 * beat
@@ -179,7 +179,8 @@ def write_count_in_song(path, tempo=120.0):
     chords = pretty_midi.Instrument(program=27, name="guitar")
     bass = pretty_midi.Instrument(program=33, name="bass")
     drums = pretty_midi.Instrument(program=0, is_drum=True, name="drums")
-    melody.notes.append(pretty_midi.Note(90, 67, lead_in - beat, lead_in))
+    if pickup:
+        melody.notes.append(pretty_midi.Note(90, 67, lead_in - beat, lead_in))
     for b in range(6 + 16):
         drums.notes.append(pretty_midi.Note(90, 36, b * beat, b * beat + 0.1))
     for bar in range(4):
@@ -202,53 +203,153 @@ def with_meters(path, meters):
     return path
 
 
-def test_meter_offset_is_the_beat_where_the_four_four_music_starts(tmp_path):
-    from leadsheet.midi_reader import meter_offset_beats
+def write_waltz_song(path, tempo=120.0, meter=(3, 4), bars=4):
+    """`bars` bars in one meter: a melody note on every beat, one chord per bar (C, F, G, C)."""
+    from leadsheet.meter import Meter
+
+    bar_meter = Meter(*meter)
+    beat = 60.0 / tempo
+    midi = pretty_midi.PrettyMIDI(initial_tempo=tempo)
+    midi.time_signature_changes = [pretty_midi.TimeSignature(*meter, 0.0)]
+    melody = pretty_midi.Instrument(program=73, name="flute")
+    pad = pretty_midi.Instrument(program=89, name="pad")
+    bass = pretty_midi.Instrument(program=33, name="bass")
+    triads = [(60, 64, 67), (65, 69, 72), (67, 71, 74), (60, 64, 67)]
+    position = 0.0
+    for bar in range(bars):
+        for length in bar_meter.beats:
+            start = position * beat
+            melody.notes.append(pretty_midi.Note(90, 76, start, start + length * beat * 0.9))
+            position += length
+        bar_start, bar_end = (position - bar_meter.bar_beats) * beat, position * beat
+        triad = triads[bar % 4]
+        for pitch in triad:
+            pad.notes.append(pretty_midi.Note(70, pitch, bar_start, bar_end))
+        bass.notes.append(pretty_midi.Note(80, triad[0] - 24, bar_start, bar_end))
+    midi.instruments += [melody, pad, bass]
+    midi.write(str(path))
+    return path
+
+
+# --- the time-signature map (spec 003, research R8) -----------------------------------------
+
+
+def test_the_bar_map_lists_every_bar_of_the_file_with_its_meter(tmp_path):
+    from leadsheet.midi_reader import bar_map
 
     count_in = pretty_midi.PrettyMIDI(str(write_count_in_song(tmp_path / "count_in.mid")))
-    assert meter_offset_beats(count_in) == 6.0
     four_four = pretty_midi.PrettyMIDI(str(write_song(tmp_path / "song.mid")))
-    assert meter_offset_beats(four_four) == 0.0
-    assert meter_offset_beats(pretty_midi.PrettyMIDI(initial_tempo=120.0)) == 0.0
+
+    assert [(bar.start, str(bar.meter)) for bar in bar_map(count_in)] == [
+        (0.0, "3/4"),
+        (3.0, "3/4"),
+        (6.0, "4/4"),
+        (10.0, "4/4"),
+        (14.0, "4/4"),
+        (18.0, "4/4"),
+    ]
+    assert [bar.start for bar in bar_map(four_four)] == [0.0, 4.0, 8.0, 12.0]
 
 
-def test_a_count_in_in_another_meter_is_skipped_and_bar_zero_starts_on_the_first_four_four_bar(
-    tmp_path,
-):
-    lead_sheet = read_lead_sheet_midi(write_count_in_song(tmp_path / "song.mid"), melody_track=0)
+def test_a_file_without_time_signatures_is_four_four():
+    from leadsheet.midi_reader import bar_map
+
+    midi = pretty_midi.PrettyMIDI(initial_tempo=120.0)
+    piano = pretty_midi.Instrument(program=0)
+    piano.notes.append(pretty_midi.Note(90, 60, 0.0, 3.9))  # 7.8 beats: two bars
+    midi.instruments.append(piano)
+
+    assert [(bar.start, str(bar.meter)) for bar in bar_map(midi)] == [(0.0, "4/4"), (4.0, "4/4")]
+
+
+def test_by_default_a_drum_only_count_in_is_left_out(tmp_path):
+    path = write_count_in_song(tmp_path / "song.mid", pickup=False)
+
+    lead_sheet = read_lead_sheet_midi(path, melody_track=0)
+
     assert len(lead_sheet.bars) == 4
-    # The pickup G4 of the count-in lies before bar 0, outside every bar.
+    assert {str(bar.meter) for bar in lead_sheet.bars} == {"4/4"}
     assert [(n.pitch, n.onset, n.duration) for n in lead_sheet.bars[0].melody] == [(72, 0.0, 2.0)]
     assert [[c.symbol for c in bar.chords] for bar in lead_sheet.bars] == [["C"], ["G"]] * 2
     assert lead_sheet.source_grid == (pytest.approx(120.0), 0.0)
 
 
-def test_an_excerpt_after_a_count_in_counts_bars_from_the_first_four_four_bar(tmp_path):
+def test_by_default_a_count_in_bar_with_a_pickup_note_is_part_of_the_song(tmp_path):
+    lead_sheet = read_lead_sheet_midi(write_count_in_song(tmp_path / "song.mid"), melody_track=0)
+
+    assert [str(bar.meter) for bar in lead_sheet.bars] == ["3/4", "4/4", "4/4", "4/4", "4/4"]
+    assert [(n.pitch, n.onset, n.duration) for n in lead_sheet.bars[0].melody] == [(67, 2.0, 1.0)]
+
+
+def test_an_excerpt_counts_bars_from_the_first_bar_of_the_file(tmp_path):
     path = write_count_in_song(tmp_path / "song.mid")
-    lead_sheet = read_lead_sheet_midi(path, melody_track=0, bars=(1, 3))
-    assert [(n.pitch, n.onset) for n in lead_sheet.bars[0].melody] == [(74, 0.0)]
+
+    lead_sheet = read_lead_sheet_midi(path, melody_track=0, bars=(3, 6))
+
+    # Bars 0 and 1 are the count-in, so bar 3 is the second 4/4 bar.
+    assert [[(n.pitch, n.onset) for n in bar.melody] for bar in lead_sheet.bars] == [
+        [(74, 0.0)],
+        [(72, 0.0)],
+        [(74, 0.0)],
+    ]
     assert [c.symbol for c in lead_sheet.bars[0].chords] == ["G"]
 
 
-def test_an_explicit_grid_finds_its_own_downbeat_and_ignores_the_count_in(tmp_path):
+def test_an_explicit_grid_reads_the_song_in_its_main_meter_from_its_own_downbeat(tmp_path):
     path = write_count_in_song(tmp_path / "song.mid")
-    # Bars of 2 s from 1 s on: the last note ends at 11 s, so 5 bars.
+    # Bars of 2 s (4/4 lasts longest in the file) from 1 s on: the last note ends at 11 s.
     lead_sheet = read_lead_sheet_midi(path, melody_track=0, grid=(120.0, 1.0))
     assert len(lead_sheet.bars) == 5
+    assert {str(bar.meter) for bar in lead_sheet.bars} == {"4/4"}
     assert lead_sheet.source_grid == (120.0, 1.0)
 
 
-def test_a_meter_change_inside_the_music_is_refused_naming_the_meter_bar_and_time(tmp_path):
+def test_a_meter_change_inside_the_music_moves_the_following_bar_lines(tmp_path):
     path = with_meters(write_song(tmp_path / "song.mid"), [(4, 4, 0.0), (3, 4, 4.0)])
-    message = r"the file changes to 3/4 at bar 2 \(4\.0 s\); only 4/4 is supported"
-    with pytest.raises(ValueError, match=message):
+
+    lead_sheet = read_lead_sheet_midi(path, melody_track=0)
+
+    assert [str(bar.meter) for bar in lead_sheet.bars] == ["4/4", "4/4", "3/4", "3/4", "3/4"]
+    assert [n.onset for n in lead_sheet.bars[3].melody] == [0.0, 1.0, 2.0]
+
+
+def test_a_waltz_has_three_beat_bars_and_one_chord_per_bar(tmp_path):
+    lead_sheet = read_lead_sheet_midi(write_waltz_song(tmp_path / "waltz.mid"), melody_track=0)
+
+    assert len(lead_sheet.bars) == 4
+    assert {str(bar.meter) for bar in lead_sheet.bars} == {"3/4"}
+    assert [[(c.symbol, c.onset, c.duration) for c in bar.chords] for bar in lead_sheet.bars] == [
+        [("C", 0.0, 3.0)],
+        [("F", 0.0, 3.0)],
+        [("G", 0.0, 3.0)],
+        [("C", 0.0, 3.0)],
+    ]
+    assert [n.onset for n in lead_sheet.bars[1].melody] == [0.0, 1.0, 2.0]
+
+
+def test_a_two_four_song_has_two_beat_bars(tmp_path):
+    path = write_waltz_song(tmp_path / "polka.mid", meter=(2, 4))
+
+    lead_sheet = read_lead_sheet_midi(path, melody_track=0)
+
+    assert len(lead_sheet.bars) == 4
+    assert {bar.meter.bar_beats for bar in lead_sheet.bars} == {2.0}
+
+
+def test_an_unsupported_meter_inside_the_excerpt_is_refused_naming_it(tmp_path):
+    path = with_meters(write_song(tmp_path / "song.mid"), [(5, 8, 0.0)])
+
+    with pytest.raises(ValueError, match="bar 0: the meter 5/8 is not supported"):
         read_lead_sheet_midi(path, melody_track=0)
 
 
-def test_a_file_in_another_meter_is_refused_naming_the_meter(tmp_path):
-    path = with_meters(write_song(tmp_path / "song.mid"), [(3, 4, 0.0)])
-    with pytest.raises(ValueError, match="only 4/4 MIDI files are supported; this file is in 3/4"):
+def test_a_bar_cut_short_by_a_time_signature_change_is_refused_inside_the_excerpt(tmp_path):
+    # 3/4 starts on beat 6, in the middle of bar 1 (beats 4-8): bar 1 lasts only 2 beats.
+    path = with_meters(write_song(tmp_path / "song.mid"), [(4, 4, 0.0), (3, 4, 3.0)])
+
+    with pytest.raises(ValueError, match=r"bar 1 \(2\.0 s\) lasts 2 beats instead of 4"):
         read_lead_sheet_midi(path, melody_track=0)
+    assert len(read_lead_sheet_midi(path, melody_track=0, bars=(2, 5)).bars) == 3
 
 
 def write_tempo_change_song(path):

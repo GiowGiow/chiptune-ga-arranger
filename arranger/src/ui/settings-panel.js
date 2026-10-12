@@ -14,10 +14,18 @@
  * its default is the one bold name, with the default below it, so the changes stand out from the
  * rest without a color of their own. Each fitness weight shows its share of the fitness, because
  * the fitness is a weighted mean and a weight only acts relative to the others.
+ *
+ * The "Allowed textures" group (spec 003, User Story 3) narrows the values each gene may take:
+ * one fieldset per channel, one checkbox per value, each with a tooltip that says what the value
+ * plays, in the words of the realizers' docstrings (`src/arrangement/textures.py`). A visitor who
+ * finds the 32nd-note arpeggio too busy unticks it and the GA never draws it again. Choices that
+ * switch off a fitness criterion or a channel are allowed, with a warning under the group.
  */
 
 import { validateSettings } from "../core/settings.js";
 import {
+  allowedFromForm,
+  allowedWarnings,
   changedSettings,
   exportConfig,
   formToSettings,
@@ -61,12 +69,72 @@ export const FIELDS = Object.freeze([
   },
 ]);
 
-/** Form labels by dotted key; a weight's label says "weight", since out of its group it could read as a score. */
-const LABELS = new Map(
-  FIELDS.flatMap(({ fields }) =>
-    fields.map(([key, label]) => [key, key.startsWith("weights.") ? `${label} weight` : label]),
+/**
+ * The "Allowed textures" group: per gene, its channel, and per value (in gene order) its readable
+ * label and what it plays. The labels avoid the settings file's names (`arp32`, `octave_pump`),
+ * which the tooltips' sentences explain instead.
+ *
+ * @type {ReadonlyArray<{gene: string, legend: string, channel: string,
+ *   values: ReadonlyArray<[string | number, string, string]>}>}
+ */
+export const ALLOWED_GROUPS = Object.freeze([
+  {
+    gene: "p2",
+    legend: "P2 harmony",
+    channel: "--p2",
+    values: [
+      ["hold", "hold", "Sustains the chord root for as long as each chord lasts: a calm pad under the melody."],
+      ["arp16", "arpeggio (16th notes)", "Cycles the chord tones upward from the root, one per 16th note, so one channel sounds the whole chord."],
+      ["arp32", "fast arpeggio (32nd notes)", "Cycles the chord tones one per 32nd note, so fast that they blur into one buzzing chord: the classic NES arpeggio."],
+      ["echo", "echo", "Repeats the melody one eighth note later and softer, like a delay."],
+      ["third", "third below", "Adds a chord tone under each melody note, at least a minor third below it: a second voice."],
+    ],
+  },
+  {
+    gene: "tr",
+    legend: "TR bass",
+    channel: "--tr",
+    values: [
+      ["root", "root", "Sustains the chord root in the bass for as long as each chord lasts."],
+      ["octave_pump", "octave pump", "Eighth notes that alternate the root and the root one octave up: the bouncing NES bass."],
+      ["root_fifth", "root–fifth", "One note per beat, the root on strong beats and the fifth on weak beats: root, fifth, root, fifth in 4/4."],
+      ["walking", "walking", "One note per beat climbing root, third, fifth, then a semitone below the next bar's root, leading into it."],
+    ],
+  },
+  {
+    gene: "no",
+    legend: "NO drums",
+    channel: "--no",
+    values: [
+      ["none", "none", "No drums: the noise channel rests in that bar."],
+      ["half_time", "half time", "Kick on beat 1, snare on the next strong beat (beat 3 in 4/4), hi-hat on the other beats: a relaxed groove."],
+      ["eighth_beat", "eighth beat", "Kick on the strong beats, snare on the weak beats, hi-hat on the eighth notes between them: the basic rock beat."],
+      ["sixteenth_beat", "sixteenth beat", "The eighth beat, busier: hi-hat on every 16th note and a pickup kick on the last 16th note of the last strong beat."],
+      ["fill", "fill", "The eighth beat until the last beat, then a snare roll on its 16th notes that leads into the next bar. The idiom criterion wants fills at phrase ends."],
+    ],
+  },
+  {
+    gene: "p1_octave",
+    legend: "P1 melody octave",
+    channel: "--p1",
+    values: [
+      [0, "as written", "Plays the melody at its written octave, which the fidelity criterion rewards."],
+      [12, "octave up", "Plays the melody one octave higher; notes that leave the pulse range fold back by octaves."],
+      [-12, "octave down", "Plays the melody one octave lower; notes that leave the pulse range fold back by octaves."],
+    ],
+  },
+]);
+
+/**
+ * Form labels by dotted key; a weight's label says "weight", since out of its group it could read
+ * as a score, and an allowed list says "Allowed", since out of its group it could read as a part.
+ */
+const LABELS = new Map([
+  ...FIELDS.flatMap(({ fields }) =>
+    fields.map(([key, label]) => /** @type {[string, string]} */ ([key, key.startsWith("weights.") ? `${label} weight` : label])),
   ),
-);
+  ...ALLOWED_GROUPS.map(({ gene, legend }) => /** @type {[string, string]} */ ([`allowed.${gene}`, `Allowed ${legend}`])),
+]);
 
 /**
  * The name of a setting outside the form (Run card, run list), the same as the form's label.
@@ -76,6 +144,7 @@ const LABELS = new Map(
  * @example
  * settingLabel("max_generations") // "Max generations"
  * settingLabel("weights.fidelity") // "Fidelity weight"
+ * settingLabel("allowed.p2") // "Allowed P2 harmony"
  */
 export function settingLabel(key) {
   return LABELS.get(key) ?? key;
@@ -90,11 +159,56 @@ export function settingLabel(key) {
  * @example
  * defaultNote("max_generations", defaults) // "default 3000"
  * defaultNote("tempo_bpm", defaults) // "default: the file's tempo"
+ * defaultNote("allowed.p2", defaults) // "default: all allowed"
  */
 export function defaultNote(key, defaults) {
   const value = valueAt(defaults, key);
+  const group = ALLOWED_GROUPS.find(({ gene }) => key === `allowed.${gene}`);
+  if (group && Array.isArray(value)) {
+    // The default allows every value, and listing them all would only repeat the checkboxes.
+    if (group.values.every(([option]) => value.includes(option))) return "default: all allowed";
+    const labels = group.values.filter(([option]) => value.includes(option)).map(([, label]) => label);
+    return `default ${labels.join(", ")}`;
+  }
   // Only the tempo override has no default value: without it the song keeps its own tempo.
   return value === null || value === undefined ? "default: the file's tempo" : `default ${value}`;
+}
+
+/**
+ * The markup of the "Allowed textures" group: one fieldset per channel, one checkbox per value.
+ *
+ * Each channel is a row of the form like any setting (`data-setting="allowed.p2"`), so the
+ * panel's usual code marks it as changed, names its default and shows its validation message.
+ *
+ * @returns {string} HTML for the settings form
+ * @example
+ * allowedGroupHtml().match(/type="checkbox"/g).length // 17
+ */
+export function allowedGroupHtml() {
+  const channels = ALLOWED_GROUPS.map(({ gene, legend, channel, values }) => {
+    const field = `allowed.${gene}`;
+    const boxes = values
+      .map(([value, label, tip]) => {
+        const id = `allowed-${gene}-${value}`;
+        return `<div class="allowed-value has-tip">
+          <label for="${id}"><input type="checkbox" id="${id}" data-allowed="${gene}" value="${value}"
+            aria-describedby="tip-${id} error-${field}"><span>${label}<span class="tip-mark" aria-hidden="true">i</span></span></label>
+          <p class="tip" id="tip-${id}" role="tooltip">${tip}</p>
+        </div>`;
+      })
+      .join("");
+    return `<fieldset class="allowed-gene" data-setting="${field}">
+        <legend><span class="dot" style="--c: var(${channel})" aria-hidden="true"></span>${legend}</legend>
+        <div class="allowed-values">${boxes}</div>
+        <p class="setting-note"><span data-default></span></p>
+        <p class="field-error error" id="error-${field}" role="alert"></p>
+      </fieldset>`;
+  }).join("");
+  return `<fieldset class="settings-group allowed-textures"><legend>Allowed textures</legend>
+      <p class="hint">What the GA may choose for each channel. Untick a value to keep it out of every bar.</p>
+      ${channels}
+      <div class="allowed-warnings" data-allowed-warnings role="status"></div>
+    </fieldset>`;
 }
 
 /**
@@ -131,7 +245,7 @@ export function createSettingsPanel(container, options) {
   ).join("");
   container.insertAdjacentHTML(
     "beforeend",
-    `<form class="settings-form" data-form novalidate>${groups}</form>
+    `<form class="settings-form" data-form novalidate>${groups}${allowedGroupHtml()}</form>
      <p class="field-error error" data-weights-error role="alert"></p>
      <div class="toolbar">
        <button type="button" class="button" data-reset>Reset to defaults</button>
@@ -148,12 +262,19 @@ export function createSettingsPanel(container, options) {
   let running = false;
 
   const inputs = /** @type {HTMLInputElement[]} */ ([...form.querySelectorAll("[data-key]")]);
+  const boxes = /** @type {HTMLInputElement[]} */ ([...form.querySelectorAll("[data-allowed]")]);
+  const warnings = /** @type {HTMLElement} */ (container.querySelector("[data-allowed-warnings]"));
 
   function readForm() {
     /** @type {Record<string, string>} */
     const fields = {};
     for (const input of inputs) fields[/** @type {string} */ (input.dataset.key)] = input.value;
-    return formToSettings(fields, current);
+    /** @type {Record<string, string[]>} */
+    const ticked = {};
+    for (const box of boxes) {
+      if (box.checked) (ticked[/** @type {string} */ (box.dataset.allowed)] ??= []).push(box.value);
+    }
+    return { ...formToSettings(fields, current), allowed: allowedFromForm(ticked) };
   }
 
   /** @param {Settings} settings */
@@ -164,13 +285,17 @@ export function createSettingsPanel(container, options) {
         .reduce((node, part) => node?.[part], /** @type {any} */ (settings));
       input.value = value === null || value === undefined ? "" : String(value);
     }
+    for (const box of boxes) {
+      const allowed = settings.allowed?.[/** @type {keyof Settings["allowed"]} */ (box.dataset.allowed)];
+      box.checked = Array.isArray(allowed) && allowed.map(String).includes(box.value);
+    }
   }
 
   /** @param {Settings} settings */
   function showErrors(settings) {
     const messages = validateSettings(settings);
     for (const element of container.querySelectorAll(".field-error")) element.textContent = "";
-    for (const element of container.querySelectorAll(".setting")) element.classList.remove("invalid");
+    for (const element of container.querySelectorAll("[data-setting]")) element.classList.remove("invalid");
     for (const { field, message } of messages) {
       const target =
         field === "weights"
@@ -208,11 +333,27 @@ export function createSettingsPanel(container, options) {
     }
   }
 
+  /**
+   * Warn under the "Allowed textures" group about values whose absence switches something off.
+   *
+   * @param {Settings} settings
+   */
+  function showWarnings(settings) {
+    warnings.replaceChildren(
+      ...allowedWarnings(settings.allowed ?? {}).map((text) => {
+        const line = document.createElement("p");
+        line.textContent = text;
+        return line;
+      }),
+    );
+  }
+
   /** @param {Settings} settings */
   function apply(settings) {
     current = settings;
     showErrors(settings);
     showChanges(settings);
+    showWarnings(settings);
     status.textContent = running ? "Changes apply to the next run." : "";
     options.onChange(settings);
   }
@@ -255,6 +396,7 @@ export function createSettingsPanel(container, options) {
       if (!container.contains(document.activeElement)) fill(current);
       showErrors(current);
       showChanges(current);
+      showWarnings(current);
       if (running) status.textContent = "Changes apply to the next run.";
       else if (status.textContent === "Changes apply to the next run.") status.textContent = "";
     },

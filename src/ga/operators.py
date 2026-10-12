@@ -11,8 +11,8 @@ The GA follows the scheme taught in the course:
   goes down.
 - **One-point crossover** cuts both parents at the same bar line and swaps the tails, so each
   child keeps whole bars of its parents.
-- **Mutation** replaces each gene, with a small probability, by a different valid value, which
-  brings back choices that selection has lost.
+- **Mutation** replaces each gene, with a small probability, by a different allowed value,
+  which brings back choices that selection has lost.
 
 Every function that draws random numbers takes the `numpy.random.Generator` as its first
 argument, so a run is reproducible from its seed.
@@ -20,7 +20,7 @@ argument, so a run is reproducible from its seed.
 
 import numpy as np
 
-from ga.genome import GENE_SIZES
+from ga.genome import ALL_ALLOWED, AllowedGenes, values_at
 
 # Fitness values closer than this are ties: the same weighted mean summed in a different order
 # can differ in the last bits, and that noise must not decide who reproduces.
@@ -82,13 +82,15 @@ def mutate(
     rng: np.random.Generator,
     population: np.ndarray,
     rate: float,
-    gene_sizes: tuple[int, ...] = GENE_SIZES,
+    allowed: AllowedGenes = ALL_ALLOWED,
 ) -> np.ndarray:
-    """Return a copy where each gene, with probability rate, takes a different valid value.
+    """Return a copy where each gene, with probability rate, takes a different allowed value.
 
-    Adding a random shift from 1 to size - 1 and wrapping around (modulo the number of values)
-    never gives back the old value, and reaches each of the other values with equal probability.
-    The input can be one plan or a whole population: the genes are always on the last axis.
+    A gene holding the value at position p of its k allowed values moves to position
+    (p + shift) mod k, with a random shift from 1 to k - 1: wrapping around never gives back the
+    old value and reaches each of the other allowed values with equal probability. A gene with
+    one allowed value has nowhere to go and keeps it. The input can be one plan or a whole
+    population: the genes are always on the last axis.
 
     >>> plan = np.zeros((2, 4), dtype=int)
     >>> bool((mutate(np.random.default_rng(0), plan, rate=0.0) == plan).all())
@@ -96,7 +98,23 @@ def mutate(
     >>> bool((mutate(np.random.default_rng(0), plan, rate=1.0) != plan).all())
     True
     """
-    sizes = np.asarray(gene_sizes)
+    counts = np.array([len(values) for values in allowed])
     mutating = rng.random(population.shape) < rate
-    shift = rng.integers(1, sizes, size=population.shape)
-    return np.where(mutating, (population + shift) % sizes, population)
+    # A one-value gene still draws a shift (from 1 to 1), so the numbers drawn for the other
+    # genes do not depend on which genes are narrowed; with every value allowed, these are the
+    # same draws as before the setting existed.
+    shift = rng.integers(1, np.maximum(counts, 2), size=population.shape)
+    positions = _positions_of(population, allowed)
+    moved = values_at((positions + shift) % counts, allowed)
+    return np.where(mutating & (counts > 1), moved, population)
+
+
+def _positions_of(population: np.ndarray, allowed: AllowedGenes) -> np.ndarray:
+    """The position of each gene's value among its allowed values."""
+    positions = np.empty_like(population)
+    for column, values in enumerate(allowed):
+        lookup = np.zeros(max(values) + 1, dtype=population.dtype)
+        lookup[list(values)] = np.arange(len(values))
+        # A value outside the allowed ones (never produced by the GA) is clipped into the table.
+        positions[..., column] = lookup[np.minimum(population[..., column], len(lookup) - 1)]
+    return positions

@@ -16,6 +16,12 @@
     "idiom": 1.0,
     "fidelity": 0.5
   },
+  "allowed": {
+    "p2": ["hold", "arp16", "arp32", "echo", "third"],
+    "tr": ["root", "octave_pump", "root_fifth", "walking"],
+    "no": ["none", "half_time", "eighth_beat", "sixteenth_beat", "fill"],
+    "p1_octave": [0, 12, -12]
+  },
   "midi": {
     "melody_track": null,
     "bars": null,

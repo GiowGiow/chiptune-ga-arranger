@@ -23,21 +23,69 @@ GENE_SIZES = (len(P2_TEXTURES), len(TR_TEXTURES), len(NO_PATTERNS), len(P1_OCTAV
 # Column indices of the genes.
 P2, TR, NO, OCT = 0, 1, 2, 3
 
+# The values each gene may take, per column: by default every value. The setting `allowed`
+# narrows them, for example to keep the fast 32nd-note arpeggio out of the arrangement.
+AllowedGenes = tuple[tuple[int, ...], ...]
+ALL_ALLOWED: AllowedGenes = tuple(tuple(range(size)) for size in GENE_SIZES)
 
-def random_population(rng: np.random.Generator, m: int, n_bars: int) -> np.ndarray:
-    """Draw m random plans of n_bars bars, every gene uniform over its valid values.
+# The config key under `allowed` and the value names of each gene column, in column order.
+_GENE_VALUE_NAMES = (
+    ("p2", P2_TEXTURES),
+    ("tr", TR_TEXTURES),
+    ("no", NO_PATTERNS),
+    ("p1_octave", P1_OCTAVES),
+)
+
+
+def allowed_genes(allowed: dict[str, list]) -> AllowedGenes:
+    """Turn the `allowed` setting (value names per gene) into sorted gene values per column.
+
+    The setting is checked by `config.load_config`; the order of its lists does not matter.
+
+    >>> allowed_genes({"p2": ["third", "hold"], "tr": ["root"], "no": ["fill"], "p1_octave": [0]})
+    ((0, 4), (0,), (4,), (0,))
+    """
+    return tuple(
+        tuple(sorted(values.index(name) for name in allowed[key]))
+        for key, values in _GENE_VALUE_NAMES
+    )
+
+
+def random_population(
+    rng: np.random.Generator, m: int, n_bars: int, allowed: AllowedGenes = ALL_ALLOWED
+) -> np.ndarray:
+    """Draw m random plans of n_bars bars, every gene uniform over its allowed values.
 
     This is generation 0 of the GA: no plan is preferred, so the search starts from an unbiased
-    sample of the space.
+    sample of the space. Each gene draws a position among its k allowed values and takes the
+    value there; with every value allowed, the position is the value itself, so the draws are
+    the same as when nothing could be disallowed.
 
     >>> population = random_population(np.random.default_rng(0), m=3, n_bars=2)
     >>> population.shape
     (3, 2, 4)
     >>> bool((population < np.array(GENE_SIZES)).all())
     True
+    >>> no_arp32 = ((0, 1, 3, 4), *ALL_ALLOWED[1:])
+    >>> bool((random_population(np.random.default_rng(0), 50, 4, no_arp32)[..., P2] != 2).all())
+    True
     """
-    # The upper bound broadcasts over the last axis, one size per gene column.
-    return rng.integers(0, GENE_SIZES, size=(m, n_bars, len(GENE_SIZES)))
+    counts = [len(values) for values in allowed]
+    # The upper bound broadcasts over the last axis, one count per gene column.
+    positions = rng.integers(0, counts, size=(m, n_bars, len(GENE_SIZES)))
+    return values_at(positions, allowed)
+
+
+def values_at(positions: np.ndarray, allowed: AllowedGenes) -> np.ndarray:
+    """The allowed value at each position (an index into a gene's allowed values), per column.
+
+    >>> values_at(np.array([[1, 0, 0, 0]]), ((0, 3), (1,), (4,), (2,))).tolist()
+    [[3, 1, 4, 2]]
+    """
+    values = np.empty_like(positions)
+    for column, column_values in enumerate(allowed):
+        values[..., column] = np.asarray(column_values)[positions[..., column]]
+    return values
 
 
 def decode(genome: np.ndarray) -> list[dict[str, object]]:

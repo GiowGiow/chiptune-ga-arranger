@@ -18,7 +18,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from ga.fitness import fitness
-from ga.genome import random_population
+from ga.genome import ALL_ALLOWED, AllowedGenes, allowed_genes, random_population
 from ga.operators import elite_indices, mutate, one_point_crossover, roulette_select
 from ga.tables import ScoreTables
 
@@ -36,6 +36,8 @@ class GAParams:
         stagnation_window: generations without improvement of the best fitness before stopping.
         mutation_rate: probability that each gene of a child is mutated.
         elite_count: number of best plans copied unchanged into the next generation.
+        allowed: the gene values the GA may draw, per gene column (see `genome.allowed_genes`);
+            every value by default.
     """
 
     population_size: int
@@ -43,11 +45,31 @@ class GAParams:
     stagnation_window: int
     mutation_rate: float
     elite_count: int
+    allowed: AllowedGenes = ALL_ALLOWED
 
     def __post_init__(self) -> None:
         # At least one place must be left for children, or the population could never change.
         if not 0 <= self.elite_count < self.population_size:
             raise ValueError("elite_count must be at least 0 and smaller than population_size")
+        if not all(self.allowed):
+            raise ValueError("every gene needs at least one allowed value")
+
+
+def ga_params(config: dict) -> GAParams:
+    """The GA hyperparameters of a run configuration (see `config.load_config`).
+
+    >>> from config import load_config
+    >>> ga_params(load_config()).allowed[0]  # every P2 texture
+    (0, 1, 2, 3, 4)
+    """
+    return GAParams(
+        population_size=config["population_size"],
+        max_generations=config["max_generations"],
+        stagnation_window=config["stagnation_window"],
+        mutation_rate=config["mutation_rate"],
+        elite_count=config["elite_count"],
+        allowed=allowed_genes(config["allowed"]),
+    )
 
 
 @dataclass(frozen=True)
@@ -119,7 +141,7 @@ def next_generation(
         mother, father = roulette_select(rng, fitness_values, 2)
         children.extend(one_point_crossover(rng, population[mother], population[father]))
     # When the number of free places is odd, the second child of the last pair is dropped.
-    offspring = mutate(rng, np.stack(children[:n_children]), params.mutation_rate)
+    offspring = mutate(rng, np.stack(children[:n_children]), params.mutation_rate, params.allowed)
     return np.concatenate([elite, offspring])
 
 
@@ -135,7 +157,7 @@ def evolve(
     >>> from ga.fitness import CRITERIA
     >>> two_bars = ScoreTables(
     ...     act_p1=np.ones((2, 3)), act_p2=np.zeros((2, 5)), act_tr=np.zeros((2, 4)),
-    ...     act_no=np.zeros(5), reg_both=np.zeros((2, 3, 5)), reg_ok=np.zeros((2, 3, 5)),
+    ...     act_no=np.zeros((2, 5)), reg_both=np.zeros((2, 3, 5)), reg_ok=np.zeros((2, 3, 5)),
     ...     bass_inner=np.full((2, 4), np.nan), bass_inner_leaps=np.zeros((2, 4), dtype=int),
     ...     bass_across=np.ones((1, 4, 4)), single_chord=np.zeros(2, dtype=bool),
     ...     phrase_end=np.zeros(2, dtype=bool), phrase=np.array([0, 0]),
@@ -147,7 +169,7 @@ def evolve(
     >>> result.best_fitness, result.best_genome[:, 3]  # both bars at the written octave
     (1.0, array([0, 0]))
     """
-    population = random_population(rng, params.population_size, n_bars)
+    population = random_population(rng, params.population_size, n_bars, params.allowed)
     log: list[GenerationStats] = []
     best_fitness = -np.inf
     generations_without_improvement = 0

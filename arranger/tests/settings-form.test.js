@@ -4,8 +4,10 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { defaultSettings } from "../src/core/settings.js";
+import { defaultSettings, validateSettings } from "../src/core/settings.js";
 import {
+  allowedFromForm,
+  allowedWarnings,
   changedSettings,
   exportConfig,
   formToSettings,
@@ -109,4 +111,82 @@ test("a weight's share of the fitness is the weight over the sum of all weights"
 test("weights that sum to zero give every criterion a share of zero", () => {
   const weights = Object.fromEntries(Object.keys(defaults.weights).map((name) => [name, 0]));
   assert.ok(Object.values(weightShares(weights)).every((share) => share === 0));
+});
+
+// --- Allowed textures (spec 003, User Story 3) ------------------------------------------------
+
+/** Every value of every gene ticked, as checkbox text: the form at the defaults. */
+const allTicked = () =>
+  Object.fromEntries(
+    Object.entries(defaults.allowed).map(([gene, values]) => [gene, values.map(String)]),
+  );
+
+const IDIOM_WARNING = "Without arpeggios, the idiom criterion can no longer reward single-chord bars.";
+const FIDELITY_WARNING = "Without the written octave, the fidelity criterion scores 0 in every bar.";
+const SILENT_WARNING = "The noise channel stays silent.";
+
+test("unticking a texture keeps the other values of its gene, in gene order", () => {
+  const ticked = allTicked();
+  ticked.p2 = ticked.p2.filter((value) => value !== "arp32");
+  const allowed = allowedFromForm(ticked);
+  assert.deepEqual(allowed.p2, ["hold", "arp16", "echo", "third"]);
+  assert.deepEqual(allowed.tr, defaults.allowed.tr, "the other genes keep every value");
+  // The list follows the gene order, whatever order the boxes were ticked in.
+  assert.deepEqual(allowedFromForm({ ...allTicked(), p2: ["third", "hold", "arp32"] }).p2, ["hold", "arp32", "third"]);
+});
+
+test("ticking every box back restores the default lists, with the octaves as numbers", () => {
+  assert.deepEqual(allowedFromForm(allTicked()), defaults.allowed);
+  assert.deepEqual(allowedFromForm({ ...allTicked(), p1_octave: ["-12", "0"] }).p1_octave, [0, -12]);
+});
+
+test("a gene with every box unticked gets an empty list, which validation refuses", () => {
+  const allowed = allowedFromForm({ ...allTicked(), p2: [] });
+  assert.deepEqual(allowed.p2, []);
+  const messages = validateSettings({ ...structuredClone(defaults), allowed });
+  assert.deepEqual(messages, [{ field: "allowed.p2", message: "allowed.p2 must keep at least one value" }]);
+});
+
+test("the default textures raise no warning", () => {
+  assert.deepEqual(allowedWarnings(defaults.allowed), []);
+});
+
+test("without either arpeggio, the idiom warning appears, and goes when one comes back", () => {
+  const withoutArpeggios = { ...defaults.allowed, p2: ["hold", "echo", "third"] };
+  assert.deepEqual(allowedWarnings(withoutArpeggios), [IDIOM_WARNING]);
+  assert.deepEqual(allowedWarnings({ ...withoutArpeggios, p2: ["hold", "arp32"] }), []);
+  assert.deepEqual(allowedWarnings({ ...withoutArpeggios, p2: ["arp16"] }), []);
+});
+
+test("without the written octave, the fidelity warning appears, and goes when it comes back", () => {
+  assert.deepEqual(allowedWarnings({ ...defaults.allowed, p1_octave: [12, -12] }), [FIDELITY_WARNING]);
+  assert.deepEqual(allowedWarnings({ ...defaults.allowed, p1_octave: [12, 0] }), []);
+});
+
+test("drums limited to none warn that the noise channel stays silent", () => {
+  assert.deepEqual(allowedWarnings({ ...defaults.allowed, no: ["none"] }), [SILENT_WARNING]);
+  assert.deepEqual(allowedWarnings({ ...defaults.allowed, no: ["none", "fill"] }), []);
+  assert.deepEqual(allowedWarnings({ ...defaults.allowed, no: ["fill"] }), [], "a single pattern still plays");
+});
+
+test("the warnings follow the order of the channels and can all show at once", () => {
+  const allowed = { p2: ["hold"], tr: ["root"], no: ["none"], p1_octave: [12] };
+  assert.deepEqual(allowedWarnings(allowed), [IDIOM_WARNING, SILENT_WARNING, FIDELITY_WARNING]);
+});
+
+test("a changed allowed list is a changed setting, named by its gene", () => {
+  const settings = structuredClone(defaults);
+  settings.allowed.p2 = ["hold", "arp16", "echo", "third"];
+  settings.allowed.p1_octave = [0];
+  assert.deepEqual(changedSettings(settings, defaults), ["allowed.p1_octave", "allowed.p2"]);
+  settings.allowed = allowedFromForm(allTicked());
+  assert.deepEqual(changedSettings(settings, defaults), [], "ticking every box back is the default again");
+});
+
+test("a config.json with allowed lists restores them, and the genes it omits keep their default", () => {
+  const settings = importConfig('{"allowed": {"p2": ["hold", "arp16"], "p1_octave": [0]}}', defaults);
+  assert.deepEqual(settings.allowed.p2, ["hold", "arp16"]);
+  assert.deepEqual(settings.allowed.p1_octave, [0]);
+  assert.deepEqual(settings.allowed.tr, defaults.allowed.tr);
+  assert.throws(() => importConfig('{"allowed": {"p3": ["hold"]}}', defaults), /unknown configuration key 'allowed.p3'/);
 });

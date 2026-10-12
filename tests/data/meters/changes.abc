@@ -1,0 +1,10 @@
+% Written for the chiptune-ga-arranger tests (spec 003): 8 bars whose meter changes 4/4, 2/4, 3/4, 4/4.
+X:1
+T:Test Changes
+M:4/4
+L:1/8
+Q:1/4=120
+K:G
+P:A
+"G"G2 B2 d2 B2 | "C"c2 e2 "D7"d2 c2 | [M:2/4]"G"B2 d2 | "D7"A2 F2 |
+[M:3/4]"G"G2 B2 d2 | "Em"e2 g2 e2 | [M:4/4]"C"c2 e2 "D7"d2 F2 | "G"G8 |

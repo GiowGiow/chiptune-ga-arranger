@@ -1,0 +1,10 @@
+% Written for the chiptune-ga-arranger tests (spec 003): an 8-bar slow tune in 12/8.
+X:1
+T:Test Slow Twelve
+M:12/8
+L:1/8
+Q:1/4=150
+K:C
+P:A
+"C"E3 G3 "F"A3 c3 | "C"G6 E6 | "Am"A3 c3 "Dm"d3 f3 | "G7"e6 d6 |
+"C"c3 e3 "F"f3 a3 | "C"g6 e3 c3 | "Dm"d3 f3 "G7"e3 d3 | "C"c6 C6 |

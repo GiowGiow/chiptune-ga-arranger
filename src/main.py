@@ -46,7 +46,7 @@ from export.run_folder import (
     write_metrics_json,
 )
 from export.video import render_video
-from ga.evolution import GAParams, evolve
+from ga.evolution import evolve, ga_params
 from ga.fitness import criterion_scores
 from ga.tables import build_tables
 from leadsheet.abc_reader import read_lead_sheet
@@ -211,13 +211,7 @@ def run_arrange(args: argparse.Namespace) -> Path:
     lead_sheet = load_lead_sheet(args.leadsheet, config)
     rng = np.random.default_rng(args.seed)
     tables = build_tables(lead_sheet)
-    params = GAParams(
-        population_size=config["population_size"],
-        max_generations=config["max_generations"],
-        stagnation_window=config["stagnation_window"],
-        mutation_rate=config["mutation_rate"],
-        elite_count=config["elite_count"],
-    )
+    params = ga_params(config)
     result = evolve(rng, tables, len(lead_sheet.bars), params, config["weights"])
     arrangement = assemble(lead_sheet, result.best_genome)
     violations = find_violations(arrangement, lead_sheet)

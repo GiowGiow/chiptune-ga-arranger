@@ -116,3 +116,57 @@ def test_load_config_still_rejects_an_unknown_key_in_a_run_record(tmp_path):
     path.write_text(json.dumps({"seed": 1, "populaton_size": 3}))
     with pytest.raises(ValueError, match="unknown configuration key 'populaton_size'"):
         load_config(path)
+
+
+ALL_ALLOWED = {
+    "p2": ["hold", "arp16", "arp32", "echo", "third"],
+    "tr": ["root", "octave_pump", "root_fifth", "walking"],
+    "no": ["none", "half_time", "eighth_beat", "sixteenth_beat", "fill"],
+    "p1_octave": [0, 12, -12],
+}
+
+
+def test_by_default_every_gene_value_is_allowed():
+    assert load_config()["allowed"] == ALL_ALLOWED
+
+
+def test_an_override_replaces_one_gene_list_and_keeps_the_others():
+    cfg = load_config(overrides=['allowed.p2=["hold","arp16"]'])
+
+    assert cfg["allowed"]["p2"] == ["hold", "arp16"]
+    assert cfg["allowed"]["tr"] == ALL_ALLOWED["tr"]
+
+
+def test_a_run_record_without_allowed_reruns_with_everything_allowed():
+    record = Path(__file__).resolve().parent.parent / "samples" / "korobeiniki-s1" / "config.json"
+
+    assert load_config(record)["allowed"] == ALL_ALLOWED
+
+
+@pytest.mark.parametrize(
+    ("override", "message"),
+    [
+        ('allowed.p2="hold"', "allowed.p2 must be a list of P2 textures"),
+        ("allowed.no=[]", "allowed.no must keep at least one value"),
+        (
+            'allowed.p2=["arp64"]',
+            'allowed.p2: unknown value "arp64"; valid values: hold, arp16, arp32, echo, third',
+        ),
+        ('allowed.tr=["walking","walking"]', 'allowed.tr: "walking" is listed twice'),
+        (
+            "allowed.p1_octave=[24]",
+            'allowed.p1_octave: unknown value "24"; valid values: 0, 12, -12',
+        ),
+        ("allowed.p1_octave=0", "allowed.p1_octave must be a list of P1 octaves"),
+    ],
+)
+def test_invalid_allowed_values_are_refused_with_a_message_naming_the_gene(override, message):
+    with pytest.raises(ValueError) as error:
+        load_config(overrides=[override])
+
+    assert str(error.value) == message
+
+
+def test_an_unknown_gene_under_allowed_is_an_unknown_key():
+    with pytest.raises(ValueError, match="unknown configuration key 'allowed.p3'"):
+        load_config(overrides=['allowed.p3=["hold"]'])

@@ -4,6 +4,9 @@ Every test builds a tiny `ScoreTables` (2 to 4 bars) whose numbers make the expe
 to compute by hand. A plan is written as one row [p2, tr, no, oct] per bar.
 """
 
+import json
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -21,7 +24,7 @@ def make_tables(n_bars: int, **fields: object) -> ScoreTables:
         "act_p1": np.zeros((n_bars, 3)),
         "act_p2": np.zeros((n_bars, 5)),
         "act_tr": np.zeros((n_bars, 4)),
-        "act_no": np.zeros(5),
+        "act_no": np.zeros((n_bars, 5)),
         "reg_both": np.zeros((n_bars, 3, 5)),
         "reg_ok": np.zeros((n_bars, 3, 5)),
         "bass_inner": np.full((n_bars, 4), np.nan),
@@ -171,7 +174,7 @@ def contrast_tables() -> ScoreTables:
         4,
         act_p2=[[0.0, 1.0, 1.0, 0.5, 0.5]] * 4,
         act_tr=[[0.0, 1.0, 0.5, 0.75]] * 4,
-        act_no=[0.0, 0.25, 0.5, 1.0, 0.75],
+        act_no=[[0.0, 0.25, 0.5, 1.0, 0.75]] * 4,
         is_chorus=[False, False, True, True],
     )
 
@@ -327,7 +330,7 @@ def test_fitness_of_a_population_equals_the_fitness_of_each_plan_alone():
         act_p1=generator.random((4, 3)),
         act_p2=generator.random((4, 5)),
         act_tr=generator.random((4, 4)),
-        act_no=generator.random(5),
+        act_no=generator.random((4, 5)),
         reg_both=np.full((4, 3, 5), 16.0),
         reg_ok=generator.integers(0, 17, (4, 3, 5)).astype(float),
         bass_across=generator.random((3, 4, 4)),
@@ -346,3 +349,31 @@ def test_fitness_of_a_population_equals_the_fitness_of_each_plan_alone():
 
     np.testing.assert_allclose(together, alone)
     assert ((together >= 0) & (together <= 1)).all()
+
+
+ROOT = Path(__file__).resolve().parent.parent
+PLAN_FIXTURES = sorted((ROOT / "arranger" / "tests" / "fixtures" / "plans").glob("*.json"))
+
+
+@pytest.mark.parametrize("path", PLAN_FIXTURES, ids=[path.stem for path in PLAN_FIXTURES])
+def test_every_committed_plan_keeps_its_scores_and_fitness(path):
+    # Spec 003 FR-017: per-bar grids and drum activity leave every 4/4 score unchanged.
+    from ga.tables import build_tables
+    from leadsheet.abc_reader import read_lead_sheet
+
+    fixture = json.loads(path.read_text())
+    lead_sheet = read_lead_sheet(ROOT / "data" / "leadsheets" / f"{fixture['leadsheet']}.abc")
+    if any(str(bar.meter) != "4/4" for bar in lead_sheet.bars):
+        pytest.skip("only the 4/4 plans of spec 002 are pinned here")
+    tables = build_tables(lead_sheet)
+    plan = np.array([fixture["best_plan"]])
+
+    scores = criterion_scores(tables, plan)
+    value = fitness(tables, plan, fixture["settings"]["weights"])[0]
+
+    for name, expected in fixture["scores"].items():
+        if expected is None:
+            assert np.isnan(scores[name][0])
+        else:
+            assert scores[name][0] == pytest.approx(expected, abs=1e-15)
+    assert value == pytest.approx(fixture["fitness"], abs=1e-15)

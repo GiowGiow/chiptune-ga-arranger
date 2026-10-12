@@ -44,7 +44,7 @@ def test_korobeiniki_has_32_bars_at_150_quarter_notes_per_minute(korobeiniki):
 def test_korobeiniki_keeps_its_title_and_key(korobeiniki):
     assert korobeiniki.title == "Korobeiniki (Tetris theme)"
     assert korobeiniki.key == "a minor"
-    assert korobeiniki.beats_per_bar == 4
+    assert {str(bar.meter) for bar in korobeiniki.bars} == {"4/4"}
 
 
 def test_korobeiniki_labels_follow_the_form_a_a_b_a(korobeiniki):
@@ -305,10 +305,86 @@ def test_the_repeat_error_names_the_bar_where_the_sign_is():
         read_lead_sheet_text(abc('"C"CDEF|GABc:|'))
 
 
-@pytest.mark.parametrize("meter", ["M:3/4\n", "M:6/8\n", "M:2/4\n", ""])
-def test_a_meter_other_than_four_four_is_rejected(meter):
-    with pytest.raises(ValueError, match="4/4"):
-        read_lead_sheet_text(abc('"C"CDE|', meter=meter))
+@pytest.mark.parametrize("meter", ["11/16", "3/8", "none"])
+def test_an_unsupported_meter_is_rejected_naming_the_meter_and_the_bar(meter):
+    with pytest.raises(ValueError) as error:
+        read_lead_sheet_text(abc('"C"CDE|', meter=f"M:{meter}\n"))
+
+    assert str(error.value).startswith(f"bar 1: the meter {meter} is not supported")
+
+
+def test_a_tune_without_a_meter_field_is_rejected():
+    with pytest.raises(ValueError, match="no M: "):
+        read_lead_sheet_text(abc('"C"CDEF|', meter=""))
+
+
+# --- meters other than 4/4 (spec 003) -------------------------------------------------------
+
+METER_TUNES = Path(__file__).resolve().parent / "data" / "meters"
+
+
+def test_a_waltz_has_sixteen_bars_of_three_beats():
+    waltz = read_lead_sheet(METER_TUNES / "waltz.abc")
+
+    assert len(waltz.bars) == 16
+    assert {str(bar.meter) for bar in waltz.bars} == {"3/4"}
+    assert waltz.bars[0].chords[0].duration == 3.0
+    assert sum(note.duration for note in waltz.bars[7].melody) == 3.0
+    assert [bar.label for bar in waltz.bars] == ["A"] * 8 + ["B"] * 8
+    assert [bar.phrase_end for bar in waltz.bars[:8]] == [False, False, False, True] * 2
+
+
+def test_two_four_bars_are_read_as_two_beat_bars_not_joined_in_pairs():
+    polka = read_lead_sheet(METER_TUNES / "polka.abc")
+
+    assert len(polka.bars) == 16
+    assert {bar.meter.bar_beats for bar in polka.bars} == {2.0}
+    # A phrase of 4 bars lasts 8 beats.
+    first_phrase = [bar for bar in polka.bars if bar.phrase == 0]
+    assert sum(bar.meter.bar_beats for bar in first_phrase) == 8.0
+
+
+def test_a_chord_change_inside_a_two_four_bar_splits_its_two_beats():
+    polka = read_lead_sheet(METER_TUNES / "polka.abc")
+
+    segments = [(s.symbol, s.onset, s.duration) for s in polka.bars[14].chords]
+
+    assert segments == [("G", 0.0, 1.0), ("D7", 1.0, 1.0)]
+
+
+def test_cut_time_is_read_as_two_two():
+    sheet = read_lead_sheet_text(abc('"C"CDEF|GABc|', meter="M:C|\n"))
+
+    assert {str(bar.meter) for bar in sheet.bars} == {"2/2"}
+
+
+def test_inline_and_line_meter_changes_set_the_meter_of_the_following_bars():
+    changes = read_lead_sheet(METER_TUNES / "changes.abc")
+    body_line = read_lead_sheet_text(abc('"C"CDEF|\nM:3/4\n"G"GAB|cBA|'))
+
+    assert [str(bar.meter) for bar in changes.bars] == [
+        "4/4", "4/4", "2/4", "2/4", "3/4", "3/4", "4/4", "4/4"
+    ]  # fmt: skip
+    assert [str(bar.meter) for bar in body_line.bars] == ["4/4", "3/4", "3/4"]
+
+
+def test_a_bar_that_does_not_fill_its_own_meter_is_rejected_naming_the_bar():
+    with pytest.raises(ValueError, match=r"bar 2 lasts 2 beats instead of 3 \(3/4\)"):
+        read_lead_sheet_text(abc('"C"CDE|GA|', meter="M:3/4\n"))
+
+
+def test_a_pickup_is_rejected_in_any_meter():
+    with pytest.raises(ValueError, match="bar 1"):
+        read_lead_sheet_text(abc('C|"C"CDE|GAB|', meter="M:3/4\n"))
+
+
+@pytest.mark.parametrize("name", ["jig", "slow_twelve", "five", "seven"])
+def test_every_meter_test_tune_reads_with_bars_of_its_meter(name):
+    sheet = read_lead_sheet(METER_TUNES / f"{name}.abc")
+
+    for bar in sheet.bars:
+        assert sum(note.duration for note in bar.melody) <= bar.meter.bar_beats
+        assert sum(segment.duration for segment in bar.chords) == bar.meter.bar_beats
 
 
 def test_a_pickup_bar_is_rejected_naming_bar_1():

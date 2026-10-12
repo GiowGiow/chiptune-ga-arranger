@@ -4,7 +4,9 @@ Each realizer turns one gene value of one bar into concrete notes for one NES ch
 below are built by hand so that every expected pitch can be checked with a pencil.
 """
 
+import json
 from functools import partial
+from pathlib import Path
 
 import pytest
 
@@ -22,6 +24,8 @@ from arrangement.model import (
 )
 from arrangement.textures import realize_no, realize_p1, realize_p2, realize_tr
 from ga.genome import NO_PATTERNS, P1_OCTAVES, P2_TEXTURES, TR_TEXTURES
+from leadsheet.abc_reader import read_lead_sheet
+from leadsheet.meter import parse_meter
 from leadsheet.model import Bar, ChordSegment, MelodyNote
 
 C_WHOLE_BAR = ChordSegment("C", 0, (0, 4, 7), 0.0, 4.0)
@@ -338,3 +342,149 @@ def test_every_realizer_plays_one_note_at_a_time_inside_the_bar_and_the_channel_
 def test_the_triangle_always_plays_at_the_same_velocity():
     for texture in TR_TEXTURES:
         assert {note.velocity for note in tr(BUSY_BAR, texture, NEXT_BAR)} == {VELOCITY_TR}
+
+
+# --- meters other than 4/4 (spec 003, research R3) ------------------------------------------
+
+ROOT = Path(__file__).resolve().parent.parent
+WALTZ = parse_meter("3/4")
+C_WALTZ_BAR = ChordSegment("C", 0, (0, 4, 7), 0.0, 3.0)
+
+
+def meter_bar(meter, chords, melody=()):
+    """A verse bar in `meter` with the given chord segments and (pitch, onset, duration) notes."""
+    return Bar(
+        0, tuple(MelodyNote(*n) for n in melody), tuple(chords), "A", "verse", 0, False, meter
+    )
+
+
+def hits(notes):
+    """(onset, drum) of every noise hit, the way a drummer reads a pattern."""
+    return [(note.onset, note.pitch) for note in notes]
+
+
+def as_lists(notes):
+    return [[note.pitch, note.onset, note.duration, note.velocity] for note in notes]
+
+
+def test_every_four_four_realization_is_the_same_as_before_meters_existed():
+    lead_sheet = read_lead_sheet(ROOT / "data" / "leadsheets" / "korobeiniki.abc")
+    fixture = json.loads(
+        (ROOT / "arranger/tests/fixtures/realizations/korobeiniki.json").read_text()
+    )
+    bars = lead_sheet.bars
+    for index, (bar, expected) in enumerate(zip(bars, fixture["bars"], strict=True)):
+        next_bar = bars[index + 1] if index + 1 < len(bars) else None
+        for gene in range(len(P1_OCTAVES)):
+            assert as_lists(realize_p1(bar, gene)) == expected["p1"][gene]
+        for gene in range(len(P2_TEXTURES)):
+            assert as_lists(realize_p2(bar, gene)) == expected["p2"][gene]
+        for gene in range(len(TR_TEXTURES)):
+            assert as_lists(realize_tr(bar, gene, next_bar)) == expected["tr"][gene]
+    four_four_drums = fixture.get("no") or fixture["bars"][0]["no"]
+    for gene in range(len(NO_PATTERNS)):
+        assert as_lists(realize_no(gene)) == four_four_drums[gene]
+
+
+def test_in_three_four_root_fifth_plays_oom_pah_pah():
+    notes = realize_tr(meter_bar(WALTZ, [C_WALTZ_BAR]), TR_TEXTURES.index("root_fifth"), None)
+
+    assert [(n.pitch, n.onset, n.duration) for n in notes] == [(36, 0, 1), (43, 1, 1), (43, 2, 1)]
+
+
+def test_in_three_four_the_walking_bass_plays_root_third_and_the_approach():
+    g_bar = meter_bar(WALTZ, [ChordSegment("G", 7, (7, 11, 2), 0.0, 3.0)])
+
+    notes = realize_tr(meter_bar(WALTZ, [C_WALTZ_BAR]), TR_TEXTURES.index("walking"), g_bar)
+
+    assert [(n.pitch, n.onset, n.duration) for n in notes] == [(36, 0, 1), (40, 1, 1), (30, 2, 1)]
+
+
+def test_in_three_four_the_octave_pump_plays_six_eighths():
+    notes = realize_tr(meter_bar(WALTZ, [C_WALTZ_BAR]), TR_TEXTURES.index("octave_pump"), None)
+
+    assert [(n.pitch, n.onset) for n in notes] == [
+        (36, 0.0),
+        (48, 0.5),
+        (36, 1.0),
+        (48, 1.5),
+        (36, 2.0),
+        (48, 2.5),
+    ]
+
+
+def test_in_three_four_the_eighth_beat_is_a_waltz():
+    notes = realize_no(NO_PATTERNS.index("eighth_beat"), WALTZ)
+
+    assert hits(notes) == [
+        (0.0, KICK),
+        (0.5, HIHAT),
+        (1.0, SNARE),
+        (1.5, HIHAT),
+        (2.0, SNARE),
+        (2.5, HIHAT),
+    ]
+
+
+def test_in_three_four_the_fill_rolls_the_snare_on_the_last_beat():
+    notes = realize_no(NO_PATTERNS.index("fill"), WALTZ)
+
+    assert hits(notes) == [
+        (0.0, KICK),
+        (0.5, HIHAT),
+        (1.0, SNARE),
+        (1.5, HIHAT),
+        (2.0, SNARE),
+        (2.25, SNARE),
+        (2.5, SNARE),
+        (2.75, SNARE),
+    ]
+
+
+def test_in_three_four_half_time_has_no_snare_and_sixteenth_beat_adds_a_pickup_kick():
+    half = realize_no(NO_PATTERNS.index("half_time"), WALTZ)
+    sixteenth = realize_no(NO_PATTERNS.index("sixteenth_beat"), WALTZ)
+
+    assert hits(half) == [(0.0, KICK), (1.0, HIHAT), (2.0, HIHAT)]
+    assert [n.onset for n in sixteenth if n.pitch == KICK] == [0.0, 0.75]
+    assert [n.onset for n in sixteenth if n.pitch == SNARE] == [1.0, 2.0]
+    assert len(sixteenth) == 12  # a hit on every sixteenth step
+
+
+def test_every_drum_hit_keeps_its_velocity_in_any_meter():
+    for gene in range(len(NO_PATTERNS)):
+        for note in realize_no(gene, WALTZ):
+            assert note.velocity == DRUM_VELOCITY[note.pitch]
+            assert note.duration == 0.25
+
+
+def test_in_three_four_the_echo_is_cut_at_the_bar_end():
+    bar = meter_bar(WALTZ, [C_WALTZ_BAR], melody=[(72, 0.0, 2.0), (74, 2.0, 1.0)])
+
+    notes = realize_p2(bar, P2_TEXTURES.index("echo"))
+
+    assert [(n.pitch, n.onset, n.duration) for n in notes] == [(72, 0.5, 2.0), (74, 2.5, 0.5)]
+    assert all(n.velocity == VELOCITY_ECHO for n in notes)
+
+
+def test_in_two_four_the_eighth_beat_kicks_on_one_and_snares_on_two():
+    notes = realize_no(NO_PATTERNS.index("eighth_beat"), parse_meter("2/4"))
+
+    assert hits(notes) == [(0.0, KICK), (0.5, HIHAT), (1.0, SNARE), (1.5, HIHAT)]
+
+
+def test_in_cut_time_half_time_is_a_kick_and_a_hi_hat_on_the_half_notes():
+    notes = realize_no(NO_PATTERNS.index("half_time"), parse_meter("2/2"))
+
+    assert hits(notes) == [(0.0, KICK), (2.0, HIHAT)]
+
+
+def test_in_cut_time_root_fifth_plays_half_notes():
+    bar = meter_bar(parse_meter("2/2"), [C_WHOLE_BAR])
+
+    notes = realize_tr(bar, TR_TEXTURES.index("root_fifth"), None)
+
+    assert [(n.pitch, n.onset, n.duration, n.velocity) for n in notes] == [
+        (36, 0.0, 2.0, VELOCITY_TR),
+        (43, 2.0, 2.0, VELOCITY_TR),
+    ]

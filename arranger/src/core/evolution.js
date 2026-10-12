@@ -8,6 +8,9 @@
 // 3. fill the remaining places with children: pick parents with roulette selection, cut and swap
 //    them with one-point crossover, then mutate the children gene by gene.
 //
+// Generation 0 and every mutation draw from the values the setting `allowed` keeps (genome.js);
+// crossover and elitism only move genes, so every plan of every generation holds allowed values.
+//
 // The loop stops after `maxGenerations` new generations, or earlier when the best fitness has not
 // improved for `stagnationWindow` generations (more generations would most likely not help). Every
 // generation is logged with its best and mean fitness and its diversity, the share of distinct
@@ -22,7 +25,7 @@
 // buffer the previous one no longer needs, so a run allocates no population after generation 0.
 
 import { fitness } from "./fitness.js";
-import { GENES_PER_BAR, randomPopulation } from "./genome.js";
+import { ALL_ALLOWED, GENE_SIZES, GENES_PER_BAR, randomPopulation } from "./genome.js";
 import { eliteIndices, mutate, onePointCrossover, rouletteSelect } from "./operators.js";
 
 /**
@@ -40,6 +43,8 @@ export const IMPROVEMENT_TOLERANCE = 1e-12;
  *   stopping.
  * @property {number} mutationRate probability that each gene of a child is mutated.
  * @property {number} eliteCount number of best plans copied unchanged into the next generation.
+ * @property {import("./genome.js").AllowedGenes} [allowed] the gene values the GA may draw, one
+ *   sorted array per gene column (see `allowedGenes`); every value when omitted.
  */
 
 /**
@@ -69,19 +74,26 @@ export const IMPROVEMENT_TOLERANCE = 1e-12;
 /**
  * Check and freeze the hyperparameters of a run.
  *
- * At least one place must be left for children, or the population could never change.
+ * At least one place must be left for children, or the population could never change. Each gene
+ * needs at least one allowed value, or its bars would have nothing to play.
  *
- * @param {GAParams} fields the five hyperparameters.
- * @returns {Readonly<GAParams>} a frozen copy.
+ * @param {GAParams} fields the hyperparameters; `allowed` may be omitted.
+ * @returns {Readonly<GAParams> & {allowed: import("./genome.js").AllowedGenes}} a frozen copy,
+ *   whose `allowed` is a frozen copy too (ALL_ALLOWED when omitted).
  * @throws {RangeError} when eliteCount is outside 0..populationSize − 1 (the Python message), or
- *   a count is not a whole number, or the rate is outside [0, 1].
+ *   a count is not a whole number, or the rate is outside [0, 1], or `allowed` does not hold, for
+ *   each of the 4 genes, a non-empty list of distinct values of that gene.
  * @example
  * createGAParams({ populationSize: 60, maxGenerations: 3000, stagnationWindow: 300,
  *   mutationRate: 0.01, eliteCount: 60 });
  * // throws RangeError("elite_count must be at least 0 and smaller than population_size")
+ * createGAParams({ populationSize: 60, maxGenerations: 3000, stagnationWindow: 300,
+ *   mutationRate: 0.01, eliteCount: 1 }).allowed;
+ * // → [[0, 1, 2, 3, 4], [0, 1, 2, 3], [0, 1, 2, 3, 4], [0, 1, 2]] (ALL_ALLOWED)
  */
 export function createGAParams(fields) {
   const { populationSize, maxGenerations, stagnationWindow, mutationRate, eliteCount } = fields;
+  const allowed = checkedAllowed(fields.allowed ?? ALL_ALLOWED);
   /** @type {[string, number, number][]} */
   const counts = [
     ["populationSize", populationSize, 1],
@@ -105,7 +117,38 @@ export function createGAParams(fields) {
     stagnationWindow,
     mutationRate,
     eliteCount,
+    allowed,
   });
+}
+
+/**
+ * A frozen copy of allowed gene values, after checking that the GA can draw from them.
+ *
+ * @param {import("./genome.js").AllowedGenes} allowed
+ * @returns {import("./genome.js").AllowedGenes}
+ */
+function checkedAllowed(allowed) {
+  if (!Array.isArray(allowed) || allowed.length !== GENE_SIZES.length) {
+    throw new RangeError(`allowed must hold ${GENE_SIZES.length} lists, one per gene`);
+  }
+  return Object.freeze(
+    allowed.map((values, column) => {
+      const size = GENE_SIZES[column];
+      const isGeneValue = (/** @type {number} */ value) =>
+        Number.isInteger(value) && value >= 0 && value < size;
+      const drawable =
+        Array.isArray(values) &&
+        values.length > 0 &&
+        values.every((value, i) => isGeneValue(value) && values.indexOf(value) === i);
+      if (!drawable) {
+        throw new RangeError(
+          `allowed gene ${column} must keep at least one value, each from 0 to ${size - 1} ` +
+            `and listed once, got ${JSON.stringify(values)}`,
+        );
+      }
+      return Object.freeze([...values]);
+    }),
+  );
 }
 
 /**
@@ -162,8 +205,9 @@ function samePlan(population, first, second, planLength) {
  * Build the next population: the elite unchanged, then mutated children of roulette parents.
  *
  * Draws, in this order: all parents at once (`rouletteSelect` of 2 per pair of children), one
- * crossover cut per pair, in pair order, then the mutation of the children block. When the number
- * of free places is odd, the second child of the last pair is dropped, as in Python.
+ * crossover cut per pair, in pair order, then the mutation of the children block, inside
+ * `params.allowed`. When the number of free places is odd, the second child of the last pair is
+ * dropped, as in Python.
  *
  * @param {import("./random.js").Random} rng the run's generator.
  * @param {Uint8Array} population the current m plans.
@@ -209,7 +253,7 @@ export function nextGeneration(rng, population, fitnessValues, params, nBars, ou
       /** @type {Uint8Array} */ (secondChild),
     );
   }
-  mutate(rng, out.subarray(elite.length * planLength), params.mutationRate);
+  mutate(rng, out.subarray(elite.length * planLength), params.mutationRate, params.allowed);
   return out;
 }
 
@@ -221,7 +265,8 @@ export function nextGeneration(rng, population, fitnessValues, params, nBars, ou
  * run early (`break` in a for…of, or `.return()`) still holds the best plan so far; its
  * `stopReason` is then "stopped".
  *
- * Draws: `randomPopulation` for generation 0, then `nextGeneration` for each later one.
+ * Draws: `randomPopulation` for generation 0, then `nextGeneration` for each later one, both
+ * inside `params.allowed`.
  *
  * @param {import("./random.js").Random} rng the run's generator.
  * @param {import("./tables.js").ScoreTables} tables the score tables of the lead sheet.
@@ -246,7 +291,7 @@ export function* evolve(rng, tables, nBars, params, weights, result = /** @type 
   const m = checked.populationSize;
   const planLength = nBars * GENES_PER_BAR;
 
-  let population = randomPopulation(rng, m, nBars);
+  let population = randomPopulation(rng, m, nBars, checked.allowed);
   let spareBuffer = new Uint8Array(population.length);
   const fitnessValues = new Float64Array(m);
   Object.assign(result, {

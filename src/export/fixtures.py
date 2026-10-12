@@ -41,7 +41,7 @@ import pretty_midi
 from arrangement.assemble import assemble
 from arrangement.textures import realize_no, realize_p1, realize_p2, realize_tr
 from config import load_config
-from ga.evolution import GAParams, evolve
+from ga.evolution import evolve, ga_params
 from ga.fitness import CRITERIA, criterion_scores, fitness
 from ga.genome import NO_PATTERNS, P1_OCTAVES, P2_TEXTURES, TR_TEXTURES
 from ga.tables import build_tables
@@ -208,13 +208,7 @@ def plan_json(
     recorded one, `log` gets a notice naming the sample, and the plan of the rerun is returned
     anyway (see the module docstring).
     """
-    params = GAParams(
-        population_size=config["population_size"],
-        max_generations=config["max_generations"],
-        stagnation_window=config["stagnation_window"],
-        mutation_rate=config["mutation_rate"],
-        elite_count=config["elite_count"],
-    )
+    params = ga_params(config)
     tables = build_tables(lead_sheet)
     result = evolve(
         np.random.default_rng(record["seed"]),

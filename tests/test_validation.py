@@ -8,6 +8,7 @@ message, naming the channel and the bar (counted from 1).
 from arrangement.model import KICK, SNARE, Arrangement, ChannelNote
 from arrangement.validation import find_violations
 from ga.genome import P2_TEXTURES
+from leadsheet.meter import parse_meter
 from leadsheet.model import Bar, ChordSegment, LeadSheet
 
 C = ChordSegment("C", 0, (0, 4, 7), 0.0, 4.0)
@@ -133,4 +134,62 @@ def test_every_broken_rule_gets_its_own_message():
         "TR bar 1: pitch 109 at beat 3 is outside the range 21-108",
         "TR bar 1: pitch 109 at beat 3 is not a chord tone of C",
         "TR bar 1: the note at beat 3 crosses the bar end",
+    ]
+
+
+# --- bars in other meters (spec 003, FR-008) ------------------------------------------------
+
+WALTZ = parse_meter("3/4")
+TWO_FOUR = parse_meter("2/4")
+C_WALTZ = ChordSegment("C", 0, (0, 4, 7), 0.0, 3.0)
+G_TWO = ChordSegment("G", 7, (7, 11, 2), 0.0, 2.0)
+
+# Bars of 4/4, 2/4 and 3/4: they start on beats 0, 4 and 6 and the piece lasts 9 beats.
+MIXED = LeadSheet(
+    title="Mixed",
+    key="C major",
+    tempo_bpm=120.0,
+    bars=(
+        Bar(0, (), (C,), "A", "verse", 0, False),
+        Bar(1, (), (G_TWO,), "A", "verse", 0, False, TWO_FOUR),
+        Bar(2, (), (C_WALTZ,), "A", "verse", 0, True, WALTZ),
+    ),
+)
+
+
+def mixed(tr):
+    return Arrangement("Mixed", 120.0, ((HOLD, 0, 0, 0),) * 3, {"TR": notes(*tr)})
+
+
+def test_a_waltz_bar_checks_chord_tones_only_on_its_first_beat():
+    # Bar 3 (3/4) starts on beat 6: D on its beat 2 or 3 is a passing note, on beat 1 it is not.
+    passing = mixed([(36, 0, 4), (31, 4, 2), (36, 6, 1), (38, 7, 1), (38, 8, 1)])
+    wrong = mixed([(36, 0, 4), (31, 4, 2), (38, 6, 3)])
+
+    assert find_violations(passing, MIXED) == []
+    assert find_violations(wrong, MIXED) == [
+        "TR bar 3: pitch 38 at beat 1 is not a chord tone of C"
+    ]
+
+
+def test_a_two_four_bar_has_no_strong_beat_but_its_first():
+    # Bar 2 (2/4) on beats 4-6 holds G: A on its beat 2 passes, while 4/4 would check beat 3.
+    arrangement = mixed([(36, 0, 4), (31, 4, 1), (33, 5, 1), (36, 6, 3)])
+
+    assert find_violations(arrangement, MIXED) == []
+
+
+def test_a_note_that_crosses_the_end_of_a_short_bar_is_reported():
+    arrangement = mixed([(36, 0, 4), (31, 4, 3), (36, 7, 2)])
+
+    assert find_violations(arrangement, MIXED) == [
+        "TR bar 2: the note at beat 1 crosses the bar end"
+    ]
+
+
+def test_a_note_after_the_last_bar_is_reported_as_crossing_it():
+    arrangement = mixed([(36, 0, 4), (31, 4, 2), (36, 6, 3), (36, 9, 1)])
+
+    assert find_violations(arrangement, MIXED) == [
+        "TR bar 3: the note at beat 4 crosses the bar end"
     ]

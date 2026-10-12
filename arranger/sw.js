@@ -29,6 +29,7 @@ const APP_SHELL = [
   "src/core/fitness.js",
   "src/core/genome.js",
   "src/core/leadsheet.js",
+  "src/core/meter.js",
   "src/core/midi-export.js",
   "src/core/midi-file.js",
   "src/core/midi-song.js",

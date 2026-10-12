@@ -18,7 +18,7 @@ import numpy as np
 
 from config import config_hash
 from export.figures import plot_seed_curves
-from ga.evolution import GAParams, evolve
+from ga.evolution import evolve, ga_params
 from ga.fitness import CRITERIA, criterion_scores, fitness
 from ga.genome import random_population
 from ga.tables import build_tables
@@ -49,13 +49,7 @@ def run_experiments(
     tables = build_tables(lead_sheet)
     n_bars = len(lead_sheet.bars)
     weights = config["weights"]
-    params = GAParams(
-        population_size=config["population_size"],
-        max_generations=config["max_generations"],
-        stagnation_window=config["stagnation_window"],
-        mutation_rate=config["mutation_rate"],
-        elite_count=config["elite_count"],
-    )
+    params = ga_params(config)
     rows = []
 
     def row(experiment: str, setting: str, genome: np.ndarray, generations: object) -> dict:
@@ -82,7 +76,8 @@ def run_experiments(
     rng = np.random.default_rng(seed)
     best_random, best_value = None, -np.inf
     for start in range(0, evaluations, params.population_size):
-        batch = random_population(rng, min(params.population_size, evaluations - start), n_bars)
+        size = min(params.population_size, evaluations - start)
+        batch = random_population(rng, size, n_bars, params.allowed)
         values = fitness(tables, batch, weights)
         if values.max() > best_value:
             best_value, best_random = float(values.max()), batch[int(values.argmax())]

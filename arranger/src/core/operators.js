@@ -12,15 +12,16 @@
 //   goes down.
 // - One-point crossover cuts both parents at the same bar line and swaps the tails, so each
 //   child keeps whole bars of its parents.
-// - Mutation replaces each gene, with a small probability, by a different valid value, which
-//   brings back choices that selection has lost.
+// - Mutation replaces each gene, with a small probability, by a different allowed value, which
+//   brings back choices that selection has lost. The setting `allowed` (see genome.js) keeps
+//   values out of the search, so mutation only moves a gene among the values it may take.
 //
 // Plans are flat Uint8Array ranges of nBars × 4 genes (see genome.js). Every function that draws
 // random numbers takes the generator of random.js as its first parameter, and its draw order is
 // fixed and documented, so a run is reproducible from its seed. The order differs from numpy's,
 // which the app does not need to match (spec FR-028).
 
-import { GENE_SIZES, GENES_PER_BAR } from "./genome.js";
+import { ALL_ALLOWED, GENES_PER_BAR } from "./genome.js";
 
 /**
  * Fitness values closer than this are ties: the same weighted mean summed in a different order
@@ -142,26 +143,33 @@ export function onePointCrossover(rng, parentA, parentB, childA, childB) {
 }
 
 /**
- * Give each gene, with probability rate, a different valid value, in place.
+ * Give each gene, with probability rate, a different allowed value, in place.
  *
- * Adding a random shift from 1 to size - 1 and wrapping around (modulo the gene's number of
- * values) never gives back the old value, and reaches each of the other values with equal
- * probability.
+ * A gene holding the value at position p of its k allowed values moves to position
+ * (p + shift) mod k, with a random shift from 1 to k - 1. Wrapping around never gives back the
+ * old value, and reaches each of the other allowed values with equal probability. A gene with
+ * one allowed value has nowhere to go and keeps it.
  *
- * Draws, gene by gene in index order: one `rng.float()`, and when it is below rate, one
- * `rng.integer(1, size)` for the shift.
+ * Draws, gene by gene in index order: one `rng.float()`, and when it is below rate and the gene
+ * has k ≥ 2 allowed values, one `rng.integer(1, k)` for the shift. With every value allowed, the
+ * position is the value itself, so the draws and the results are those of the app before the
+ * setting existed.
  *
  * @param {import("./random.js").Random} rng the run's generator.
  * @param {Uint8Array} genes one plan or several consecutive plans; index 0 must be the first
  *   gene of a bar, so that index % 4 tells the gene (P2, TR, NO or OCT).
  * @param {number} rate probability that each gene mutates, in [0, 1].
+ * @param {import("./genome.js").AllowedGenes} [allowed] the values each gene column may take
+ *   (see `allowedGenes`); every value by default.
  * @returns {number} how many genes changed.
  * @throws {RangeError} when rate is outside [0, 1] or genes is not whole bars.
  * @example
  * const plan = new Uint8Array(8); // 2 bars, every gene 0
  * mutate(createRandom(1), plan, 1); // → 8: at rate 1 every gene takes another value
+ * const onlyHold = [[0], [0, 1, 2, 3], [0, 1, 2, 3, 4], [0, 1, 2]];
+ * mutate(createRandom(1), new Uint8Array(8), 1, onlyHold); // → 6: both P2 genes stay "hold"
  */
-export function mutate(rng, genes, rate) {
+export function mutate(rng, genes, rate, allowed = ALL_ALLOWED) {
   if (!(rate >= 0 && rate <= 1)) throw new RangeError(`the rate must be in [0, 1], got ${rate}`);
   if (genes.length % GENES_PER_BAR !== 0) {
     throw new RangeError(`mutation needs whole bars of 4 genes, got ${genes.length} genes`);
@@ -169,8 +177,13 @@ export function mutate(rng, genes, rate) {
   let changed = 0;
   for (let index = 0; index < genes.length; index++) {
     if (rng.float() < rate) {
-      const size = GENE_SIZES[index % GENES_PER_BAR];
-      genes[index] = (genes[index] + rng.integer(1, size)) % size;
+      const values = allowed[index % GENES_PER_BAR];
+      const k = values.length;
+      if (k < 2) continue;
+      // A value outside the allowed ones (the GA never makes one) has position -1, so the shift
+      // still lands on an allowed value.
+      const position = values.indexOf(genes[index]);
+      genes[index] = values[(position + rng.integer(1, k)) % k];
       changed++;
     }
   }

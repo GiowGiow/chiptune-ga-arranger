@@ -13,10 +13,12 @@
 //
 // The clock, the pause and the message channel come from outside (`createRunner`), so the
 // runner holds no browser API: worker.js wires it to the real worker, and the tests to a fake
-// clock. This module ports the run part of `arrange` in src/main.py (tables, then evolve).
+// clock. This module ports the run part of `arrange` in src/main.py (tables, then evolve), with
+// the GA drawing only the gene values that `settings.allowed` keeps.
 
 import { createGAParams, evolve } from "./core/evolution.js";
 import { criterionScores } from "./core/fitness.js";
+import { allowedGenes } from "./core/genome.js";
 import { createRandom } from "./core/random.js";
 import { validateSettings } from "./core/settings.js";
 import { buildTables } from "./core/tables.js";
@@ -90,6 +92,7 @@ export function createRunner({ post, now, sleep }) {
         stagnationWindow: settings.stagnation_window,
         mutationRate: settings.mutation_rate,
         eliteCount: settings.elite_count,
+        allowed: allowedGenes(settings.allowed),
       });
       const tables = buildTables(leadSheet);
       const nBars = tables.nBars;

@@ -3,10 +3,13 @@
 A lead sheet holds what an arranger starts from: the melody, the chord in effect at every moment,
 and the form (which bars belong to the verse or the chorus, and where each phrase ends). Every
 time value is measured in quarter-note beats from the start of the bar, and every pitch is a MIDI
-number (60 is middle C). The meter is always 4/4, so a bar spans the beats [0, 4).
+number (60 is middle C). Each bar carries its meter (see `leadsheet.meter`), so a 4/4 bar spans
+the beats [0, 4) and a 3/4 bar the beats [0, 3).
 """
 
 from dataclasses import dataclass
+
+from leadsheet.meter import FOUR_FOUR, Meter
 
 
 @dataclass(frozen=True)
@@ -15,8 +18,8 @@ class MelodyNote:
 
     Attributes:
         pitch: MIDI pitch number (0-127).
-        onset: start, in beats from the start of the bar (0 <= onset < 4).
-        duration: length in beats (> 0, and onset + duration <= 4).
+        onset: start, in beats from the start of the bar (0 <= onset < the bar length).
+        duration: length in beats (> 0, and onset + duration <= the bar length).
     """
 
     pitch: int
@@ -45,16 +48,17 @@ class ChordSegment:
 
 @dataclass(frozen=True)
 class Bar:
-    """One 4/4 bar of the lead sheet, with its place in the form.
+    """One bar of the lead sheet, with its meter and its place in the form.
 
     Attributes:
         index: position of the bar in the piece, starting at 0.
         melody: melody notes of the bar, in time order.
-        chords: chord segments that cover the bar [0, 4) without gaps.
+        chords: chord segments that cover the bar [0, meter.bar_beats) without gaps.
         label: part label from the lead sheet, for example "A" or "B".
         role: "verse" or "chorus", derived from the label.
         phrase: index of the phrase that contains the bar (phrases are counted over the piece).
         phrase_end: True when the bar is the last bar of its phrase.
+        meter: the bar's meter; 4/4 unless the lead sheet says otherwise.
     """
 
     index: int
@@ -64,6 +68,7 @@ class Bar:
     role: str
     phrase: int
     phrase_end: bool
+    meter: Meter = FOUR_FOUR
 
     def chord_at(self, onset: float) -> ChordSegment:
         """Return the chord segment in effect at `onset` (beats from the bar start).
@@ -88,8 +93,7 @@ class LeadSheet:
         title: tune title.
         key: key name, for example "e- minor".
         tempo_bpm: tempo in quarter notes per minute.
-        bars: the bars, in performed order.
-        beats_per_bar: always 4 (only 4/4 is supported).
+        bars: the bars, in performed order; each bar has its own meter.
         source_grid: for a lead sheet reduced from a MIDI recording, (tempo in BPM, time in
             seconds of the first downbeat) of the beat grid found in the recording; None for ABC.
     """
@@ -98,5 +102,4 @@ class LeadSheet:
     key: str
     tempo_bpm: float
     bars: tuple[Bar, ...]
-    beats_per_bar: int = 4
     source_grid: tuple[float, float] | None = None

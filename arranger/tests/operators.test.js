@@ -6,7 +6,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { GENE_SIZES, randomPopulation } from "../src/core/genome.js";
+import { ALL_ALLOWED, GENE_SIZES, P2, randomPopulation } from "../src/core/genome.js";
 import {
   TIE_TOLERANCE,
   eliteIndices,
@@ -250,6 +250,93 @@ test("mutation draws, gene by gene, a float and then a shift only when the gene 
   const genes = Uint8Array.of(0, 1, 2, 0, 4, 3, 1, 2);
   mutate(createRandom(11), genes, rate);
   assert.deepEqual(genes, expected);
+});
+
+// Mutation inside the allowed values (spec 003, research R12)
+
+/** Every value of every gene but arp32 (P2 gene value 2). */
+const NO_ARP32 = [[0, 1, 3, 4], [0, 1, 2, 3], [0, 1, 2, 3, 4], [0, 1, 2]];
+
+test("with every value allowed, mutate makes the same draws and changes as without the setting", () => {
+  const plain = randomPopulation(createRandom(13), 6, 5);
+  const narrowed = plain.slice();
+  const omitted = createRandom(14);
+  const allAllowed = createRandom(14);
+  const changed = mutate(omitted, plain, 0.4);
+  assert.equal(mutate(allAllowed, narrowed, 0.4, ALL_ALLOWED), changed);
+  assert.deepEqual(narrowed, plain);
+  assert.equal(allAllowed.uint32(), omitted.uint32(), "the generators end in the same state");
+});
+
+test("mutate keeps the genes that seed 1 gave before the setting existed", () => {
+  const rng = createRandom(1);
+  const genes = Uint8Array.of(0, 1, 2, 0, 4, 3, 1, 2, 2, 0, 4, 1);
+  assert.equal(mutate(rng, genes, 0.5), 9);
+  assert.deepEqual(Array.from(genes), [4, 1, 1, 0, 1, 2, 0, 0, 0, 2, 4, 0]);
+  assert.equal(rng.uint32(), 2903823534);
+});
+
+test("with arp32 disallowed, many rounds of mutation at rate 1 never give arp32", () => {
+  const population = randomPopulation(createRandom(15), 50, 16, NO_ARP32);
+  const rng = createRandom(16);
+  for (let round = 0; round < 40; round++) {
+    mutate(rng, population, 1, NO_ARP32);
+    for (let index = P2; index < population.length; index += 4) {
+      assert.notEqual(population[index], 2, `round ${round}, gene ${index} is arp32`);
+    }
+  }
+});
+
+test("mutation moves each gene to another of its allowed values, never outside them", () => {
+  const allowed = [[1, 4], [0, 2, 3], [0, 3], [0, 2]];
+  const population = randomPopulation(createRandom(17), 30, 8, allowed);
+  const rng = createRandom(18);
+  for (let round = 0; round < 20; round++) {
+    const before = population.slice();
+    assert.equal(mutate(rng, population, 1, allowed), population.length);
+    population.forEach((gene, index) => {
+      assert.ok(allowed[index % 4].includes(gene), `gene ${index} = ${gene} is not allowed`);
+      assert.notEqual(gene, before[index], `gene ${index} kept its value`);
+    });
+  }
+});
+
+test("a gene with one allowed value never changes and draws only its float", () => {
+  const allowed = [[2], [1], [3], [0]];
+  const genes = Uint8Array.of(2, 1, 3, 0, 2, 1, 3, 0);
+  const rng = createRandom(19);
+  assert.equal(mutate(rng, genes, 1, allowed), 0);
+  assert.deepEqual(Array.from(genes), [2, 1, 3, 0, 2, 1, 3, 0]);
+  const reference = createRandom(19);
+  for (let index = 0; index < genes.length; index++) reference.float();
+  assert.equal(rng.uint32(), reference.uint32(), "no shift was drawn");
+});
+
+test("mutation draws a shift from 1 to k - 1 along the k allowed values of the gene", () => {
+  const allowed = [[0, 1, 3, 4], [2], [0, 2, 4], [0, 1, 2]];
+  const rate = 0.6;
+  const start = [4, 2, 0, 1, 3, 2, 4, 0, 0, 2, 2, 2];
+  const reference = createRandom(20);
+  const expected = Uint8Array.from(start);
+  for (let index = 0; index < expected.length; index++) {
+    const values = allowed[index % 4];
+    if (reference.float() < rate && values.length >= 2) {
+      const position = values.indexOf(expected[index]);
+      expected[index] = values[(position + reference.integer(1, values.length)) % values.length];
+    }
+  }
+  const rng = createRandom(20);
+  const genes = Uint8Array.from(start);
+  mutate(rng, genes, rate, allowed);
+  assert.deepEqual(genes, expected);
+  assert.equal(rng.uint32(), reference.uint32());
+});
+
+test("the JSDoc example of mutate with one allowed P2 value holds: 6 genes change, P2 stays", () => {
+  const onlyHold = [[0], [0, 1, 2, 3], [0, 1, 2, 3, 4], [0, 1, 2]];
+  const plan = new Uint8Array(8);
+  assert.equal(mutate(createRandom(1), plan, 1, onlyHold), 6);
+  assert.deepEqual([plan[0], plan[4]], [0, 0]);
 });
 
 test("mutation rejects a rate outside [0, 1] and a range of partial bars", () => {

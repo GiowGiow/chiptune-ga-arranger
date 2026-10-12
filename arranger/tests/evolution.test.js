@@ -16,7 +16,7 @@ import {
   nextGeneration,
 } from "../src/core/evolution.js";
 import { CRITERIA, fitness } from "../src/core/fitness.js";
-import { GENES_PER_BAR, OCT } from "../src/core/genome.js";
+import { ALL_ALLOWED, GENES_PER_BAR, NO, OCT, P2, TR, randomPopulation } from "../src/core/genome.js";
 import { leadSheetFromJson } from "../src/core/leadsheet.js";
 import { mutate, onePointCrossover, rouletteSelect } from "../src/core/operators.js";
 import { createRandom } from "../src/core/random.js";
@@ -117,6 +117,37 @@ test("GA parameters must be whole counts and a rate in [0, 1]", () => {
   assert.throws(() => smallParams({ stagnationWindow: -1 }), RangeError);
   assert.throws(() => smallParams({ mutationRate: 1.5 }), RangeError);
   assert.ok(Object.isFrozen(smallParams()));
+});
+
+// Allowed values (spec 003, research R12)
+
+/** Every value of every gene but arp32 (P2 gene value 2). */
+const NO_ARP32 = [[0, 1, 3, 4], [0, 1, 2, 3], [0, 1, 2, 3, 4], [0, 1, 2]];
+
+test("GA parameters allow every gene value when allowed is omitted", () => {
+  const params = smallParams();
+  assert.deepEqual(params.allowed, ALL_ALLOWED);
+  assert.ok(Object.isFrozen(params.allowed));
+});
+
+test("GA parameters keep a frozen copy of the allowed gene values", () => {
+  const allowed = NO_ARP32.map((values) => [...values]);
+  const params = smallParams({ allowed });
+  allowed[0].push(2);
+  assert.deepEqual(params.allowed, NO_ARP32);
+  assert.ok(Object.isFrozen(params.allowed));
+  for (const values of params.allowed) assert.ok(Object.isFrozen(values));
+});
+
+test("GA parameters reject a gene with no allowed value", () => {
+  const allowed = [[], ...NO_ARP32.slice(1)];
+  assert.throws(() => smallParams({ allowed }), RangeError);
+});
+
+test("GA parameters reject allowed values that no gene has, repeated values or missing genes", () => {
+  assert.throws(() => smallParams({ allowed: [[0, 5], ...NO_ARP32.slice(1)] }), RangeError);
+  assert.throws(() => smallParams({ allowed: [[0, 0], ...NO_ARP32.slice(1)] }), RangeError);
+  assert.throws(() => smallParams({ allowed: NO_ARP32.slice(1) }), RangeError);
 });
 
 test("evolve rejects invalid parameters before generation 0", () => {
@@ -242,6 +273,25 @@ test("nextGeneration refuses to write over the population it reads", () => {
   assert.throws(writeInto(new Uint8Array(8)), RangeError);
 });
 
+test("nextGeneration mutates the children inside the allowed values", () => {
+  const nBars = 4;
+  const params = createGAParams({
+    populationSize: 30,
+    maxGenerations: 1,
+    stagnationWindow: 1,
+    mutationRate: 1,
+    eliteCount: 2,
+    allowed: NO_ARP32,
+  });
+  const population = randomPopulation(createRandom(22), 30, nBars, NO_ARP32);
+  const fitnessValues = Float64Array.from({ length: 30 }, (_, plan) => plan / 30);
+  const out = new Uint8Array(population.length);
+  nextGeneration(createRandom(23), population, fitnessValues, params, nBars, out);
+  for (let index = P2; index < out.length; index += GENES_PER_BAR) {
+    assert.notEqual(out[index], 2, `gene ${index} is arp32`);
+  }
+});
+
 // The GA loop
 
 test("two bars, fidelity-only weights: fitness 1, both melody bars at the written octave", () => {
@@ -358,6 +408,29 @@ test("the result object passed to evolve is the one it returns", () => {
   assert.notEqual(result.stopReason, "stopped");
 });
 
+test("evolve draws generation 0 and every mutation from the allowed values only", () => {
+  // One allowed value for P2, TR and NO: every plan of every generation must hold exactly it.
+  const allowed = [[3], [1], [4], [0, 1, 2]];
+  for (const seed of [0, 1, 2]) {
+    const params = smallParams({ mutationRate: 0.5, allowed });
+    const { returned } = drain(evolve(createRandom(seed), twoBarTables(), 2, params, FIDELITY_ONLY));
+    for (const plan of [returned.initialBestPlan, returned.bestPlan]) {
+      for (let bar = 0; bar < 2; bar++) {
+        const genes = plan.subarray(bar * GENES_PER_BAR, (bar + 1) * GENES_PER_BAR);
+        assert.deepEqual([genes[P2], genes[TR], genes[NO]], [3, 1, 4], `seed ${seed}, bar ${bar}`);
+      }
+    }
+  }
+});
+
+test("with every value allowed, evolve gives the same run as without the setting", () => {
+  const plain = drain(evolve(createRandom(7), twoBarTables(), 2, smallParams(), FIDELITY_ONLY));
+  const params = smallParams({ allowed: ALL_ALLOWED });
+  const allAllowed = drain(evolve(createRandom(7), twoBarTables(), 2, params, FIDELITY_ONLY));
+  assert.deepEqual(allAllowed.returned.log, plain.returned.log);
+  assert.deepEqual(allAllowed.returned.bestPlan, plain.returned.bestPlan);
+});
+
 test("Korobeiniki (32 bars) with the default settings and seed 1 evolves to a stop", (t) => {
   const config = readJson(join(repoRoot, "configs", "default.json"));
   const tables = korobeinikiTables();
@@ -394,6 +467,14 @@ test("the JSDoc examples of evolution.js hold", () => {
       }),
     { name: "RangeError", message: "elite_count must be at least 0 and smaller than population_size" },
   );
+  const defaults = createGAParams({
+    populationSize: 60,
+    maxGenerations: 3000,
+    stagnationWindow: 300,
+    mutationRate: 0.01,
+    eliteCount: 1,
+  });
+  assert.deepEqual(defaults.allowed, [[0, 1, 2, 3, 4], [0, 1, 2, 3], [0, 1, 2, 3, 4], [0, 1, 2]]);
   // evolve accepts plain parameters and a weights object that names only some criteria.
   const params = {
     populationSize: 10,
