@@ -236,7 +236,7 @@ tests in `tests/`. Run the tests with `uv run pytest`. Units: MIDI pitches, quar
 - [X] T052 Measure the file-grid fit in ticks, so that files with small tempo changes keep their own grid (`src/leadsheet/midi_reader.py`)
 - [X] T053 Restructure the README so that each song starts with its three renderings (original, General MIDI, chip), followed by its video
 - [X] T054 [P] Tests, then the comparison video in `src/export/comparison.py` and the `compare` command (FR-035)
-- [ ] T055 [P] Write the listening page `listen/index.html` and `.nojekyll` (FR-036); enable GitHub Pages when the repository becomes public
+- [X] T055 [P] Write the listening page `listen/index.html` and `.nojekyll` (FR-036); enable GitHub Pages when the repository becomes public
 - [ ] T056 Upload the comparison videos through the GitHub editor (user attachments) and embed them at the start of each song in `README.md`
 - [X] T057 Fix the layout of the abstract (wide Table 2, song list) and cross-check every claim against the assignment statement, the code and the data
 - [X] T058 [P] Tests, then `fetch` (download the web MIDI songs listed in `data/sources.json`, check SHA-256) and `abc` (write each MIDI reduction as an ABC lead sheet that reads back to the same lead sheet); commit the six ABC lead sheets (constitution 1.2.0)

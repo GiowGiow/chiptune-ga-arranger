@@ -6,6 +6,9 @@ This project re-composes a song as 8-bit music. It reads a lead sheet (a melody 
 and part labels) and arranges it for the four voices of the Nintendo Entertainment System (NES)
 sound chip. A **genetic algorithm** (GA) chooses, bar by bar, what each voice plays.
 
+**Listen:** [giowgiow.github.io/dcc831-tp1/listen](https://giowgiow.github.io/dcc831-tp1/listen/)
+has a player for the original, General MIDI and chip versions of every piece, and its video.
+
 ## Method
 
 **Stylistic constraint: the NES 2A03 four-voice idiom.** The chip has four channels, and each one
@@ -274,7 +277,8 @@ uv run src/main.py experiment data/leadsheets/korobeiniki.abc --seed 1
 *Korobeiniki, seed 1. The image shows a few seconds of the video: P1 is the melody (blue), P2
 the arpeggios (orange), TR the bass (grey), and the bottom band holds the drum hits.*
 
-Each song below starts with three renderings: the original input, the generated arrangement with
+The [listening page](https://giowgiow.github.io/dcc831-tp1/listen/) plays every version in the
+browser. Each song below starts with three renderings: the original input, the generated arrangement with
 General MIDI timbres, and the same arrangement on the NES chip synthesizer. Then come the video
 and the folder with every other file:
 
