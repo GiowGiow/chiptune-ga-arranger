@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <style>
-  /* Design: Superdesign draft "Aurora Edition" (liner-notes tracklist), implemented by hand.
+  /* Design: a liner-notes tracklist over an animated aurora.
      Colors are the visualizer's: a dark ground and the four NES channel colors, nothing else. */
   :root {
     --bg: #0B0E17;
@@ -127,6 +127,10 @@
   }
   .note { color: #c3c9d6; font-size: .9rem; margin: 0 0 14px; }
   .files { font-size: .88rem; display: inline-block; margin-top: 6px; }
+  .audio-only-toggle { cursor: pointer; font-family: inherit; }
+  .audio-only-toggle[aria-pressed="true"] { background: var(--p2); color: #0B0E17; border-color: var(--p2); }
+  .audio-only .stage { display: none; }
+  .audio-only .modes { margin-top: 0; }
   .settings { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
   .setting { font-family: var(--mono); font-size: .72rem; padding: 2px 9px; border-radius: 999px; color: var(--muted); border: 1px solid var(--line); background: rgba(11,14,23,.5); }
   .setting.changed { color: var(--p2); border-color: rgba(255,128,14,.45); background: rgba(255,128,14,.08); }
@@ -212,6 +216,7 @@
         Code and method
       </a>
       <a class="pill ghost" href="../paper/tp1.pdf">Read the abstract (PDF)</a>
+      <button class="pill ghost audio-only-toggle" type="button" aria-pressed="false">Audio only</button>
     </div>
     <div class="legend" aria-label="Channel colors in the videos">
       <span class="chip"><span class="dot" style="--c: var(--p1)"></span>P1 pulse · melody</span>
@@ -234,8 +239,7 @@
   <div id="tracks"></div>
 
   <footer>The audio is rendered only from MIDI files: FluidSynth with the FluidR3_GM soundfont, or the
-  project's own chip synthesizer (pulse, triangle and noise waveforms). Page design drafted with
-  Superdesign.</footer>
+  project's own chip synthesizer (pulse, triangle and noise waveforms).</footer>
 </main>
 <script>
   // One entry per folder in samples/; the text matches the "Generated pieces" section of the README.
@@ -302,7 +306,7 @@
         `<div class="bar"><button class="toggle" aria-label="Play or pause">${PLAY_ICON}</button>` +
         `<input class="seek" type="range" min="0" max="1000" value="0" aria-label="Position">` +
         `<span class="time">0:00 / 0:00</span></div>` +
-        `<p class="hint">Switch versions while it plays: the position is kept, so you hear the same bars.</p>` +
+        `<p class="hint">Switch versions while it plays: the position is kept, so you hear the same bars. The sound always comes from the MP3 files.</p>` +
         `</div>` +
         `<div class="info"><h3>${title}</h3><div class="artist">${artist}</div>` +
         `<span class="fitness">best fitness ${fitness}</span><p class="note">${note}</p>` +
@@ -325,6 +329,21 @@
   // A/B player. The sound always comes from the MP3 files (best quality); the videos are muted
   // pictures kept in step with the sound. Version 0 shows the original's visualization, 1 and 2
   // the generated one (both generated versions share the same notes).
+  // Audio only: hide the videos and leave them unloaded; the sound is the same MP3 either way.
+  let audioOnly = false;
+  try { audioOnly = localStorage.getItem("audioOnly") === "1"; } catch (e) { /* storage blocked */ }
+  const onlyButton = document.querySelector(".audio-only-toggle");
+  function applyAudioOnly() {
+    document.body.classList.toggle("audio-only", audioOnly);
+    onlyButton.setAttribute("aria-pressed", String(audioOnly));
+    if (audioOnly) document.querySelectorAll(".stage video").forEach((v) => v.pause());
+  }
+  onlyButton.addEventListener("click", () => {
+    audioOnly = !audioOnly;
+    try { localStorage.setItem("audioOnly", audioOnly ? "1" : "0"); } catch (e) { /* storage blocked */ }
+    applyAudioOnly();
+  });
+  applyAudioOnly();
   const fmt = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
   let current = null;
   function setup(track) {
@@ -353,11 +372,13 @@
       current = api;
       // Load all three versions on the first play, so that switching later is instant.
       track.audios.forEach((a) => { a.preload = "auto"; load(a); });
-      visOriginal.preload = visGenerated.preload = "auto";
+      if (!audioOnly) visOriginal.preload = visGenerated.preload = "auto";
       const v = video();
       audio().play().catch(() => {});
-      v.currentTime = audio().currentTime || 0;
-      v.play().catch(() => {});
+      if (!audioOnly) {
+        v.currentTime = audio().currentTime || 0;
+        v.play().catch(() => {});
+      }
       card.classList.add("playing");
       toggle.innerHTML = PAUSE_ICON;
     }
@@ -389,7 +410,7 @@
         seek.value = d ? Math.round((a.currentTime / d) * 1000) : 0;
         time.textContent = `${fmt(a.currentTime)} / ${fmt(d)}`;
         const v = video();
-        if (Math.abs(v.currentTime - a.currentTime) > 0.25) v.currentTime = a.currentTime;
+        if (!audioOnly && Math.abs(v.currentTime - a.currentTime) > 0.25) v.currentTime = a.currentTime;
       });
       a.addEventListener("ended", pause);
     });
