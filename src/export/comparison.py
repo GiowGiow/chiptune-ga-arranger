@@ -47,7 +47,11 @@ from export.video import BACKGROUND, CHANNEL_COLORS
 
 # Below GitHub's 10 MB attachment limit, with room for the error of the encoder's size control.
 DEFAULT_BUDGET_BYTES = 9_500_000
-AUDIO_KBPS = 96
+# The audio bitrate adapts to the length (choose_audio_kbps): 192 kbit/s for short videos,
+# never under 128; the picture keeps at least VIDEO_FLOOR_KBPS when the budget allows.
+AUDIO_KBPS_LOW = 128
+AUDIO_KBPS_HIGH = 192
+VIDEO_FLOOR_KBPS = 120
 MIN_VIDEO_KBPS = 80
 # Share of the file taken by the MP4 container (index, headers) rather than by audio and video.
 CONTAINER_OVERHEAD = 0.02
@@ -125,6 +129,26 @@ def max_total_seconds(
     423.2
     """
     return budget_bytes * 8 * (1 - overhead) / ((audio_kbps + min_video_kbps) * 1000)
+
+
+def choose_audio_kbps(
+    total_seconds: float,
+    budget_bytes: int,
+    video_floor_kbps: float = VIDEO_FLOOR_KBPS,
+    low: float = AUDIO_KBPS_LOW,
+    high: float = AUDIO_KBPS_HIGH,
+    overhead: float = CONTAINER_OVERHEAD,
+) -> float:
+    """Return the AAC bitrate (kbit/s): as high as the budget allows after the video's floor.
+
+    The listener compares sound, so the audio gets the bits first: up to `high` (transparent for
+    these MP3 sources) while the picture keeps `video_floor_kbps`, and never less than `low`.
+
+    >>> choose_audio_kbps(154.0, 9_500_000), choose_audio_kbps(354.0, 9_500_000)
+    (192, 128)
+    """
+    total_kbps = budget_bytes * 8 * (1 - overhead) / total_seconds / 1000
+    return max(low, min(high, total_kbps - video_floor_kbps))
 
 
 def choose_video(
@@ -343,7 +367,7 @@ def render_comparison(
     mp4_path: Path | str,
     title: str | None = None,
     budget_bytes: int = DEFAULT_BUDGET_BYTES,
-    audio_kbps: float = AUDIO_KBPS,
+    audio_kbps: float | None = None,
     min_video_kbps: float = MIN_VIDEO_KBPS,
     fps: int = 30,
 ) -> bool:
@@ -364,6 +388,8 @@ def render_comparison(
         title = sample_title(sample_dir.resolve().name, config)
 
     durations = [probe_duration(sample_dir / name) for name in SEGMENT_AUDIO]
+    if audio_kbps is None:
+        audio_kbps = choose_audio_kbps(sum(durations), budget_bytes)
     lengths = fit_lengths(durations, max_total_seconds(budget_bytes, audio_kbps, min_video_kbps))
     video_kbps, width, height = choose_video(sum(lengths), budget_bytes, audio_kbps, fps)
 

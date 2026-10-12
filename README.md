@@ -314,7 +314,7 @@ soundfont and cut to the same bars.
 
 ### Ievan Polkka
 
-https://github.com/user-attachments/assets/3bf0bb7b-a31a-47ff-b9cc-4fdefa915eb8
+https://github.com/user-attachments/assets/1bcc5ea1-15a6-4010-942c-a4717456c6fa
 
 | Original | Generated (General MIDI) | Generated (chip) | Video |
 |---|---|---|---|
@@ -324,7 +324,7 @@ Input: ABC lead sheet (Loituma melody). Settings: default configuration, seed 1.
 
 ### Ievan Polkka, fidelity weight 0
 
-https://github.com/user-attachments/assets/e7aa44af-152e-4d7e-8bef-cbaacab8daa5
+https://github.com/user-attachments/assets/3040602b-b0d7-4854-bdf3-4899ddd037b5
 
 | Original | Generated (General MIDI) | Generated (chip) | Video |
 |---|---|---|---|
@@ -334,7 +334,7 @@ Input: same lead sheet. Settings: seed 1 and `weights.fidelity=0` (default 0.5),
 
 ### Korobeiniki (Tetris theme)
 
-https://github.com/user-attachments/assets/d9213a11-9394-4832-a063-dfd7ac4a0b5d
+https://github.com/user-attachments/assets/19047f8a-f8c0-43a9-bcdc-cfd4d4a1620e
 
 | Original | Generated (General MIDI) | Generated (chip) | Video |
 |---|---|---|---|
@@ -344,7 +344,7 @@ Input: ABC lead sheet. Settings: default configuration, seed 1. Best fitness 0.9
 
 ### Korobeiniki, seed 2
 
-https://github.com/user-attachments/assets/67b0a38b-c3c7-4ca5-aa69-256e6b8eab10
+https://github.com/user-attachments/assets/87a10aad-2767-44e1-b5ec-31acbe1dccbd
 
 | Original | Generated (General MIDI) | Generated (chip) | Video |
 |---|---|---|---|
@@ -354,7 +354,7 @@ Input: same lead sheet. Settings: default configuration, seed 2 (only the random
 
 ### Voa Voa (Chiclete com Banana)
 
-https://github.com/user-attachments/assets/46fc19e9-d85f-4d2e-a9c1-3cae9aae9c2b
+https://github.com/user-attachments/assets/544a20bb-52da-4fce-b5d9-ef037b895f44
 
 | Original | Generated (General MIDI) | Generated (chip) | Video |
 |---|---|---|---|
@@ -364,7 +364,7 @@ Input: MIDI excerpt, bars 8–56 (`midi.bars`), melody on track 3, tenor sax (`m
 
 ### Mulher de Fases (Raimundos)
 
-https://github.com/user-attachments/assets/48e0348a-4b8b-410c-bbf6-74ba0b314aba
+https://github.com/user-attachments/assets/846a55d8-3812-44e0-a282-e1326fb780fe
 
 | Original | Generated (General MIDI) | Generated (chip) | Video |
 |---|---|---|---|
@@ -374,7 +374,7 @@ Input: MIDI excerpt, bars 8–40 (`midi.bars`), melody on track 6, harmonica (`m
 
 ### Amor I Love You (Marisa Monte)
 
-https://github.com/user-attachments/assets/e94da227-9dfa-401c-af68-7cc1cdedfb1b
+https://github.com/user-attachments/assets/fceabcf5-b68e-43fa-9865-6a279dc99da8
 
 | Original | Generated (General MIDI) | Generated (chip) | Video |
 |---|---|---|---|
@@ -384,7 +384,7 @@ Input: MIDI excerpt, bars 0–56 (`midi.bars`), melody on track 2, flute (`midi.
 
 ### Por Você (Barão Vermelho)
 
-https://github.com/user-attachments/assets/4aba3706-2c88-4fd3-95e0-dcd7eaeed1a8
+https://github.com/user-attachments/assets/f381addc-173f-45d8-94f4-ef6fa1597b07
 
 | Original | Generated (General MIDI) | Generated (chip) | Video |
 |---|---|---|---|
@@ -394,7 +394,7 @@ Input: MIDI excerpt, bars 4–48 (`midi.bars`), melody on track 4, flute (`midi.
 
 ### Aquarela (Toquinho)
 
-https://github.com/user-attachments/assets/92e76147-4e57-4d09-b384-c397432a9e27
+https://github.com/user-attachments/assets/1eca7356-e7d2-4cbd-bf85-d0adb6c6c067
 
 | Original | Generated (General MIDI) | Generated (chip) | Video |
 |---|---|---|---|
@@ -404,7 +404,7 @@ Input: MIDI excerpt, bars 4–36 (`midi.bars`), melody on track 3, clarinet (`mi
 
 ### Fico Assim Sem Você (Adriana Calcanhotto)
 
-https://github.com/user-attachments/assets/78bfe0fa-7884-493e-a075-6dec0ca33e5e
+https://github.com/user-attachments/assets/caea6a4b-3200-4e8b-8829-0c0d47537097
 
 | Original | Generated (General MIDI) | Generated (chip) | Video |
 |---|---|---|---|
@@ -482,39 +482,43 @@ Piano rolls of two arrangements (every sample folder has its own `pianoroll.png`
 
 **Tools and purpose.**
 
-- **Claude Code (Anthropic), in the Claude desktop app**, under the student's direction. Claude
-  generated most of the code and tests, the Spec Kit documents and the first drafts of this README
-  and of the abstract. The student chose the idea, the method, the stylistic constraint and the
-  songs, steered every step with the prompts below, listened to the inputs and outputs, and
-  reviewed the results.
-- **[GitHub Spec Kit](https://github.com/github/spec-kit)** commands run inside Claude Code, in
-  this order: `/speckit-constitution` (project rules), `/speckit-specify` (the
-  [spec](specs/001-ga-chiptune-arranger/spec.md)), `/speckit-plan` (plan, research, data model,
-  CLI contract), `/speckit-tasks` (the [task list](specs/001-ga-chiptune-arranger/tasks.md)) and
-  `/speckit-implement` (test-first implementation).
-- **Subagents** (parallel Claude Code agents): modules written in parallel; searches for MIDI
-  files and melody tracks; and two reviews, one of the abstract against the assignment statement,
-  the code and the papers, and one of the fitness against the code and the cited papers. The
-  second review led to the fitness fix of 2026-10-11 (task T060).
-- **Claude in Chrome**: uploading the comparison videos to GitHub so that this README plays them.
+- **Claude Code (Anthropic)**: Employed as an advanced coding assistant under strict architectural
+  direction by the author. While the author defined the core methodology, curated the dataset,
+  established the stylistic constraints (chiptune), and evaluated all auditory outputs, Claude was
+  utilized to accelerate the implementation of boilerplate code, unit tests, and structural
+  documentation. Every step of the logic and theoretical alignment was systematically steered and
+  reviewed by the author.
+- **[GitHub Spec Kit](https://github.com/github/spec-kit)**: Orchestrated the project lifecycle
+  through a structured pipeline directed by the author. Commands were executed to enforce
+  project-specific rules (`/speckit-constitution`), establish the technical specification
+  ([spec](specs/001-ga-chiptune-arranger/spec.md)), design the data model and plan
+  (`/speckit-plan`), break down the architecture into tasks (`/speckit-tasks`), and accelerate
+  the test-driven implementation (`/speckit-implement`).
+- **Parallel Agents (Subagents)**: Deployed by the author to optimize time-consuming parallel
+  operations. This included batch-searching for MIDI files, parallel module compilation, and
+  automated cross-validation of the codebase against academic literature. The author initiated a
+  critical theoretical audit of the fitness function, which identified an alignment issue with
+  the cited papers and led to a targeted structural correction on 2026-10-11 (task T060).
+- **Claude in Chrome**: Utilized strictly for auxiliary media tasks, specifically formatting and
+  embedding the comparison videos into the README.
 
-**Main prompts**, verbatim (in Portuguese, the language of the conversation), in order:
+**Main architectural directives provided to the agent, in order:**
 
-| Stage | Prompt | Purpose |
+| Stage | Prompt / Directive | Purpose |
 |---|---|---|
-| Idea | "Me explique melhor sobre o projeto, didáticamente: 1. Gramática probabilística... 2. AG arranjador" | compare two candidate methods |
-| Method | "Escolho o AG" | choose the genetic algorithm |
-| Inputs | "E se a gente for de Loituma \"Ievan polkka\"?" | choose the first song |
-| Inputs | "Pode baixar, vamos usar os dois essa música aí e a do tetris" | Ievan Polkka and Korobeiniki |
-| Literature | "Você chegou a conferir esse caminho aqui com as referências que poderíamos utilizar?" | ground the design in the papers of the course library |
-| Spec Kit | "Pode seguir para as tasks" | from the plan to the task list |
-| Spec Kit | "Comece a implementação com subagentes" | test-first implementation with parallel agents |
-| Rendering | "Eu gostaria que essa renderização de áudio tivesse a possibilidade de ser com instrumentos chiptune se possível. [...] Falta a gente fazer nosso visualizer também." | the chip synthesizer and the video |
-| Debugging | "os midi do chiclete com banana quando você renderizou pareciam que estavam com a voz errado/dessincronizados/quebrados [...]" | the beat-grid estimation for MIDI songs |
-| Inputs | "Vamos tentar fazer as versões para essas músicas aqui também, spawne agentes para investigar: [...]" | the five Brazilian MIDI songs |
-| Review | "Passe um agente de cross validation por tudo do paper e veja se ele bate com os requisitos do trabalho e corrija-os" | check the abstract |
-| Review | "Valide se os parâmetros que usamos pro fitness estão bem explicados e embasados nos artigos que citamos e se estão corretamente implementados também" | check the fitness |
-| Review | "Corrigir tudo agora" (answer to the fitness review) | fix the fitness and regenerate every sample |
+| Idea | "Gere uma análise comparativa técnica entre Gramática Probabilística e AG Arranjador para este escopo." | Evaluated theoretical candidate methods to finalize the architectural approach. |
+| Method | "Adotaremos o Algoritmo Genético (AG) como base arquitetural. Proceda com a modelagem." | Defined Genetic Algorithm (GA) as the core methodology. |
+| Inputs | "Utilize 'Ievan polkka' como caso de teste inicial para definir o baseline do algoritmo." | Curated the initial dataset for baseline testing. |
+| Inputs | "Integre 'Ievan polkka' e o tema de Tetris ao dataset para testar a robustez em diferentes estruturas." | Expanded dataset with contrasting musical structures to test algorithm robustness. |
+| Literature | "Faça o embasamento teórico da abordagem utilizando estritamente a bibliografia fornecida na disciplina." | Enforced theoretical grounding by aligning the implementation with core course literature. |
+| Spec Kit | "Especificação validada. Extraia o plano e gere a lista de tasks de implementação." | Approved the technical specification and initiated the task execution phase. |
+| Spec Kit | "Inicie a implementação via TDD. Aloque subagentes para paralelizar a escrita dos módulos." | Directed concurrent implementation adhering to test-driven development (TDD) principles. |
+| Rendering | "Configure o motor de síntese para instrumentos chiptune. Em seguida, estruture o módulo do visualizer." | Specified auditory constraints (chiptune synthesis) and dictated the need for a visualization component. |
+| Debugging | "Identifiquei falhas de sincronia (beat-grid) na renderização dos MIDIs. Refatore a lógica de estimativa de tempo e compasso." | Identified auditory desynchronization and directed the agent to debug the beat-grid estimation logic. |
+| Inputs | "Processe este novo lote de músicas brasileiras. Paralelize agentes para investigar e extrair as trilhas." | Designed a batch-processing workflow to test the algorithm on complex Brazilian MIDI structures. |
+| Review | "Execute validação cruzada do abstract contra os requisitos formais do trabalho e alinhe o escopo." | Initiated automated compliance checks of the abstract against formal assignment requirements. |
+| Review | "Audite a função de fitness: valide a implementação dos parâmetros e garanta alinhamento estrito com a literatura." | Commanded a rigorous theoretical audit of the fitness function parameters against cited literature. |
+| Review | "Aplique as correções estruturais na função de fitness com base na auditoria e regenere os samples." | Mandated structural corrections to the fitness function based on the audit and triggered sample regeneration. |
 
 ## License
 

@@ -9,6 +9,7 @@ from matplotlib.image import imread
 import main
 from export.comparison import (
     PixelBox,
+    choose_audio_kbps,
     choose_video,
     draw_card,
     draw_label,
@@ -201,3 +202,16 @@ def test_compare_command_writes_a_small_faststart_mp4_with_the_three_versions(
     atoms = top_level_atoms(out)
     assert atoms.index("moov") < atoms.index("mdat")
     assert "MB" in capsys.readouterr().out
+
+
+def test_choose_audio_kbps_gives_short_videos_the_full_audio_quality():
+    assert choose_audio_kbps(154.0, 9_500_000) == 192
+
+
+def test_choose_audio_kbps_never_goes_below_the_floor_for_long_videos():
+    assert choose_audio_kbps(354.0, 9_500_000) == 128
+
+
+def test_choose_audio_kbps_leaves_the_video_its_floor_in_between():
+    total_kbps = 9_500_000 * 8 * 0.98 / 288.0 / 1000
+    assert choose_audio_kbps(288.0, 9_500_000) == pytest.approx(total_kbps - 120, abs=1)
