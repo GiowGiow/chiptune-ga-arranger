@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-12
 
-**Status**: Draft
+**Status**: Planned (see [plan.md](plan.md); corrections from research R3, R8, R9 applied)
 
 **Input**: User description: "Spec 003, on the post-deadline branch (not main):
 
@@ -61,7 +61,8 @@ settings, so they must not change.
 
 The student, or a visitor of the app, gives a song in 3/4 (ABC or MIDI) and gets an NES
 arrangement whose bars have 3 beats:
-- the bass plays "oom-pah-pah" (root, then the chord on beats 2 and 3), or walks across the 3 beats;
+- the bass plays "oom-pah-pah" (the root on beat 1, the fifth on beats 2 and 3), or walks across
+  the 3 beats;
 - the drums play a waltz pattern: kick on beat 1, snare or hi-hat on beats 2 and 3;
 - fills fall on the last beat of a phrase.
 
@@ -102,15 +103,15 @@ A tune in 6/8, 9/8 or 12/8 is arranged with the dotted-quarter beat:
 the simple meters.
 
 **Independent Test**: arrange a 16-bar 6/8 jig written for the tests. Check that bars span 3
-quarter beats (6 eighths), that the kick falls on eighths 1 and 4, and that the walking bass plays
-two dotted quarters.
+quarter beats (6 eighths), that an "eighth beat" bar has the kick on eighth 1 and the snare on
+eighth 4, and that the walking bass plays two dotted quarters.
 
 **Acceptance Scenarios**:
 
 1. **Given** a 6/8 tune, **When** it is arranged, **Then** the TR root-fifth texture plays root on
    the first dotted-quarter beat and the fifth on the second.
-2. **Given** a 6/8 tune with an "eighth beat" drum bar, **Then** the kick falls on eighths 1 and 4
-   and the snare on the second beat.
+2. **Given** a 6/8 tune with an "eighth beat" drum bar, **Then** the kick falls on eighth 1 and
+   the snare on eighth 4 (the second dotted-quarter beat), with hi-hats on the other eighths.
 3. **Given** a 12/8 MIDI song, **When** it is reduced, **Then** it has bars of 6 quarter beats and
    chord decisions on half bars.
 
@@ -168,8 +169,8 @@ A song in 5/4 or 7/8, or a MIDI song whose meter changes between sections (for e
 
 - A meter the app does not support (for example 11/16, or a numerator above 12): the app refuses
   it with a message that names the meter and the bar.
-- A pickup in 3/4 or 6/8: the first bar is padded with a leading rest to the bar's length, as in
-  4/4.
+- A pickup in 3/4 or 6/8 is handled as in 4/4 by each reader: the app pads the first bar with a
+  leading rest to the bar's length, and the command line refuses it, naming the bar.
 - A song whose last bar is incomplete in its meter: padded with a trailing rest when it completes
   the pickup, refused otherwise, naming the bar (as in 4/4).
 - A phrase length that does not divide a section: the last phrase of the section is shorter, as
@@ -198,22 +199,25 @@ A song in 5/4 or 7/8, or a MIDI song whose meter changes between sections (for e
   - in irregular meters, the groups 3+2 (5/4) and 2+2+3 (7/8).
 - **FR-003**: The ABC reader MUST read the M: field and inline meter changes. The MIDI reader MUST
   read the time-signature map.
-  - Bar lines follow the map.
-  - A count-in in another meter is part of the map. The visitor can leave it out with the bar
-    range.
+  - Bar lines follow the map, and bar 0 is the file's first bar.
+  - A count-in in another meter is part of the map. Without a bar range, the excerpt runs from the
+    first bar that holds a pitched note to the bar where the last pitched note ends, so a
+    drum-only count-in is left out by default. The visitor can choose any range.
 - **FR-004**: 2/4 MUST be read as 2/4 bars (2 beats). The pairing of spec 002 FR-004 is withdrawn.
 - **FR-005**: The plan keeps 4 genes per bar with the same values. Each realizer MUST adapt to the
   bar's meter:
   - P1 plays the written melody. P2's hold, arpeggios, echo and third follow the chords and the
     melody, as now.
-  - TR root holds each chord. The octave pump alternates root and octave on the eighths. Root-fifth
-    alternates root and fifth per beat, starting on the root. Walking plays one note per beat, and
-    the last note approaches the next bar's root by a semitone (the fifth again at the end of the
-    piece).
+  - TR root holds each chord. The octave pump alternates root and octave on the eighths.
+    Root-fifth plays the root on the strong beats and the fifth on the weak beats (root, fifth,
+    root, fifth in 4/4; root, fifth, fifth in 3/4). Walking plays one note per beat (root, third,
+    fifth, root, …), and the last note approaches the next bar's root by a semitone (the fifth
+    again at the end of the piece).
   - NO patterns are built from the bar's beats:
     - half time: kick on beat 1 and snare on the bar's middle strong beat, if it has one;
     - eighth beat: kick on the strong beats, snare on the weak beats, hi-hat on the eighths;
-    - sixteenth beat: the same, with hi-hats on sixteenths;
+    - sixteenth beat: the same, plus a kick on the last sixteenth of the last strong beat, with
+      hi-hats on sixteenths;
     - fill: the eighth beat with a snare roll on the last beat.
 
     A drummer's priority (kick over snare over hi-hat) holds on shared steps.
@@ -221,8 +225,9 @@ A song in 5/4 or 7/8, or a MIDI song whose meter changes between sections (for e
 - **FR-007**: The score tables and the fitness MUST measure each bar on its own grid of sixteenth
   steps (`4 × beats in quarters`) instead of a fixed 16. Activity is onsets per step, capped at 1.
 - **FR-008**: The NES rule check MUST verify complete bars of each bar's own length.
-- **FR-009**: MIDI chord detection MUST decide one chord per half bar in duple and quadruple
-  meters, and one per bar otherwise.
+- **FR-009**: MIDI chord detection MUST decide one chord per strong-beat group: half bars in 4/4
+  and 12/8, groups of 3 and 2 beats in 5/4, and one chord per bar in the other meters (2/2, 2/4,
+  3/4, 6/8, 9/8, 7/8).
 - **FR-010**: The ABC writer MUST write the meter, and a meter change where it happens, so a lead
   sheet in any supported meter reads back identically.
 - **FR-011**: Unsupported meters MUST be refused with a message that names the meter and the bar.
@@ -249,8 +254,8 @@ A song in 5/4 or 7/8, or a MIDI song whose meter changes between sections (for e
 
 ### Key Entities
 
-- **Meter**: numerator, denominator, beat grouping (a list of beat lengths in quarters), and bar
-  length in quarters.
+- **Meter**: numerator, denominator, beats (a list of beat lengths in quarters), strong beats
+  (the first beat of each group), and bar length in quarters.
 - **Bar** (extended): its meter, in addition to melody, chords, label, role and phrase.
 - **Allowed values**: for each of the four genes, the subset of values the GA may draw.
 
@@ -262,7 +267,8 @@ A song in 5/4 or 7/8, or a MIDI song whose meter changes between sections (for e
   project) arrange without error in the command line and in the app. Every arrangement passes the
   NES rule check with bars of the right length.
 - **SC-002**: The 10 committed samples rerun to the same plan, fitness and MIDI bytes as before,
-  and every spec 002 parity fixture still matches.
+  and every value of every spec 002 parity fixture still matches. The fixture files gain each
+  bar's meter and a per-bar drum activity, and lose `beats_per_bar`.
 - **SC-003**: The app and the command line give the same score tables and fitness for a given plan
   on the 3/4, 6/8 and 2/4 test inputs, to 6 decimal places (parity, as in spec 002 SC-010).
 - **SC-004**: With arp32 disallowed, 0% of the bars of any run use arp32, on the 8 committed lead
