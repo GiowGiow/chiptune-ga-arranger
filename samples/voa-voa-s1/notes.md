@@ -13,5 +13,5 @@ modulates to G#m–D#m–C#m. Seed 1, with up to 4000 generations and a stagnati
 - What to listen for: compare `input.mp3` (the input), `piece.mp3` (the arrangement with General
   MIDI timbres) and `piece-chip.mp3` (the same arrangement on the chip synthesizer); `piece.mp4`
   shows the four channels.
-- What works: to be written by the student after listening.
-- What does not work: to be written by the student after listening.
+- Listening notes (the student's own evaluation, 2026-10-11, translated from Portuguese): It did not turn out very well: sometimes the arpeggios stop out of nowhere, and the harmony follows the melody in a strange way.
+- Note: The arpeggios stop where the GA switches P2 to `third` (a chord tone under each melody note) inside a part.

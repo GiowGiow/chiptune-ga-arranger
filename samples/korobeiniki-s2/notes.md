@@ -9,5 +9,5 @@ Run `korobeiniki-s2-39aaf0de`: Korobeiniki, seed 2, same configuration as `korob
 - What to listen for: compare `input.mp3` (the input), `piece.mp3` (the arrangement with General
   MIDI timbres) and `piece-chip.mp3` (the same arrangement on the chip synthesizer); `piece.mp4`
   shows the four channels.
-- What works: to be written by the student after listening.
-- What does not work: to be written by the student after listening.
+- Listening notes (the student's own evaluation, 2026-10-11, translated from Portuguese): I could not hear any difference from seed 1.
+- Note: the two plans differ in 27% of the genes, almost all between close textures: P2 changes in 75% of the bars, mostly 16th against 32nd-note arpeggios, and the bass in 31% (root against walking); the drums and the melody octave are nearly the same, which is why the seeds sound alike.

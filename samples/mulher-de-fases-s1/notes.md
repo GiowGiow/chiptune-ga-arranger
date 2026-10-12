@@ -12,5 +12,4 @@ the other tracks. Form: two verse/chorus pairs (8 bars each). Seed 1, with up to
 - What to listen for: compare `input.mp3` (the input), `piece.mp3` (the arrangement with General
   MIDI timbres) and `piece-chip.mp3` (the same arrangement on the chip synthesizer); `piece.mp4`
   shows the four channels.
-- What works: to be written by the student after listening.
-- What does not work: to be written by the student after listening.
+- Listening notes (the student's own evaluation, 2026-10-11, translated from Portuguese): The song's own bass line and the way it is sung make it a very good candidate for this conversion. The arpeggios turned out very well overall, stopping and coming back when needed.

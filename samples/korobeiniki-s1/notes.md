@@ -9,5 +9,4 @@ Run `korobeiniki-s1-39aaf0de`: Korobeiniki (Tetris theme), seed 1, default confi
 - What to listen for: compare `input.mp3` (the input), `piece.mp3` (the arrangement with General
   MIDI timbres) and `piece-chip.mp3` (the same arrangement on the chip synthesizer); `piece.mp4`
   shows the four channels.
-- What works: to be written by the student after listening.
-- What does not work: to be written by the student after listening.
+- Listening notes (the student's own evaluation, 2026-10-11, translated from Portuguese): Perfect.

@@ -11,5 +11,5 @@ Run `ievan_polkka-s1-39aaf0de`: Ievan Polkka, seed 1, default configuration. Bes
 - What to listen for: compare `input.mp3` (the input), `piece.mp3` (the arrangement with General
   MIDI timbres) and `piece-chip.mp3` (the same arrangement on the chip synthesizer); `piece.mp4`
   shows the four channels.
-- What works: to be written by the student after listening.
-- What does not work: to be written by the student after listening.
+- Listening notes (the student's own evaluation, 2026-10-11, translated from Portuguese): The harmony (P2) follows the melody most of the time. Sometimes the melody jumps up an octave for no reason. The transitions into the arpeggios are abrupt. I would have liked to tune it better.
+- Note: P2 following the melody is the `third` texture (a chord tone under each melody note), which the GA picks in half of the A bars; the octave jumps are the two A bars with the octave gene at +12.

@@ -10,5 +10,5 @@ Run `ievan_polkka-s1-5bf5c409`: Ievan Polkka, seed 1, with `--set weights.fideli
 - What to listen for: compare with `ievan-polkka-s1` (same seed, fidelity weight 0.5): without the
   fidelity criterion the GA moves half of the melody bars up an octave to win the register
   criterion, so the melody jumps between registers.
-- What works: to be written by the student after listening.
-- What does not work: to be written by the student after listening.
+- Listening notes (the student's own evaluation, 2026-10-11, translated from Portuguese): It makes the octave problem bigger.
+- Note: Expected: without the fidelity criterion nothing keeps the melody in its written octave, and the GA moves 12 of the 24 bars.
