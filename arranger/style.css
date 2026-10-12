@@ -242,7 +242,6 @@ footer .sep { color: var(--line); }
 @media (min-width: 900px) {
   .panels { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-items: start; }
   .card.wide { grid-column: 1 / -1; }
-  #run { position: sticky; top: 16px; }
 }
 @media (max-width: 640px) {
   main { padding-top: 36px; }

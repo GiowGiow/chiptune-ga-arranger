@@ -134,7 +134,11 @@ settingsToggle.addEventListener("click", () => toggleSettings());
 clearPlaceholder("#evolution");
 $("#evolution").insertAdjacentHTML(
   "beforeend",
-  `<div data-evolution-view></div>
+  `<div class="toolbar evolution-actions">
+     <button type="button" class="button" data-stop-evolution disabled>Stop</button>
+     <span class="hint">Stop keeps the best plan found so far.</span>
+   </div>
+   <div data-evolution-view></div>
    <h3 class="subhead">Best plan so far</h3>
    <div data-plan-grid></div>
    <p class="caption">One column per bar, one row per gene: the P2 harmony texture, the TR bass
@@ -145,6 +149,9 @@ const evolutionView = createEvolutionView($("[data-evolution-view]"));
 const planGrid = createPlanGrid($("[data-plan-grid]"));
 const arrangeButton = /** @type {HTMLButtonElement} */ ($("[data-arrange]"));
 const stopButton = /** @type {HTMLButtonElement} */ ($("[data-stop]"));
+// The Run card scrolls away while the evolution plays, so the Evolution card has its own Stop.
+const stopEvolutionButton = /** @type {HTMLButtonElement} */ ($("[data-stop-evolution]"));
+stopEvolutionButton.addEventListener("click", () => stopRun(false));
 const paceSelect = /** @type {HTMLSelectElement} */ ($("[data-pace]"));
 const seedInput = /** @type {HTMLInputElement} */ ($("[data-seed]"));
 seedInput.addEventListener("input", () => {
@@ -509,6 +516,7 @@ function updateRunButtons() {
   showChangedSettings();
   arrangeButton.disabled = !state.input || evolving || !valid;
   stopButton.disabled = !evolving;
+  stopEvolutionButton.disabled = !evolving;
   if (!state.input) setRunHint("");
   else if (!valid) setRunHint(validateSettings(state.settings).map((m) => m.message).join("; "), true);
   else if (evolving) setRunHint("Evolving… changes apply to the next run.");
