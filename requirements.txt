@@ -26,18 +26,18 @@ kiwisolver==1.5.1
     # via matplotlib
 matplotlib==3.11.2
     # via
-    #   dcc831-tp1
+    #   chiptune-ga-arranger
     #   music21
 mido==1.3.3
     # via pretty-midi
 more-itertools==11.1.0
     # via music21
 music21==10.5.0
-    # via dcc831-tp1
+    # via chiptune-ga-arranger
 numpy==2.5.4
     # via
+    #   chiptune-ga-arranger
     #   contourpy
-    #   dcc831-tp1
     #   matplotlib
     #   music21
     #   pretty-midi
@@ -48,7 +48,7 @@ packaging==26.3
 pillow==12.3.0
     # via matplotlib
 pretty-midi==0.2.11.post0
-    # via dcc831-tp1
+    # via chiptune-ga-arranger
 pyparsing==3.3.3
     # via matplotlib
 python-dateutil==2.9.0.post0

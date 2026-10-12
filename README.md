@@ -1,12 +1,18 @@
 # TP1 – A Genetic Algorithm that Arranges Songs for the NES Sound Chip
 
+![Korobeiniki, seed 1: the four NES channels drawn as glowing lines in sync with the music](samples/korobeiniki-s1/preview.gif)
+
+*Korobeiniki, seed 1, in the bridge. The image shows a few seconds of the video: P1 is the melody
+(blue), P2 the arpeggios (orange), TR the octave-pump bass (grey), and the bottom band holds the
+drum hits of a sixteenth-note beat.*
+
 DCC831 – Generative AI for Music (UFMG, 2026/2). Assignment 1: algorithmic composition.
 
 This project re-composes a song as 8-bit music. It reads a lead sheet (a melody with chord symbols
 and part labels) and arranges it for the four voices of the Nintendo Entertainment System (NES)
 sound chip. A **genetic algorithm** (GA) chooses, bar by bar, what each voice plays.
 
-**Listen:** [giowgiow.github.io/dcc831-tp1/listen](https://giowgiow.github.io/dcc831-tp1/listen/)
+**Listen:** [giowgiow.github.io/chiptune-ga-arranger/listen](https://giowgiow.github.io/chiptune-ga-arranger/listen/)
 has a player for the original, General MIDI and chip versions of every piece, and its video.
 
 ## Method
@@ -273,13 +279,7 @@ uv run src/main.py experiment data/leadsheets/korobeiniki.abc --seed 1
 
 ## Generated pieces
 
-![Korobeiniki, seed 1: the four NES channels drawn as glowing lines in sync with the music](samples/korobeiniki-s1/preview.gif)
-
-*Korobeiniki, seed 1, in the bridge. The image shows a few seconds of the video: P1 is the melody
-(blue), P2 the arpeggios (orange), TR the octave-pump bass (grey), and the bottom band holds the
-drum hits of a sixteenth-note beat.*
-
-The [listening page](https://giowgiow.github.io/dcc831-tp1/listen/) plays every version in the
+The [listening page](https://giowgiow.github.io/chiptune-ga-arranger/listen/) plays every version in the
 browser. Each song below starts with a short video that plays its three renderings one after the other:
 the original input, the generated arrangement with General MIDI timbres, and the same arrangement
 on the NES chip synthesizer (made with `uv run src/main.py compare`). Then come links to each
@@ -463,23 +463,41 @@ Piano rolls of two arrangements (every sample folder has its own `pianoroll.png`
 
 ## AI usage
 
-This project was developed with Claude Code (Anthropic), under the student's direction:
+**Tools and purpose.**
 
-- **Brainstorming and research:** the 8-bit arrangement idea, the choice of the GA, and the check
-  of the design against the course material and the papers of the reference library.
-- **Writing the Spec Kit documents:** spec, plan, data model and tasks.
-- **Writing code and tests:** test-first, with parallel subagents per module.
-- **Producing the inputs:** the transcription of the lead sheets.
-- **Drafting the README and the abstract.**
+- **Claude Code (Anthropic), in the Claude desktop app**, under the student's direction. Claude
+  generated most of the code and tests, the Spec Kit documents and the first drafts of this README
+  and of the abstract. The student chose the idea, the method, the stylistic constraint and the
+  songs, steered every step with the prompts below, listened to the inputs and outputs, and
+  reviewed the results.
+- **[GitHub Spec Kit](https://github.com/github/spec-kit)** commands run inside Claude Code, in
+  this order: `/speckit-constitution` (project rules), `/speckit-specify` (the
+  [spec](specs/001-ga-chiptune-arranger/spec.md)), `/speckit-plan` (plan, research, data model,
+  CLI contract), `/speckit-tasks` (the [task list](specs/001-ga-chiptune-arranger/tasks.md)) and
+  `/speckit-implement` (test-first implementation).
+- **Subagents** (parallel Claude Code agents): modules written in parallel; searches for MIDI
+  files and melody tracks; and two reviews, one of the abstract against the assignment statement,
+  the code and the papers, and one of the fitness against the code and the cited papers. The
+  second review led to the fitness fix of 2026-10-11 (task T060).
+- **Claude in Chrome**: uploading the comparison videos to GitHub so that this README plays them.
 
-The student chose the method, the stylistic constraint and the songs, checked the lead sheets and
-the generated pieces by ear, and reviewed every result.
+**Main prompts**, verbatim (in Portuguese, the language of the conversation), in order:
 
-## Deferred items
-
-The constitution asks for a marimo walkthrough notebook, `docs/glossary.md` and
-`docs/explanation.md`. They were deferred past the 2026-10-11 deadline, as recorded in
-`specs/001-ga-chiptune-arranger/plan.md`.
+| Stage | Prompt | Purpose |
+|---|---|---|
+| Idea | "Me explique melhor sobre o projeto, didáticamente: 1. Gramática probabilística... 2. AG arranjador" | compare two candidate methods |
+| Method | "Escolho o AG" | choose the genetic algorithm |
+| Inputs | "E se a gente for de Loituma \"Ievan polkka\"?" | choose the first song |
+| Inputs | "Pode baixar, vamos usar os dois essa música aí e a do tetris" | Ievan Polkka and Korobeiniki |
+| Literature | "Você chegou a conferir esse caminho aqui com as referências que poderíamos utilizar?" | ground the design in the papers of the course library |
+| Spec Kit | "Pode seguir para as tasks" | from the plan to the task list |
+| Spec Kit | "Comece a implementação com subagentes" | test-first implementation with parallel agents |
+| Rendering | "Eu gostaria que essa renderização de áudio tivesse a possibilidade de ser com instrumentos chiptune se possível. [...] Falta a gente fazer nosso visualizer também." | the chip synthesizer and the video |
+| Debugging | "os midi do chiclete com banana quando você renderizou pareciam que estavam com a voz errado/dessincronizados/quebrados [...]" | the beat-grid estimation for MIDI songs |
+| Inputs | "Vamos tentar fazer as versões para essas músicas aqui também, spawne agentes para investigar: [...]" | the five Brazilian MIDI songs |
+| Review | "Passe um agente de cross validation por tudo do paper e veja se ele bate com os requisitos do trabalho e corrija-os" | check the abstract |
+| Review | "Valide se os parâmetros que usamos pro fitness estão bem explicados e embasados nos artigos que citamos e se estão corretamente implementados também" | check the fitness |
+| Review | "Corrigir tudo agora" (answer to the fitness review) | fix the fitness and regenerate every sample |
 
 ## License
 

@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 # Some sites answer Python's default user agent with HTTP 406, so the request names the project.
-USER_AGENT = "dcc831-tp1-fetch/1.0 (+https://github.com/GiowGiow/dcc831-tp1)"
+USER_AGENT = "chiptune-ga-arranger-fetch/1.0 (+https://github.com/GiowGiow/chiptune-ga-arranger)"
 DOWNLOAD_TIMEOUT_SECONDS = 60
 COMMENT_WIDTH = 98
 

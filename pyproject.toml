@@ -1,5 +1,5 @@
 [project]
-name = "dcc831-tp1"
+name = "chiptune-ga-arranger"
 version = "0.1.0"
 description = "DCC831 (UFMG 2026/2) TP1: algorithmic music composition"
 authors = [
