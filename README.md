@@ -53,8 +53,7 @@ complete 4/4 bars.
 - **Crossover:** one cut point, only between bars.
 - **Mutation:** each gene changes with probability 0.01.
 - **Stopping:** 3000 generations, or 300 generations without improvement (4000 and 400 for the
-  MIDI songs). With these windows, no single-gene change improves the final plans of the ABC
-  tunes; on the longer MIDI songs it adds at most 0.005.
+  MIDI songs).
 
 All hyperparameters are in [configs/default.json](configs/default.json) and can be changed with
 `--set`, for example `--set weights.contrast=3`. The design is in
