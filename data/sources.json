@@ -1,0 +1,89 @@
+{
+  "about": "MIDI songs used as inputs. The files are fan-made sequences by third parties: they stay out of git in data/raw/ and `uv run src/main.py fetch` downloads them and checks each SHA-256. The committed ABC lead sheets in data/leadsheets/ are this project's reduction of each song (melody track, detected chords, part labels), written by `uv run src/main.py abc --all`, so the arranger can rerun even if a site goes away. `midi` holds the lead-sheet settings of the sample that used the song (config key `midi`).",
+  "songs": [
+    {
+      "id": "voa_voa",
+      "title": "Voa Voa",
+      "artist": "Chiclete com Banana",
+      "composers": [],
+      "page_url": null,
+      "url": null,
+      "sha256": "d7e4c13991ba7c1c2e5298568439cdaad8de1d521faea264b52cd17107013522",
+      "path": "data/raw/chiclete/voa_voa.mid",
+      "abc": "data/leadsheets/voa_voa.abc",
+      "sample": "voa-voa-s1",
+      "midi": {"melody_track": 3, "bars": [8, 56], "sections": [[0, "A"], [16, "Pre"], [32, "Chorus"]], "grid": "auto"},
+      "note": "Collected by the student from the description of a YouTube video; the file's track names say 'Editado Por: Fernando' and 2014. The committed ABC lead sheet is the input a fresh clone uses."
+    },
+    {
+      "id": "mulher_de_fases",
+      "title": "Mulher de Fases",
+      "artist": "Raimundos",
+      "composers": ["Digão", "Rodolfo"],
+      "page_url": "https://www.beakauffmann.com/mpb_m/mulher-de-fases.html",
+      "url": "https://www.beakauffmann.com/mpb_m/som/mulher-de-fases.mid",
+      "sha256": "fc5611b11bc4a11138ddd5b058b0897e3843cc3c57ccb8ccb524d8a271804916",
+      "path": "data/raw/mpb/mulher_de_fases.mid",
+      "abc": "data/leadsheets/mulher_de_fases.abc",
+      "sample": "mulher-de-fases-s1",
+      "midi": {"melody_track": 6, "bars": [8, 40], "sections": [[0, "A"], [8, "Chorus"], [16, "A"], [24, "Chorus"]], "grid": "auto"},
+      "note": "From Beatriz Kauffmann's Web Site, a non-commercial site of MPB MIDI sequences. The file's own text says 'Copyright © 2000 by Editora Zardo Ltda.' (Play Music)."
+    },
+    {
+      "id": "amor_i_love_you",
+      "title": "Amor I Love You",
+      "artist": "Marisa Monte",
+      "composers": ["Carlinhos Brown", "Marisa Monte"],
+      "page_url": "https://www.beakauffmann.com/mpb_a/amor-I-love-you.html",
+      "url": "https://www.beakauffmann.com/mpb_a/som/amor-I-love-you.mid",
+      "sha256": "973e33c89cf71fedf89dedc6e1cd14e4d0c371ad9d265d7c2b6e72efa6d571cb",
+      "path": "data/raw/mpb/amor_i_love_you.mid",
+      "abc": "data/leadsheets/amor_i_love_you.abc",
+      "sample": "amor-i-love-you-s1",
+      "midi": {"melody_track": 2, "bars": [0, 56], "sections": [[0, "A"], [16, "B"], [24, "A"], [40, "Chorus"]], "grid": "auto"},
+      "note": "From Beatriz Kauffmann's Web Site, a non-commercial site of MPB MIDI sequences. The file's own text says 'Copyright © 2000 by Editora Zardo Ltda.' (Play Music)."
+    },
+    {
+      "id": "por_voce",
+      "title": "Por Você",
+      "artist": "Barão Vermelho",
+      "composers": ["Frejat", "Maurício Barros", "Mauro Santa Cecília"],
+      "page_url": "https://www.beakauffmann.com/mpb_p/por-voce.html",
+      "url": "https://www.beakauffmann.com/mpb_p/som/por-voce.mid",
+      "sha256": "8f3b706ffd32561caba1e3eff7ad0e1d1b66b702e9adea9a3dc2fec1e7dd8701",
+      "path": "data/raw/mpb/por_voce_bk.mid",
+      "abc": "data/leadsheets/por_voce.abc",
+      "sample": "por-voce-s1",
+      "midi": {"melody_track": 4, "bars": [4, 48], "sections": [[0, "A"], [20, "Pre"], [28, "Chorus"]], "grid": "auto"},
+      "note": "From Beatriz Kauffmann's Web Site, a non-commercial site of MPB MIDI sequences; neither the page nor the file names the sequencer. Saved as por_voce_bk.mid to tell it from another sequence of the same song."
+    },
+    {
+      "id": "fico_assim_sem_voce",
+      "title": "Fico Assim Sem Você",
+      "artist": "Adriana Calcanhotto",
+      "composers": ["Abdullah", "Cacá Moraes"],
+      "page_url": "https://www.beakauffmann.com/mpb_f/fico-assim-sem-voce.html",
+      "url": "https://www.beakauffmann.com/mpb_f/som/fico-assim-sem-voce.mid",
+      "sha256": "7202f877491e86a6cfb793d8ba09e5ac3bfa7bbc7094d3a0a43ab82555d356ae",
+      "path": "data/raw/mpb/fico_assim_sem_voce.mid",
+      "abc": "data/leadsheets/fico_assim_sem_voce.abc",
+      "sample": "fico-assim-sem-voce-s1",
+      "midi": {"melody_track": 1, "bars": [10, 58], "sections": [[0, "A"], [16, "A"], [32, "Chorus"]], "grid": "auto"},
+      "note": "From Beatriz Kauffmann's Web Site, a non-commercial site of MPB MIDI sequences. The page names Claudinho & Buchecha as the reference recording; the file's own text names Adriana Calcanhotto's version, the sequencer Marcos Borelli and 'Copyright © Editora HMP'."
+    },
+    {
+      "id": "aquarela",
+      "title": "Aquarela",
+      "artist": "Toquinho",
+      "composers": [],
+      "page_url": "https://bitmidi.com/aquarela-mid",
+      "url": "https://bitmidi.com/uploads/7390.mid",
+      "sha256": "bf8fbbc2c6af6c049cff5820445d5d5780dfde41a14d2aabe32d30d745728961",
+      "path": "data/raw/mpb/aquarela.mid",
+      "abc": "data/leadsheets/aquarela.abc",
+      "sample": "aquarela-s1",
+      "midi": {"melody_track": 3, "bars": [4, 36], "sections": [[0, "A"], [16, "B"]], "grid": "auto"},
+      "note": "From BitMidi, a site of user-uploaded MIDI files (file id 7390, named aquarela.mid). It is a Soft Karaoke file whose own text says 'Karaokê do Brasil - Família Ribeiro - 1999'."
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # Listening notes: korobeiniki-s2
 
-Run `korobeiniki-s2-95456f9f`: Korobeiniki, seed 2, same configuration as `korobeiniki-s1`. Best
+Run `korobeiniki-s2-220a0105`: Korobeiniki, seed 2, same configuration as `korobeiniki-s1`. Best
 fitness 0.889 after 841 generations.
 
 - What to listen for: the variation between seeds. This run uses 32nd-note arpeggios in more bars

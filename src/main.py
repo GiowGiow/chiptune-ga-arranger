@@ -7,14 +7,19 @@ plan: which texture each channel plays in each bar. Examples:
     uv run src/main.py arrange data/leadsheets/korobeiniki.abc --seed 1
     uv run src/main.py arrange data/leadsheets/ievan_polkka.abc --seed 2 --set weights.contrast=3
     uv run src/main.py sample outputs/<run-id> korobeiniki-s1
+    uv run src/main.py compare samples/korobeiniki-s1
+    uv run src/main.py fetch
+    uv run src/main.py abc --all
 
 Every hyperparameter comes from `configs/default.json`, an optional `--config` file and `--set`
 overrides; every run needs an explicit `--seed` (constitution, principle I).
 """
 
 import argparse
+import json
 import shutil
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -24,6 +29,7 @@ from arrangement.validation import find_violations
 from config import load_config
 from export.audio import DEFAULT_SOUNDFONT, render_mp3
 from export.chip_audio import render_chip_mp3
+from export.comparison import render_comparison
 from export.experiments import run_experiments
 from export.figures import plot_evolution, plot_pianoroll
 from export.input_preview import excerpt_seconds, lead_sheet_to_midi
@@ -39,10 +45,19 @@ from ga.evolution import GAParams, evolve
 from ga.fitness import criterion_scores
 from ga.tables import build_tables
 from leadsheet.abc_reader import read_lead_sheet
+from leadsheet.abc_writer import lead_sheet_to_abc
 from leadsheet.midi_reader import read_lead_sheet_midi
 from leadsheet.model import LeadSheet
+from leadsheet.sources import (
+    fetch_song,
+    load_sources,
+    provenance_comments,
+    require_song_file,
+    song_for_input,
+)
 
 MIDI_SUFFIXES = (".mid", ".midi")
+SOURCES_PATH = Path("data/sources.json")
 
 NOTES_TEMPLATE = """# Listening notes: {name}
 
@@ -94,6 +109,21 @@ def build_parser() -> argparse.ArgumentParser:
     video.add_argument("--fps", type=int, default=30)
     video.set_defaults(handler=run_video)
 
+    compare = commands.add_parser(
+        "compare", help="join the input, General MIDI and chip versions in one short MP4"
+    )
+    compare.add_argument(
+        "sample_dir",
+        type=Path,
+        help="sample folder with input.mp3, piece.mp3, piece-chip.mp3, piece.mp4",
+    )
+    compare.add_argument("--out", type=Path, help="MP4 path (default: outputs/compare/<name>.mp4)")
+    compare.add_argument(
+        "--max-mb", type=float, default=9.5, help="size budget in MB (GitHub attachments: 10 MB)"
+    )
+    compare.add_argument("--title", help="title on the first card (default: from the folder name)")
+    compare.set_defaults(handler=run_compare)
+
     experiment = commands.add_parser("experiment", help="seeds, random search and ablation")
     experiment.add_argument("leadsheet", type=Path, help="ABC lead sheet or MIDI song")
     experiment.add_argument("--seed", type=int, required=True, help="first of five seeds")
@@ -101,6 +131,21 @@ def build_parser() -> argparse.ArgumentParser:
     experiment.add_argument("--set", action="append", default=[], metavar="KEY=VALUE")
     experiment.add_argument("--out", type=Path, default=Path("outputs"), help="parent folder")
     experiment.set_defaults(handler=run_experiment)
+
+    fetch = commands.add_parser(
+        "fetch", help="download the MIDI songs of data/sources.json, checking each SHA-256"
+    )
+    fetch.add_argument("--sources", type=Path, default=SOURCES_PATH, help="sources manifest")
+    fetch.set_defaults(handler=run_fetch)
+
+    abc = commands.add_parser(
+        "abc", help="write the ABC lead sheet reduced from the MIDI song of a sample"
+    )
+    abc.add_argument("sample_dirs", nargs="*", type=Path, help="sample folders, e.g. samples/x-s1")
+    abc.add_argument("--all", action="store_true", help="every song of the sources manifest")
+    abc.add_argument("--sources", type=Path, default=SOURCES_PATH, help="sources manifest")
+    abc.add_argument("--samples", type=Path, default=Path("samples"))
+    abc.set_defaults(handler=run_abc)
     return parser
 
 
@@ -217,6 +262,62 @@ def run_video(args: argparse.Namespace) -> Path:
         raise ValueError(f"no video written for {args.run_dir}")
     print(target)
     return target
+
+
+def run_compare(args: argparse.Namespace) -> Path:
+    """Render the comparison MP4 of a sample, small enough to play inline in a README."""
+    target = args.out or Path("outputs/compare") / f"{args.sample_dir.resolve().name}.mp4"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    budget = round(args.max_mb * 1_000_000)
+    if not render_comparison(args.sample_dir, target, title=args.title, budget_bytes=budget):
+        raise ValueError(f"no comparison video written for {args.sample_dir}")
+    return target
+
+
+def run_fetch(args: argparse.Namespace) -> list[str]:
+    """Download every song of the sources manifest that is missing, checking its SHA-256."""
+    statuses = []
+    for song in load_sources(args.sources):
+        status = fetch_song(song)
+        if status == "no url":
+            print(
+                f"{song.id} cannot be downloaded (no public URL); "
+                f"arrange its lead sheet {song.abc.as_posix()} instead"
+            )
+        else:
+            print(f"{status} {song.path.as_posix()}")
+        statuses.append(status)
+    return statuses
+
+
+def run_abc(args: argparse.Namespace) -> list[Path]:
+    """Write the ABC lead sheet of each sample's MIDI song: the project's reduction of the song.
+
+    The song is read again with the settings recorded in the sample's `config.json`, so the ABC
+    file holds the very lead sheet the sample was arranged from.
+    """
+    songs = load_sources(args.sources)
+    sample_dirs = [args.samples / song.sample for song in songs] if args.all else args.sample_dirs
+    if not sample_dirs:
+        raise ValueError("name at least one sample folder, or use --all")
+    written = []
+    for sample_dir in sample_dirs:
+        recorded = json.loads((sample_dir / "config.json").read_text())
+        config = load_config()
+        config.update({key: recorded[key] for key in config if key in recorded})
+        song = song_for_input(songs, recorded["input_path"])
+        lead_sheet = load_lead_sheet(require_song_file(song), config)
+        command = f"uv run src/main.py abc {sample_dir.as_posix()}"
+        text = lead_sheet_to_abc(
+            replace(lead_sheet, title=song.title),
+            config["phrase_length"],
+            provenance_comments(song, config["midi"], command),
+        )
+        song.abc.parent.mkdir(parents=True, exist_ok=True)
+        song.abc.write_text(text, encoding="utf-8")
+        print(song.abc.as_posix())
+        written.append(song.abc)
+    return written
 
 
 def run_sample(args: argparse.Namespace) -> Path:

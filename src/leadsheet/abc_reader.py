@@ -10,6 +10,8 @@ line by bar line, to read the part labels and to check every chord symbol.
 
 The arranger works bar by bar in 4/4, in the order the bars are played. So the reader rejects any
 other meter, pickups and incomplete bars, and repeat signs (a repeat must be written out in full).
+Each bar holds only its own notes: a tie inside a bar joins the tied notes into one melody note,
+but a note tied across a bar line gives one note in each bar.
 """
 
 import re
@@ -130,7 +132,7 @@ def read_lead_sheet_text(
         )
     return LeadSheet(
         title=score.metadata.title or "",
-        key=_key_name(score),
+        key=_key_name(score, tune),
         tempo_bpm=_tempo_bpm(score, tempo_override),
         bars=tuple(bars),
     )
@@ -222,16 +224,23 @@ def _check_complete_bars(measures: list[stream.Measure]) -> None:
 
 def _melody(measure: stream.Measure) -> tuple[MelodyNote, ...]:
     """Return the melody notes of one bar, with onsets measured from the bar start."""
-    notes = []
+    notes: list[MelodyNote] = []
     for element in measure.flatten().notes:
         # Chord symbols are harmony, not melody; grace notes take no time of their own.
         if isinstance(element, harmony.ChordSymbol) or element.duration.isGrace:
             continue
         # When the melody plays several notes at once, the top note carries the tune.
         pitch = max(p.midi for p in element.pitches)
-        notes.append(
-            MelodyNote(pitch, float(element.offset), float(element.duration.quarterLength))
-        )
+        onset, duration = float(element.offset), float(element.duration.quarterLength)
+        # A tie makes two written notes sound as one, for example to place a chord change
+        # in the middle of a long note.
+        tied = element.tie is not None and element.tie.type in ("stop", "continue")
+        if tied and notes and notes[-1].pitch == pitch:
+            previous = notes[-1]
+            if abs(previous.onset + previous.duration - onset) < 1e-9:
+                notes[-1] = MelodyNote(pitch, previous.onset, previous.duration + duration)
+                continue
+        notes.append(MelodyNote(pitch, onset, duration))
     return tuple(notes)
 
 
@@ -312,8 +321,19 @@ def section_role(label: str, role_map: dict[str, str] | None) -> str:
     return "chorus" if "chorus" in label.lower() or label == "B" else "verse"
 
 
-def _key_name(score: stream.Score) -> str:
-    """Return the key of the tune in music21's spelling, for example "e- minor" or "C major"."""
+def _key_name(score: stream.Score, tune: str) -> str:
+    """Return the key of the tune in music21's spelling, for example "e- minor" or "C major".
+
+    "K:none" is how ABC writes a tune without a key signature, such as a lead sheet reduced from
+    a MIDI song, whose key is unknown. music21 reads it as C major; the lead sheet keeps "" (no
+    key), as the MIDI reader does.
+
+    >>> _key_name(stream.Score(), "X:1\\nK:none\\nCDEF|")
+    ''
+    """
+    key_field = next((line[2:].split() for line in tune.splitlines() if line.startswith("K:")), [])
+    if key_field and key_field[0].lower() == "none":
+        return ""
     tune_key = score.recurse().getElementsByClass(key.Key).first()
     if tune_key is None:
         return ""

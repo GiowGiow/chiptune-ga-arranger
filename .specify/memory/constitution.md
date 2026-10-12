@@ -156,7 +156,11 @@ Rationale: a small, direct codebase is easier to test, explain and grade.
 - Data: if a corpus is used, its source and license are recorded in the README; large corpora
   stay out of git in `data/raw/` and are downloaded by a documented command. Inputs are ABC lead
   sheets or multi-track MIDI songs that the code reduces to lead sheets. Third-party MIDI files
-  stay out of git in `data/raw/`, and the README says where they come from.
+  stay out of git in `data/raw/`; the README says where they come from, and a documented command
+  downloads the ones that are on the web and checks their hashes. The lead sheet that the code
+  reduces from each MIDI song may be committed as ABC in `data/leadsheets/` (the project's own
+  reduction: one melody track, detected chords and part labels, no accompaniment or lyrics), so
+  that the runs can be reproduced without the MIDI files.
 - Deliverables: public GitHub repository with README (install, reproduce, pieces, AI usage
   statement) and `requirements.txt`; at least 3 synthesized pieces in the repository; an ISMIR
   abstract of at most 3 pages of content (postgraduate rule) with at least 4 references, 3 of
@@ -185,4 +189,4 @@ Rationale: a small, direct codebase is easier to test, explain and grade.
 - Agent guidance files in the repository (such as `CLAUDE.md`) must not contradict this
   document.
 
-**Version**: 1.1.0 | **Ratified**: 2026-10-11 | **Last Amended**: 2026-10-11
+**Version**: 1.2.0 | **Ratified**: 2026-10-11 | **Last Amended**: 2026-10-11

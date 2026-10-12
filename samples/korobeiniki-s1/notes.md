@@ -1,6 +1,6 @@
 # Listening notes: korobeiniki-s1
 
-Run `korobeiniki-s1-95456f9f`: Korobeiniki (Tetris theme), seed 1, default configuration. Best
+Run `korobeiniki-s1-220a0105`: Korobeiniki (Tetris theme), seed 1, default configuration. Best
 fitness 0.912 after 934 generations.
 
 - What to listen for: P2 arpeggiates the chords all the way through, in 16th notes in the A parts

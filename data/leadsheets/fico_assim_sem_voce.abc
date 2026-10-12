@@ -1,0 +1,36 @@
+%abc-2.1
+% Fico Assim Sem Você, as performed by Adriana Calcanhotto (composers: Abdullah, Cacá Moraes).
+% This lead sheet is the project's reduction of a fan-made MIDI file: the melody of one track, the
+% chords detected in the other tracks every half bar, and the part labels. It is our
+% reinterpretation of the song, not the original recording or arrangement, made for academic use
+% only (DCC831 TP1, UFMG).
+% Source: https://www.beakauffmann.com/mpb_f/fico-assim-sem-voce.html (file
+% https://www.beakauffmann.com/mpb_f/som/fico-assim-sem-voce.mid). From Beatriz Kauffmann's Web
+% Site, a non-commercial site of MPB MIDI sequences. The page names Claudinho & Buchecha as the
+% reference recording; the file's own text names Adriana Calcanhotto's version, the sequencer
+% Marcos Borelli and 'Copyright © Editora HMP'.
+% Reduced from data/raw/mpb/fico_assim_sem_voce.mid (sha256
+% 7202f877491e86a6cfb793d8ba09e5ac3bfa7bbc7094d3a0a43ab82555d356ae): melody track 1, bars 10-58
+% (0-based, end excluded), sections A at bar 0, A at bar 16, Chorus at bar 32, beat grid auto.
+% Written by: uv run src/main.py abc samples/fico-assim-sem-voce-s1
+X:1
+T:Fico Assim Sem Você
+M:4/4
+L:1/16
+Q:1/4=122.000069
+% Exact tempo 122.00006913337249 quarter notes per minute; Q: keeps 6 decimals.
+K:none
+P:A
+"Bb"F z F2 _B z f2 _e4 d4 | "Dm"F z F2 _B2 f2 _e4 d z d z | "Eb"d4 z2 c2 "Cm7"_B2 c2 d z d2 | "F7"d2 c6 z8 |
+"Bb"F z F2 _B2 f z _e4 d2 z2 | "Dm"F z F2 _B2 f2 _e4 d z d z | "Eb"d3 z3 c2 _B2 c2 d2 c2 | "F7"c6 z8 c z |
+"Eb"_B z _B z _e z g z f4 _e2 g2 | "F"g6 f2- "F7"f3 z3 F z | "F#m"F z F z _B z f z _e4 d z d2 | "Gm"d8 z6 d z |
+"Cm7"d2 z2 c2 _B z _B4 G z d z | "Cm"d2 c z c2 _B z _B4 G z3 | "F7"g z f z f2 d2 f4 g2 f2 | "F7"f8 z8 |
+"Bb"F z F2 _B z f2 _e4 d2 F2 | "Dm"F z F2 _B2 f2 _e4 d z d z | "Eb"d4 z2 c2 "Cm7"_B2 c2 d z d2 | "F7"d2 c6 z8 |
+"Bb"F z F2 _B2 f z _e4 d2 F2 | "Dm"F z F2 _B2 f2 _e4 d z d z | "Eb"d3 z3 c2 _B2 c2 d2 c2 | "F7"c6 z8 c z |
+"Eb"_B z _B z _e z g z f4 _e2 g2 | "F"g6 f2- "F7"f3 z3 F z | "F#m"F z F z _B z f z _e4 d z d2 | "Gm"d8 z6 d z |
+"Cm7"d2 z2 c2 _B z _B4 G z d z | "Cm"d2 c z c2 _B z _B4 G z3 | "F7"g z f z f2 d2 f4 g2 f2 | "F7"f8 z2 f2 g a2 z |
+P:Chorus
+"Gm"_b z _b2 a z a2 f3 d2 g3 | "Dm"g5 z3 _B z _B2 d2 f2 | "Eb"g2 f z f2 z2 _e4 _B2 c2 | "Bb"c2 d5 z "Dm"z2 d2 g a3 |
+"Gm7"z2 _b2 a z a2 f3 d2 g3 | "Dm"g2 f3 z4 _B2 d2 f2 g | "Eb"g f z2 f _e z2 "Cm7"_e4 _B z g2 | "F"g2 f6- "F7"f8 |
+"F"z8 "F7"z2 g4 f2 | "F7"f8- "F"f8 | "F"z8 "F7"g2 a2 g3 z | "F"g2 f6- "F7"f8 |
+"F7"f10 z6 | "Bb"F z F2 _B z f2 _e4 d2 F2 | "Bb"F z F2 _B2 f2 "Dm"_e4 d z d z | "Eb"d4 z2 c2 _B2 c2 d z d2 |

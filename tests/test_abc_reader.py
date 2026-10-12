@@ -153,15 +153,31 @@ def test_grace_notes_are_dropped_from_the_melody():
     assert [note.pitch for note in sheet.bars[0].melody] == [60, 62, 64, 65]
 
 
-def test_tied_notes_stay_separate_notes():
+def test_a_tie_inside_a_bar_joins_the_tied_notes_into_one_note():
     sheet = read_lead_sheet_text(abc('"C"CD-DE|GABc|'))
 
-    assert melody_of(sheet.bars[0]) == [
-        (60, 0.0, 1.0),
-        (62, 1.0, 1.0),
-        (62, 2.0, 1.0),
-        (64, 3.0, 1.0),
-    ]
+    assert melody_of(sheet.bars[0]) == [(60, 0.0, 1.0), (62, 1.0, 2.0), (64, 3.0, 1.0)]
+
+
+def test_a_chain_of_ties_inside_a_bar_is_one_note():
+    sheet = read_lead_sheet_text(abc('"C"C-C-C D|GABc|'))
+
+    assert melody_of(sheet.bars[0]) == [(60, 0.0, 3.0), (62, 3.0, 1.0)]
+
+
+def test_a_chord_symbol_on_a_tied_note_changes_the_chord_but_not_the_note():
+    sheet = read_lead_sheet_text(abc('"C"C D- "G"D E|GABc|'))
+
+    assert melody_of(sheet.bars[0]) == [(60, 0.0, 1.0), (62, 1.0, 2.0), (64, 3.0, 1.0)]
+    assert chords_of(sheet.bars[0]) == [("C", 0.0, 2.0), ("G", 2.0, 2.0)]
+
+
+def test_a_tie_across_a_bar_line_leaves_one_note_in_each_bar():
+    # Every bar holds only its own notes, as when a MIDI song is cut at its bar lines.
+    sheet = read_lead_sheet_text(abc('"C"CDEF-|FGAB|'))
+
+    assert melody_of(sheet.bars[0])[-1] == (65, 3.0, 1.0)
+    assert melody_of(sheet.bars[1])[0] == (65, 0.0, 1.0)
 
 
 def test_rests_leave_no_melody_note():
@@ -251,6 +267,13 @@ def test_the_tempo_is_converted_to_quarter_notes_per_minute():
     sheet = read_lead_sheet_text(abc('"C"CDEF|GABc|', extra_header="Q:3/8=60\n"))
 
     assert sheet.tempo_bpm == 90.0
+
+
+def test_k_none_declares_no_key_so_the_key_is_empty():
+    sheet = read_lead_sheet_text(abc('"C"CDEF|GABc|').replace("K:C", "K:none"))
+
+    assert sheet.key == ""
+    assert [note.pitch for note in sheet.bars[0].melody] == [60, 62, 64, 65]
 
 
 def test_common_time_is_accepted_as_four_four():

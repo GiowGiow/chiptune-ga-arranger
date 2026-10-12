@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NES GA Arranger: Listen</title>
+<meta name="description" content="Listening page of the DCC831 TP1 genetic algorithm that arranges songs for the NES sound chip: original input, General MIDI and chip renderings, and the visualizer video of every curated sample.">
+<style>
+  /* Colors follow the visualizer videos: dark background and one color per NES channel. */
+  :root {
+    --bg: #0B0E17;
+    --card: #141a2a;
+    --line: #25304a;
+    --text: #e6e9f0;
+    --muted: #9aa3b5;
+    --p1: #5F9ED1;
+    --p2: #FF800E;
+    --tr: #CFCFCF;
+    --no: #FFBC79;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 960px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 1.7rem; line-height: 1.25; margin: 0 0 8px; }
+  h2 { font-size: 1.2rem; margin: 0; }
+  a { color: var(--p1); }
+  .lead { color: var(--muted); margin: 0 0 8px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 16px 0 28px; color: var(--muted); font-size: 0.9rem; }
+  .legend span::before { content: ""; display: inline-block; width: 18px; height: 3px; margin-right: 6px; vertical-align: middle; background: var(--c); box-shadow: 0 0 6px var(--c); }
+  .song { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 18px; margin: 0 0 20px; }
+  .song header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; align-items: baseline; }
+  .meta { color: var(--muted); font-size: 0.9rem; margin: 4px 0 14px; }
+  .fitness { color: var(--no); font-variant-numeric: tabular-nums; font-size: 0.9rem; }
+  .tracks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .track { min-width: 0; }
+  .track h3 { font-size: 0.85rem; font-weight: 600; margin: 0 0 6px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .track.gm h3 { color: var(--p1); }
+  .track.chip h3 { color: var(--p2); }
+  audio { width: 100%; height: 40px; }
+  details { margin-top: 14px; }
+  summary { cursor: pointer; color: var(--muted); font-size: 0.9rem; }
+  video { width: 100%; margin-top: 10px; border-radius: 6px; background: #000; aspect-ratio: 16 / 9; }
+  footer { color: var(--muted); font-size: 0.85rem; margin-top: 32px; }
+  @media (max-width: 720px) {
+    .tracks { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>A genetic algorithm that arranges songs for the NES sound chip</h1>
+  <p class="lead">DCC831 Generative AI for Music (UFMG, 2026/2), Assignment 1. Every song has three
+  renderings: the original input, the generated arrangement with General MIDI timbres, and the same
+  arrangement on our NES chip synthesizer. The video draws each channel as a glowing line.</p>
+  <p class="lead">For an ABC tune, the original is the lead sheet played plainly. For a MIDI song,
+  the original is the fan-made MIDI file itself, rendered with the same soundfont and cut to the
+  same bars. Code, method and paper: <a href="https://github.com/GiowGiow/dcc831-tp1">GiowGiow/dcc831-tp1</a>.</p>
+  <div class="legend" aria-label="Channel colors in the videos">
+    <span style="--c: var(--p1)">P1 pulse: melody</span>
+    <span style="--c: var(--p2)">P2 pulse: harmony</span>
+    <span style="--c: var(--tr)">TR triangle: bass</span>
+    <span style="--c: var(--no)">NO noise: drums</span>
+  </div>
+  <div id="songs"></div>
+  <footer>The audio is rendered only from MIDI files: FluidSynth with the FluidR3_GM soundfont,
+  or the project's own chip synthesizer (pulse, triangle and noise waveforms).</footer>
+</main>
+<script>
+  // One entry per folder in samples/; the text matches the "Generated pieces" section of the README.
+  const SAMPLES = [
+    ["ievan-polkka-s1", "Ievan Polkka", "ABC lead sheet (Loituma melody). Varied: default.", "0.929"],
+    ["ievan-polkka-s1-contrast0", "Ievan Polkka, contrast weight 0", "Same lead sheet. Varied: contrast weight 0 (fitness not comparable).", "0.871"],
+    ["korobeiniki-s1", "Korobeiniki (Tetris theme)", "ABC lead sheet. Varied: default.", "0.912"],
+    ["korobeiniki-s2", "Korobeiniki, seed 2", "Same lead sheet. Varied: seed 2.", "0.889"],
+    ["voa-voa-s1", "Voa Voa (Chiclete com Banana)", "MIDI, bars 8–56. Beat grid re-estimated (110 BPM).", "0.802"],
+    ["mulher-de-fases-s1", "Mulher de Fases (Raimundos)", "MIDI, bars 8–40. Melody: harmonica track.", "0.878"],
+    ["amor-i-love-you-s1", "Amor I Love You (Marisa Monte)", "MIDI, bars 0–56. Melody: flute track.", "0.830"],
+    ["por-voce-s1", "Por Você (Barão Vermelho)", "MIDI, bars 4–48. Melody: flute track.", "0.879"],
+    ["aquarela-s1", "Aquarela (Toquinho)", "MIDI, bars 4–36. Melody: clarinet track.", "0.865"],
+    ["fico-assim-sem-voce-s1", "Fico Assim Sem Você (Adriana Calcanhotto)", "MIDI, bars 10–58. Melody: flute track.", "0.854"],
+  ];
+  const TRACKS = [
+    ["input.mp3", "Original", "original"],
+    ["piece.mp3", "Generated · General MIDI", "gm"],
+    ["piece-chip.mp3", "Generated · NES chip", "chip"],
+  ];
+  const songs = document.getElementById("songs");
+  for (const [folder, title, meta, fitness] of SAMPLES) {
+    const base = `../samples/${folder}/`;
+    const section = document.createElement("section");
+    section.className = "song";
+    section.id = folder;
+    const tracks = TRACKS.map(([file, label, cls]) =>
+      `<div class="track ${cls}"><h3>${label}</h3>` +
+      `<audio controls preload="none" src="${base}${file}"></audio></div>`).join("");
+    section.innerHTML =
+      `<header><h2>${title}</h2><span class="fitness">best fitness ${fitness}</span></header>` +
+      `<p class="meta">${meta} <a href="https://github.com/GiowGiow/dcc831-tp1/tree/main/samples/${folder}">Files and notes</a></p>` +
+      `<div class="tracks">${tracks}</div>` +
+      `<details><summary>Video: the four channels in sync with the chip audio</summary>` +
+      `<video controls preload="none" src="${base}piece.mp4"></video></details>`;
+    songs.appendChild(section);
+  }
+  // Only one player sounds at a time: starting one pauses the others.
+  document.addEventListener("play", (event) => {
+    for (const media of document.querySelectorAll("audio, video")) {
+      if (media !== event.target) media.pause();
+    }
+  }, true);
+</script>
+</body>
+</html>

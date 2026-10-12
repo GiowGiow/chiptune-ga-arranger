@@ -51,6 +51,7 @@ All hyperparameters are in [configs/default.json](configs/default.json) and can 
 ```mermaid
 flowchart LR
     A[ABC lead sheet<br/>melody, chords, parts] --> B[Lead sheet<br/>bars, roles, phrases]
+    M[Multi-track MIDI song<br/>melody track, excerpt] -->|skyline melody,<br/>chord detection| B
     B --> C[Score tables<br/>every bar x every gene value]
     C --> D[Genetic algorithm<br/>roulette, crossover, mutation]
     D --> E[Best plan<br/>4 genes per bar]
@@ -58,22 +59,27 @@ flowchart LR
     F --> G{NES rules<br/>valid?}
     G -->|yes| H[piece.mid]
     H --> I[piece.mp3<br/>FluidSynth + GM]
+    H --> K[piece-chip.mp3<br/>NES chip synthesizer]
+    H --> V[piece.mp4<br/>video]
     F --> J[pianoroll, evolution,<br/>metrics, config.json]
 ```
 
 ## Layout
 
 - `src/`: source code (entry point: `src/main.py`)
-  - `leadsheet/`: ABC reading and chord helpers
+  - `leadsheet/`: ABC and MIDI reading, chord helpers
   - `arrangement/`: realizers, assembly, NES rule validation
   - `ga/`: genotype, operators, score tables, fitness, evolution loop
   - `analysis/`: objective metrics
-  - `export/`: MIDI, audio, figures, run folders
-- `data/leadsheets/`: the input lead sheets
+  - `export/`: MIDI, audio (General MIDI and chip), figures, videos, run folders
+- `data/leadsheets/`: the input lead sheets (two written by hand, six reduced from MIDI songs)
+- `data/sources.json`: where each MIDI song comes from (URL, SHA-256, lead-sheet settings)
 - `configs/default.json`: default hyperparameters
 - `tests/`: tests (pytest); the docstring examples in `src/` also run as tests
 - `samples/`: curated generated pieces (MIDI, MP3, piano roll, evolution, metrics, config, notes)
 - `outputs/`: every generation run, one folder per run (not versioned)
+- `listen/`: a static listening page (audio players and videos of every sample), served by GitHub
+  Pages
 - `paper/`: the ISMIR abstract (`tp1.tex`), with the official ISMIR 2026 template files from
   [ismir/paper_templates@2026v1](https://github.com/ismir/paper_templates/tree/2026v1/2026/latex)
 - `specs/` and `.specify/`: [Spec Kit](https://github.com/github/spec-kit) design documents; the
@@ -152,41 +158,105 @@ uv run pytest
 ## Reproducing the results
 
 Each sample was made by one `arrange` command and copied with `sample`. The same command
-rebuilds the same notes. The run folder name ends with the hash of the configuration: `220a0105`
-is the default configuration.
+rebuilds the same notes. The run folder name ends with the hash of the configuration: `e8357f24`
+is the default configuration today. (The `config.json` of the four ABC samples records older run
+ids, `220a0105` and `8e2f2e48`, because the `midi` block was added to the configuration after
+they were made; the notes are the same.)
 
 ```bash
 uv run src/main.py arrange data/leadsheets/ievan_polkka.abc --seed 1
-uv run src/main.py sample outputs/ievan_polkka-s1-220a0105 ievan-polkka-s1
+uv run src/main.py sample outputs/ievan_polkka-s1-e8357f24 ievan-polkka-s1
 ```
 
 ```bash
 uv run src/main.py arrange data/leadsheets/ievan_polkka.abc --seed 1 --set weights.contrast=0
-uv run src/main.py sample outputs/ievan_polkka-s1-8e2f2e48 ievan-polkka-s1-contrast0
+uv run src/main.py sample outputs/ievan_polkka-s1-a8cecc06 ievan-polkka-s1-contrast0
 ```
 
 ```bash
 uv run src/main.py arrange data/leadsheets/korobeiniki.abc --seed 1
-uv run src/main.py sample outputs/korobeiniki-s1-220a0105 korobeiniki-s1
+uv run src/main.py sample outputs/korobeiniki-s1-e8357f24 korobeiniki-s1
 ```
 
 ```bash
 uv run src/main.py arrange data/leadsheets/korobeiniki.abc --seed 2
-uv run src/main.py sample outputs/korobeiniki-s2-220a0105 korobeiniki-s2
+uv run src/main.py sample outputs/korobeiniki-s2-e8357f24 korobeiniki-s2
 ```
 
-The MIDI song needs its source file in `data/raw/chiclete/` (see "Inputs"):
+The MIDI songs need their source files in `data/raw/`. This command downloads the five that are on
+the web and checks each file against the SHA-256 hash recorded in
+[`data/sources.json`](data/sources.json). It skips files already present, and it stops with an
+error if a site now serves a different file. "Voa Voa" has no public download, so the command only
+reports it.
 
 ```bash
-uv run src/main.py arrange data/raw/chiclete/voa_voa.mid --seed 1 \
-    --set midi.melody_track=3 --set 'midi.bars=[8,56]' \
-    --set 'midi.sections=[[0,"A"],[16,"Pre"],[32,"Chorus"]]' \
-    --set max_generations=4000 --set stagnation_window=200
-uv run src/main.py sample outputs/voa_voa-s1-a4ef6256 voa-voa-s1
+uv run src/main.py fetch
 ```
 
+Each command below sets the melody track, the bar excerpt and the sections. The longer songs use
+up to 4000 generations with a stagnation window of 200:
+
+```bash
+G="--set max_generations=4000 --set stagnation_window=200"
+uv run src/main.py arrange data/raw/chiclete/voa_voa.mid --seed 1 $G --set midi.melody_track=3 \
+    --set 'midi.bars=[8,56]' --set 'midi.sections=[[0,"A"],[16,"Pre"],[32,"Chorus"]]'
+uv run src/main.py arrange data/raw/mpb/mulher_de_fases.mid --seed 1 $G --set midi.melody_track=6 \
+    --set 'midi.bars=[8,40]' --set 'midi.sections=[[0,"A"],[8,"Chorus"],[16,"A"],[24,"Chorus"]]'
+uv run src/main.py arrange data/raw/mpb/amor_i_love_you.mid --seed 1 $G --set midi.melody_track=2 \
+    --set 'midi.bars=[0,56]' --set 'midi.sections=[[0,"A"],[16,"B"],[24,"A"],[40,"Chorus"]]'
+uv run src/main.py arrange data/raw/mpb/por_voce_bk.mid --seed 1 $G --set midi.melody_track=4 \
+    --set 'midi.bars=[4,48]' --set 'midi.sections=[[0,"A"],[20,"Pre"],[28,"Chorus"]]'
+uv run src/main.py arrange data/raw/mpb/aquarela.mid --seed 1 $G --set midi.melody_track=3 \
+    --set 'midi.bars=[4,36]' --set 'midi.sections=[[0,"A"],[16,"B"]]'
+uv run src/main.py arrange data/raw/mpb/fico_assim_sem_voce.mid --seed 1 $G --set midi.melody_track=1 \
+    --set 'midi.bars=[10,58]' --set 'midi.sections=[[0,"A"],[16,"A"],[32,"Chorus"]]'
+```
+
+Then copy each run to `samples/` with the names used below, for example
+`uv run src/main.py sample outputs/voa_voa-s1-a4ef6256 voa-voa-s1`. The run folders are:
+
+- `voa_voa-s1-a4ef6256`
+- `mulher_de_fases-s1-3d09095f`
+- `amor_i_love_you-s1-f7b81f72`
+- `por_voce_bk-s1-7d4f337d`
+- `aquarela-s1-54a43520`
+- `fico_assim_sem_voce-s1-31684ebd`
 
 Videos: `uv run src/main.py video samples/<sample-name>` for each sample.
+
+Comparison videos (the three versions one after the other, at most 9.5 MB so that GitHub plays
+them inline in this README): `uv run src/main.py compare samples/<sample-name>`, written to
+`outputs/compare/`. Two titles need their accents: `--title "Por Você (s1)"` and
+`--title "Fico Assim Sem Você (s1)"`.
+
+**Without the MIDI files.** The committed ABC lead sheets hold the same lead sheets (the tests check
+it for every song), so a fresh clone can rerun every MIDI sample from them, Voa Voa included:
+
+```bash
+G="--set max_generations=4000 --set stagnation_window=200"
+uv run src/main.py arrange data/leadsheets/voa_voa.abc --seed 1 $G
+uv run src/main.py arrange data/leadsheets/mulher_de_fases.abc --seed 1 $G
+uv run src/main.py arrange data/leadsheets/amor_i_love_you.abc --seed 1 $G
+uv run src/main.py arrange data/leadsheets/por_voce.abc --seed 1 $G
+uv run src/main.py arrange data/leadsheets/fico_assim_sem_voce.abc --seed 1 $G
+uv run src/main.py arrange data/leadsheets/aquarela.abc --seed 1 $G
+```
+
+These runs reach the same best fitness, in the same number of generations, with the same
+arrangement as the samples. Three things differ:
+
+- the run folder name, because the `midi` settings are no longer part of the configuration;
+- `input.mp3`, which plays the plain lead sheet instead of the original MIDI excerpt;
+- for the four songs whose tempo has more than six decimals (Voa Voa, Mulher de Fases, Amor I Love
+  You, Fico Assim Sem Você), the ABC `Q:` field keeps six decimals, so 4 to 13% of the note events
+  in `piece.mid` land one MIDI tick (about 2 ms) away.
+
+The ABC lead sheets are rebuilt from the MIDI files with the settings recorded in each sample:
+
+```bash
+uv run src/main.py abc --all                 # every song of data/sources.json
+uv run src/main.py abc samples/aquarela-s1   # one song
+```
 
 The experiments of the abstract compare 5 seeds, a random-search baseline and an ablation that
 sets each criterion weight to 0. Each command writes `outputs/experiment-<song>-s1-<hash>/`
@@ -201,38 +271,113 @@ uv run src/main.py experiment data/leadsheets/korobeiniki.abc --seed 1
 
 ![Korobeiniki, seed 1: the four NES channels drawn as glowing lines in sync with the music](samples/korobeiniki-s1/preview.gif)
 
-*Korobeiniki, seed 1. The image shows the first seconds of the video: P1 is the melody (blue),
-P2 the arpeggios (orange), TR the bass (grey), and the bottom band holds the drum hits.*
+*Korobeiniki, seed 1. The image shows a few seconds of the video: P1 is the melody (blue), P2
+the arpeggios (orange), TR the bass (grey), and the bottom band holds the drum hits.*
 
-Each folder in `samples/` holds:
+Each song below starts with three renderings: the original input, the generated arrangement with
+General MIDI timbres, and the same arrangement on the NES chip synthesizer. Then come the video
+and the folder with every other file:
 
-- the input made audible (`input.mp3`);
-- the arrangement with General MIDI timbres (`piece.mp3`) and with the chip synthesizer
-  (`piece-chip.mp3`);
-- the video (`piece.mp4`);
-- `piece.mid`, the piano roll, the evolution log and figure, `metrics.json`, `config.json`;
-- the listening notes (`notes.md`).
+- `piece.mid`;
+- the piano roll;
+- the evolution log and figure;
+- `metrics.json` and `config.json`;
+- the listening notes, `notes.md`.
 
-### Original vs. generated
+For an ABC tune, the original is the lead sheet played plainly (piano melody, block chords,
+bass). For a MIDI song, the original is the fan-made MIDI file itself, rendered with the same
+soundfont and cut to the same bars.
 
-| Sample | Song (input) | What varied | Fitness | Original | 8-bit, GM | 8-bit, chip | Video |
-|---|---|---|---|---|---|---|---|
-| [ievan-polkka-s1](samples/ievan-polkka-s1/) | Ievan Polkka (ABC) | default | 0.929 | [mp3](samples/ievan-polkka-s1/input.mp3) | [mp3](samples/ievan-polkka-s1/piece.mp3) | [mp3](samples/ievan-polkka-s1/piece-chip.mp3) | [mp4](samples/ievan-polkka-s1/piece.mp4) |
-| [ievan-polkka-s1-contrast0](samples/ievan-polkka-s1-contrast0/) | Ievan Polkka (ABC) | contrast weight 0 | 0.871 | [mp3](samples/ievan-polkka-s1-contrast0/input.mp3) | [mp3](samples/ievan-polkka-s1-contrast0/piece.mp3) | [mp3](samples/ievan-polkka-s1-contrast0/piece-chip.mp3) | [mp4](samples/ievan-polkka-s1-contrast0/piece.mp4) |
-| [korobeiniki-s1](samples/korobeiniki-s1/) | Korobeiniki (ABC) | default | 0.912 | [mp3](samples/korobeiniki-s1/input.mp3) | [mp3](samples/korobeiniki-s1/piece.mp3) | [mp3](samples/korobeiniki-s1/piece-chip.mp3) | [mp4](samples/korobeiniki-s1/piece.mp4) |
-| [korobeiniki-s2](samples/korobeiniki-s2/) | Korobeiniki (ABC) | seed 2 | 0.889 | [mp3](samples/korobeiniki-s2/input.mp3) | [mp3](samples/korobeiniki-s2/piece.mp3) | [mp3](samples/korobeiniki-s2/piece-chip.mp3) | [mp4](samples/korobeiniki-s2/piece.mp4) |
-| [voa-voa-s1](samples/voa-voa-s1/) | Voa Voa (MIDI, bars 8–56) | 4000 generations | 0.802 | [mp3](samples/voa-voa-s1/input.mp3) | [mp3](samples/voa-voa-s1/piece.mp3) | [mp3](samples/voa-voa-s1/piece-chip.mp3) | [mp4](samples/voa-voa-s1/piece.mp4) |
+### Ievan Polkka
 
-How to read the table:
+| Original | Generated (General MIDI) | Generated (chip) | Video |
+|---|---|---|---|
+| [input.mp3](samples/ievan-polkka-s1/input.mp3) | [piece.mp3](samples/ievan-polkka-s1/piece.mp3) | [piece-chip.mp3](samples/ievan-polkka-s1/piece-chip.mp3) | [piece.mp4](samples/ievan-polkka-s1/piece.mp4) |
 
-- **Original:** for the ABC tunes, the lead sheet played plainly (piano melody, block chords,
-  bass). For the MIDI songs, the band arrangement of the MIDI file over the same bars.
-- **Fitness:** the contrast-0 run is scored without the contrast criterion, so its value is not
-  comparable with the others.
-- **Stopping:** every run stopped after 100 generations without improvement; the MIDI song used a
-  window of 200 and up to 4000 generations.
-- **The MIDI song scores lower** than the ABC tunes, for two reasons. Its melody sits lower (in
-  octave 3), which pits the register criterion against fidelity. It is also longer.
+Input: ABC lead sheet (Loituma melody). Varied: default. Best fitness 0.929. Files and notes: [ievan-polkka-s1](samples/ievan-polkka-s1/).
+
+### Ievan Polkka, contrast weight 0
+
+| Original | Generated (General MIDI) | Generated (chip) | Video |
+|---|---|---|---|
+| [input.mp3](samples/ievan-polkka-s1-contrast0/input.mp3) | [piece.mp3](samples/ievan-polkka-s1-contrast0/piece.mp3) | [piece-chip.mp3](samples/ievan-polkka-s1-contrast0/piece-chip.mp3) | [piece.mp4](samples/ievan-polkka-s1-contrast0/piece.mp4) |
+
+Input: same lead sheet. Varied: hyperparameter: contrast weight 0. Best fitness 0.871*. Files and notes: [ievan-polkka-s1-contrast0](samples/ievan-polkka-s1-contrast0/).
+
+### Korobeiniki (Tetris theme)
+
+| Original | Generated (General MIDI) | Generated (chip) | Video |
+|---|---|---|---|
+| [input.mp3](samples/korobeiniki-s1/input.mp3) | [piece.mp3](samples/korobeiniki-s1/piece.mp3) | [piece-chip.mp3](samples/korobeiniki-s1/piece-chip.mp3) | [piece.mp4](samples/korobeiniki-s1/piece.mp4) |
+
+Input: ABC lead sheet. Varied: default. Best fitness 0.912. Files and notes: [korobeiniki-s1](samples/korobeiniki-s1/).
+
+### Korobeiniki, seed 2
+
+| Original | Generated (General MIDI) | Generated (chip) | Video |
+|---|---|---|---|
+| [input.mp3](samples/korobeiniki-s2/input.mp3) | [piece.mp3](samples/korobeiniki-s2/piece.mp3) | [piece-chip.mp3](samples/korobeiniki-s2/piece-chip.mp3) | [piece.mp4](samples/korobeiniki-s2/piece.mp4) |
+
+Input: same lead sheet. Varied: seed 2. Best fitness 0.889. Files and notes: [korobeiniki-s2](samples/korobeiniki-s2/).
+
+### Voa Voa (Chiclete com Banana)
+
+| Original | Generated (General MIDI) | Generated (chip) | Video |
+|---|---|---|---|
+| [input.mp3](samples/voa-voa-s1/input.mp3) | [piece.mp3](samples/voa-voa-s1/piece.mp3) | [piece-chip.mp3](samples/voa-voa-s1/piece-chip.mp3) | [piece.mp4](samples/voa-voa-s1/piece.mp4) |
+
+Input: MIDI, bars 8–56. Varied: beat grid re-estimated (110 BPM). Best fitness 0.802. Files and notes: [voa-voa-s1](samples/voa-voa-s1/).
+
+### Mulher de Fases (Raimundos)
+
+| Original | Generated (General MIDI) | Generated (chip) | Video |
+|---|---|---|---|
+| [input.mp3](samples/mulher-de-fases-s1/input.mp3) | [piece.mp3](samples/mulher-de-fases-s1/piece.mp3) | [piece-chip.mp3](samples/mulher-de-fases-s1/piece-chip.mp3) | [piece.mp4](samples/mulher-de-fases-s1/piece.mp4) |
+
+Input: MIDI, bars 8–40. Varied: melody: harmonica track. Best fitness 0.878. Files and notes: [mulher-de-fases-s1](samples/mulher-de-fases-s1/).
+
+### Amor I Love You (Marisa Monte)
+
+| Original | Generated (General MIDI) | Generated (chip) | Video |
+|---|---|---|---|
+| [input.mp3](samples/amor-i-love-you-s1/input.mp3) | [piece.mp3](samples/amor-i-love-you-s1/piece.mp3) | [piece-chip.mp3](samples/amor-i-love-you-s1/piece-chip.mp3) | [piece.mp4](samples/amor-i-love-you-s1/piece.mp4) |
+
+Input: MIDI, bars 0–56. Varied: melody: flute track. Best fitness 0.830. Files and notes: [amor-i-love-you-s1](samples/amor-i-love-you-s1/).
+
+### Por Você (Barão Vermelho)
+
+| Original | Generated (General MIDI) | Generated (chip) | Video |
+|---|---|---|---|
+| [input.mp3](samples/por-voce-s1/input.mp3) | [piece.mp3](samples/por-voce-s1/piece.mp3) | [piece-chip.mp3](samples/por-voce-s1/piece-chip.mp3) | [piece.mp4](samples/por-voce-s1/piece.mp4) |
+
+Input: MIDI, bars 4–48. Varied: melody: flute track. Best fitness 0.879. Files and notes: [por-voce-s1](samples/por-voce-s1/).
+
+### Aquarela (Toquinho)
+
+| Original | Generated (General MIDI) | Generated (chip) | Video |
+|---|---|---|---|
+| [input.mp3](samples/aquarela-s1/input.mp3) | [piece.mp3](samples/aquarela-s1/piece.mp3) | [piece-chip.mp3](samples/aquarela-s1/piece-chip.mp3) | [piece.mp4](samples/aquarela-s1/piece.mp4) |
+
+Input: MIDI, bars 4–36. Varied: melody: clarinet track. Best fitness 0.865. Files and notes: [aquarela-s1](samples/aquarela-s1/).
+
+### Fico Assim Sem Você (Adriana Calcanhotto)
+
+| Original | Generated (General MIDI) | Generated (chip) | Video |
+|---|---|---|---|
+| [input.mp3](samples/fico-assim-sem-voce-s1/input.mp3) | [piece.mp3](samples/fico-assim-sem-voce-s1/piece.mp3) | [piece-chip.mp3](samples/fico-assim-sem-voce-s1/piece-chip.mp3) | [piece.mp4](samples/fico-assim-sem-voce-s1/piece.mp4) |
+
+Input: MIDI, bars 10–58. Varied: melody: flute track. Best fitness 0.854. Files and notes: [fico-assim-sem-voce-s1](samples/fico-assim-sem-voce-s1/).
+
+\* The contrast-0 run is scored without the contrast criterion, so its fitness is not comparable
+with the others.
+
+How to read the results:
+
+- **Stopping:** every run stopped after its stagnation window (100 generations for the ABC
+  tunes, 200 for the MIDI songs).
+- **The MIDI songs score lower** (0.80–0.88 against 0.89–0.93) for two reasons:
+  - Their melodies often sit in octave 3 or 4. That pits the register criterion against fidelity.
+  - They are longer, and their chords are detected automatically.
 
 Piano rolls of two arrangements (every sample folder has its own `pianoroll.png`):
 
@@ -254,12 +399,40 @@ Piano rolls of two arrangements (every sample folder has its own `pianoroll.png`
   - A traditional Russian melody, known as the Tetris theme.
   - The lead sheet was written for this project, in the A A B A form of the game version.
 
-- **Voa Voa** (Chiclete com Banana).
-  - It comes from a fan-made MIDI file that the student collected (shared through YouTube).
-  - The song is copyrighted, and so is the fan transcription. The source file is not in the
-    repository: put it in `data/raw/chiclete/voa_voa.mid`.
-  - The samples hold only the arranged output and the excerpt used for comparison, for academic
-    use in this course.
+- **MIDI songs: third-party MIDI sequences**, kept out of the repository in `data/raw/`
+  (gitignored). The songs are copyrighted, and so are the sequences. The manifest
+  [`data/sources.json`](data/sources.json) records, for each song, the page and the direct link of
+  the file, its SHA-256 hash, where it is saved, and the settings that reduce it to a lead sheet.
+  `uv run src/main.py fetch` downloads the files and checks the hashes (see "Reproducing the
+  results").
+
+  | Song | Performer (composers) | Source of the MIDI file | File in `data/raw/` |
+  | --- | --- | --- | --- |
+  | Voa Voa | Chiclete com Banana | collected by the student from the description of a YouTube video; no public download | `chiclete/voa_voa.mid` |
+  | Mulher de Fases | Raimundos (Digão, Rodolfo) | [Beatriz Kauffmann's Web Site](https://www.beakauffmann.com/mpb_m/mulher-de-fases.html) | `mpb/mulher_de_fases.mid` |
+  | Amor I Love You | Marisa Monte (Carlinhos Brown, Marisa Monte) | [Beatriz Kauffmann's Web Site](https://www.beakauffmann.com/mpb_a/amor-I-love-you.html) | `mpb/amor_i_love_you.mid` |
+  | Por Você | Barão Vermelho (Frejat, Maurício Barros, Mauro Santa Cecília) | [Beatriz Kauffmann's Web Site](https://www.beakauffmann.com/mpb_p/por-voce.html) | `mpb/por_voce_bk.mid` |
+  | Fico Assim Sem Você | Adriana Calcanhotto (Abdullah, Cacá Moraes) | [Beatriz Kauffmann's Web Site](https://www.beakauffmann.com/mpb_f/fico-assim-sem-voce.html) | `mpb/fico_assim_sem_voce.mid` |
+  | Aquarela | Toquinho | [BitMidi](https://bitmidi.com/aquarela-mid), file 7390 | `mpb/aquarela.mid` |
+
+  - No site states a license. Some files carry their own credits: "Mulher de Fases" and "Amor I
+    Love You" say "Copyright © 2000 by Editora Zardo Ltda."; "Fico Assim Sem Você" says
+    "Copyright © Editora HMP" and "Sequenciado por Marcos Borelli" (its page names Claudinho &
+    Buchecha as the reference recording, the file names Adriana Calcanhotto's version);
+    "Aquarela" is a Soft Karaoke file (lyrics as text events, melody on a clarinet track) credited
+    to "Karaokê do Brasil – Família Ribeiro – 1999"; "Voa Voa" names an editor, "Fernando" (2014).
+  - **Our reduction, committed.** For each song, `data/leadsheets/` holds an ABC lead sheet that
+    is the project's own reinterpretation of the song: the melody of one track, the chords
+    detected in the other tracks every half bar, and the part labels the student marked. It holds
+    no accompaniment, lyrics or arrangement of the original file. The header of each ABC file
+    states the song, its source, the melody track and bars used, and the command that wrote it.
+    These files are kept for academic use in this course, so that the arranger can be rerun even
+    if a site goes away: reading one gives exactly the lead sheet that the arranger read from the
+    MIDI file.
+  - The samples hold only the arranged output and the rendered input excerpt used for comparison.
+  - In the four Beatriz Kauffmann files, the melody track was found by matching the lyric
+    syllables embedded in the file to note onsets: one track meets all of them. For Voa Voa and
+    Aquarela, the melody is the monophonic line that plays throughout (tenor sax, clarinet).
 
 ## AI usage
 

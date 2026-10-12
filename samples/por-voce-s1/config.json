@@ -1,0 +1,52 @@
+{
+  "population_size": 60,
+  "max_generations": 4000,
+  "stagnation_window": 200,
+  "mutation_rate": 0.01,
+  "elite_count": 2,
+  "phrase_length": 4,
+  "tempo_bpm": null,
+  "role_map": {},
+  "weights": {
+    "complementarity": 1.0,
+    "register": 1.0,
+    "coherence": 1.0,
+    "contrast": 1.0,
+    "bass_smoothness": 1.0,
+    "idiom": 1.0,
+    "fidelity": 0.5
+  },
+  "midi": {
+    "melody_track": 4,
+    "bars": [
+      4,
+      48
+    ],
+    "sections": [
+      [
+        0,
+        "A"
+      ],
+      [
+        20,
+        "Pre"
+      ],
+      [
+        28,
+        "Chorus"
+      ]
+    ],
+    "grid": "auto"
+  },
+  "seed": 1,
+  "input_path": "data/raw/mpb/por_voce_bk.mid",
+  "input_sha256": "8f3b706ffd32561caba1e3eff7ad0e1d1b66b702e9adea9a3dc2fec1e7dd8701",
+  "git_commit": "bb47d44ed4326eb09e387228e3c888ed00b5fc12",
+  "git_dirty": true,
+  "created": "2026-10-11T23:15:41+00:00",
+  "run_id": "por_voce_bk-s1-7d4f337d",
+  "best_fitness": 0.8792154584188056,
+  "stop_reason": "stagnation",
+  "generations": 2442,
+  "audio": true
+}

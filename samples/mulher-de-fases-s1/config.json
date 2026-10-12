@@ -1,0 +1,56 @@
+{
+  "population_size": 60,
+  "max_generations": 4000,
+  "stagnation_window": 200,
+  "mutation_rate": 0.01,
+  "elite_count": 2,
+  "phrase_length": 4,
+  "tempo_bpm": null,
+  "role_map": {},
+  "weights": {
+    "complementarity": 1.0,
+    "register": 1.0,
+    "coherence": 1.0,
+    "contrast": 1.0,
+    "bass_smoothness": 1.0,
+    "idiom": 1.0,
+    "fidelity": 0.5
+  },
+  "midi": {
+    "melody_track": 6,
+    "bars": [
+      8,
+      40
+    ],
+    "sections": [
+      [
+        0,
+        "A"
+      ],
+      [
+        8,
+        "Chorus"
+      ],
+      [
+        16,
+        "A"
+      ],
+      [
+        24,
+        "Chorus"
+      ]
+    ],
+    "grid": "auto"
+  },
+  "seed": 1,
+  "input_path": "data/raw/mpb/mulher_de_fases.mid",
+  "input_sha256": "fc5611b11bc4a11138ddd5b058b0897e3843cc3c57ccb8ccb524d8a271804916",
+  "git_commit": "bb47d44ed4326eb09e387228e3c888ed00b5fc12",
+  "git_dirty": true,
+  "created": "2026-10-11T23:14:49+00:00",
+  "run_id": "mulher_de_fases-s1-3d09095f",
+  "best_fitness": 0.8775926863901943,
+  "stop_reason": "stagnation",
+  "generations": 1241,
+  "audio": true
+}

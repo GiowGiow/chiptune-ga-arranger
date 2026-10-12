@@ -343,9 +343,24 @@ and that each channel appears as its own line.
 - **FR-033**: A `video` command MUST render `piece.mp4` for a run or sample (User Story 4), using
   `piece-chip.mp3` when it exists.
 - **FR-034**: The README MUST compare, for each sample, the input with the generated GM and chip
-  versions, the video and the piano roll. One extra song comes from a fan-made MIDI file, kept out of
-  git in `data/raw/`: "Voa Voa" (Chiclete com Banana). The student dropped "Chiclete com Banana"
-  (Jackson do Pandeiro) after listening.
+  versions, the video and the piano roll. Six extra songs come from fan-made MIDI files, kept out of git
+  in `data/raw/`:
+  - "Voa Voa" (Chiclete com Banana);
+  - "Mulher de Fases" (Raimundos);
+  - "Amor I Love You" (Marisa Monte);
+  - "Por Você" (Barão Vermelho);
+  - "Aquarela" (Toquinho);
+  - "Fico Assim Sem Você" (Adriana Calcanhotto).
+
+  The student dropped "Chiclete com Banana" (Jackson do Pandeiro) after listening. For each
+  song, the README starts with the three renderings: original, General MIDI and chip.
+
+- **FR-035**: A `compare` command MUST write one MP4 per sample, at most 9.5 MB so that GitHub
+  plays it inline in the README, that plays the original input, the General MIDI version and the
+  chip version one after the other. It MUST keep every version whole when the size budget allows,
+  and otherwise cut all of them to one common length.
+- **FR-036**: A static listening page (`listen/index.html`, served by GitHub Pages from the
+  repository root) MUST offer audio players for the three renderings and the video of every sample.
 
 ### Key Entities
 

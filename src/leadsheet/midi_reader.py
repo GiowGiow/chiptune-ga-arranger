@@ -183,8 +183,18 @@ def read_lead_sheet_midi(
 
     file_bpm = float(midi.get_tempo_changes()[1][0])
     if grid == "auto":
-        drums = np.array([n.start for i in midi.instruments if i.is_drum for n in i.notes])
-        fits_file = drums.size == 0 or grid_strength(drums, file_bpm) >= FILE_GRID_MIN_STRENGTH
+        # Measure the fit on the file's own beats (ticks), so tempo changes do not count as misfit.
+        drum_beats = np.array(
+            [
+                midi.time_to_tick(n.start) / midi.resolution
+                for i in midi.instruments
+                if i.is_drum
+                for n in i.notes
+            ]
+        )
+        fits_file = (
+            drum_beats.size == 0 or grid_strength(drum_beats, 60.0) >= FILE_GRID_MIN_STRENGTH
+        )
         grid = "file" if fits_file else estimate_beat_grid(midi)[:2]
     if grid == "file":
         source_grid = (file_bpm, 0.0)

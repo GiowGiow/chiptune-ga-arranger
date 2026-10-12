@@ -84,21 +84,24 @@ def plot_evolution(log: Sequence, path: Path | str) -> None:
     diversity (the share of distinct genotypes in the population).
     """
     generations = [entry.generation for entry in log]
-    with matplotlib.style.context("tableau-colorblind10"):
-        figure = Figure(figsize=(5.5, 3.6), layout="constrained")
+    # The figure is drawn at the width of one column of the two-column abstract (3.4 inches), so
+    # that its 8-point text stays 8 points when LaTeX places it; the PNG gets a higher dpi instead.
+    style = {"font.size": 8, "axes.titlesize": 8, "legend.fontsize": 7}
+    with matplotlib.style.context("tableau-colorblind10"), matplotlib.rc_context(style):
+        figure = Figure(figsize=(3.4, 2.5), layout="constrained")
         fitness_axes, diversity_axes = figure.subplots(
             2, 1, sharex=True, gridspec_kw={"height_ratios": [3, 1]}
         )
         fitness_axes.plot(generations, [entry.best for entry in log], label="best fitness")
         fitness_axes.plot(generations, [entry.mean for entry in log], label="mean fitness")
-        fitness_axes.set_ylabel("fitness (weighted mean, 0-1)")
-        fitness_axes.legend(loc="lower right", fontsize=8)
+        fitness_axes.set_ylabel("fitness (0-1)")
+        fitness_axes.legend(loc="lower right")
         fitness_axes.set_title("Fitness per generation (best never drops: elitism)")
         diversity_axes.plot(generations, [entry.diversity for entry in log], color="0.35")
         diversity_axes.set_ylabel("distinct\ngenotypes")
         diversity_axes.set_ylim(0, 1.05)
         diversity_axes.set_xlabel("generation")
-        figure.savefig(path)
+        figure.savefig(path, dpi=200)
 
 
 def plot_seed_curves(seed_logs: Sequence, random_best: float, path: Path | str) -> None:

@@ -1,0 +1,40 @@
+%abc-2.1
+% Amor I Love You, as performed by Marisa Monte (composers: Carlinhos Brown, Marisa Monte).
+% This lead sheet is the project's reduction of a fan-made MIDI file: the melody of one track, the
+% chords detected in the other tracks every half bar, and the part labels. It is our
+% reinterpretation of the song, not the original recording or arrangement, made for academic use
+% only (DCC831 TP1, UFMG).
+% Source: https://www.beakauffmann.com/mpb_a/amor-I-love-you.html (file
+% https://www.beakauffmann.com/mpb_a/som/amor-I-love-you.mid). From Beatriz Kauffmann's Web Site,
+% a non-commercial site of MPB MIDI sequences. The file's own text says 'Copyright © 2000 by
+% Editora Zardo Ltda.' (Play Music).
+% Reduced from data/raw/mpb/amor_i_love_you.mid (sha256
+% 973e33c89cf71fedf89dedc6e1cd14e4d0c371ad9d265d7c2b6e72efa6d571cb): melody track 2, bars 0-56
+% (0-based, end excluded), sections A at bar 0, B at bar 16, A at bar 24, Chorus at bar 40, beat
+% grid auto.
+% Written by: uv run src/main.py abc samples/amor-i-love-you-s1
+X:1
+T:Amor I Love You
+M:4/4
+L:1/16
+Q:1/4=113.999954
+% Exact tempo 113.99995440001827 quarter notes per minute; Q: keeps 6 decimals.
+K:none
+P:A
+"D"z16 | "D"D2 E2 ^F2 E4 D3 z A,2 | "D"^F,2 A,8 z6 | "D"D2 E2 ^F2 E4 D4 A,2 |
+"F#m"_D11 z5 | "Em"B,2 _D2 =D2 _D4 B,3 z3 | "A7"E2 ^F2 G2 ^F4 E5 z | "G"E2 ^F2 G2 ^F2- "Gm"^F2 E2 ^F4 |
+"D"A,8 z8 | "D"D2 E2 ^F2 E4 D3 z A,2 | "D"^F,2 A,8 z6 | "D"D2 E2 ^F2 E4 D4 A,2 |
+"F#m"_D11 z5 | "Em"B,2 _D2 =D2 _D4 B,3 z3 | "A"E2 ^F2 G2 ^F4 E5 z | "G"E2 ^F2 G2 ^F2- "Gm"^F2 E2 ^F4 |
+P:B
+"D"A,8 z2 A,2 _A,3 G, | "G"G,3 D5- "Gm"D2 _D4 E2 | "D"E2 D8 A,2 _A,3 G, | "G"G,3 D5- "Gm"D2 _D4 E2 |
+"D"E2 D10 z4 | "D"z16 | "D"D2 E2 ^F2 E4 D3 z A,2 | "D"^F,2 A,8 z6 |
+P:A
+"D"D2 E2 ^F2 E4 D4 A,2 | "F#m"_D11 z5 | "Em"B,2 _D2 =D2 _D4 B,3 z3 | "A"E2 ^F2 G2 ^F2- "A7"^F2 E5 z |
+"G"E2 ^F2 G2 ^F2- "Gm"^F2 E2 ^F4 | "D"A,8 z8 | "D"D2 E2 ^F2 E4 D3 z A,2 | "D"^F,2 A,8 z6 |
+"D"D2 E2 ^F2 E4 D4 A,2 | "F#m"_D11 z5 | "Em"B,2 _D2 =D2 _D4 B,3 z3 | "A7"E2 ^F2 G2 ^F4 E5 z |
+"G"E2 ^F2 G2 ^F2- "Gm"^F2 E2 ^F4 | "D"A,8 z2 A,2 _A,3 G, | "G"G,3 D5- "Gm"D2 _D4 E2 | "D"E2 D8 A,2 _A,3 G, |
+P:Chorus
+"G"G,3 D5- "Gm"D2 _D4 E2 | "D"E2 D10 z4 | "B"B,3 B,2 B,3 B,3 _B,2 =B,3 | "Em"A5 z G8 z2 |
+"A"A,3 A,2 A,3 A,3 _D2 E3 | "D"G3 E3 ^F3 z A,2 _A,3 G, | "G"G,3 D5- "Gm"D z _D4 E2 | "D"E2 D3 z ^F2 G2 ^F2 ^F2 ^F2 |
+"D"^F5 z ^F2 G2 ^F2 ^F2 E2 | "A"E5 z E2 ^F2 E2 E2 D2 | "G"E2 D3 z E2 ^F2 E2 E2 D2 | "D"D4 z2 ^F2 G2 ^F2 ^F2 ^F2 |
+"D"^F5 z ^F2 G2 ^F2 ^F2 E2 | "A"E5 z E2 ^F2 E2 E2 D2 | "G"E2 D4 E2 "Gm"^F2 E3 E3 | "D"E2 D14 |

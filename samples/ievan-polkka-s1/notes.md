@@ -1,6 +1,6 @@
 # Listening notes: ievan-polkka-s1
 
-Run `ievan_polkka-s1-95456f9f`: Ievan Polkka, seed 1, default configuration. Best fitness 0.929
+Run `ievan_polkka-s1-220a0105`: Ievan Polkka, seed 1, default configuration. Best fitness 0.929
 after 550 generations.
 
 - What to listen for: the change of texture between the parts. The first A part holds the chord

@@ -1,0 +1,29 @@
+%abc-2.1
+% Aquarela, as performed by Toquinho.
+% This lead sheet is the project's reduction of a fan-made MIDI file: the melody of one track, the
+% chords detected in the other tracks every half bar, and the part labels. It is our
+% reinterpretation of the song, not the original recording or arrangement, made for academic use
+% only (DCC831 TP1, UFMG).
+% Source: https://bitmidi.com/aquarela-mid (file https://bitmidi.com/uploads/7390.mid). From
+% BitMidi, a site of user-uploaded MIDI files (file id 7390, named aquarela.mid). It is a Soft
+% Karaoke file whose own text says 'Karaokê do Brasil - Família Ribeiro - 1999'.
+% Reduced from data/raw/mpb/aquarela.mid (sha256
+% bf8fbbc2c6af6c049cff5820445d5d5780dfde41a14d2aabe32d30d745728961): melody track 3, bars 4-36
+% (0-based, end excluded), sections A at bar 0, B at bar 16, beat grid auto.
+% Written by: uv run src/main.py abc samples/aquarela-s1
+X:1
+T:Aquarela
+M:4/4
+L:1/16
+Q:1/4=80
+K:none
+P:A
+"C"z8 "D"z8 | "G"z2 D D G G z ^F "Bm7"E z D D G G z ^F | "C"E z2 D E z E z "D7"z8 | "Em7"z2 D D G G z ^F "Bm7"E z2 D z G z2 |
+"C"E z D D E z C z "D7"z8 | "Em7"z2 D D z G z ^F "Bm7"E z2 D G G z2 | "C"E z D D z2 E z "D7"z8 | "Bm7"z2 D D G G z ^F E z D D z G z2 |
+"C"z2 D D E z C z "D7"z8 | "Em"z2 G G c c z2 "Em7"A z G z c c z2 | "C"A z G G G z A2 "Dm"z8 | "Bm7"z2 D D z G z ^F E z D D G G z2 |
+"Em7"E z2 D G4 "D7"z A z G5 | "D7"G5 z3 "G"G2 G A z G3 | "Bm7"z2 B c B z A z "Em7"G z G A z G2 z | "D7"z A A B A2 z2 "Em7"G z G A z G2 z |
+P:B
+"Bm7"z2 B c B z A z "Em7"G z G A z G G z | "D"z A A B A2 z2 "Em7"B z c B z c B2 | "Abm7"z c B c B A G2 "Em"z G z A G ^F z G | "A7"z G z2 B A z G "D7"A7 z |
+"D7"z8 "Em7"G z G A z G2 z | "Bm7"z2 B c B z A z "Em7"G z G A z G2 z | "D7"z2 A B A2 z2 "G"G z G A z G2 z | "Bm7"z2 B c B z A z "Em7"G z G A z G G2 |
+"D7"z A A B A z3 "G"B z c B z c B2 | "Ebm"B c B c B A G2 "Em"z G z A G ^F z G | "A7"z G z G B z2 G "D7"A8 | "D7"z2 A B A z2 G "G"G z7 |
+"Bm"z8 "Em7"z8 | "D7"z8 "G"z8 | "Bm"z8 "C"z8 | "D"z8 "Em7"z2 D D G G z ^F |

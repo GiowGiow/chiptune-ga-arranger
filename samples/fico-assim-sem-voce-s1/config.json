@@ -1,0 +1,52 @@
+{
+  "population_size": 60,
+  "max_generations": 4000,
+  "stagnation_window": 200,
+  "mutation_rate": 0.01,
+  "elite_count": 2,
+  "phrase_length": 4,
+  "tempo_bpm": null,
+  "role_map": {},
+  "weights": {
+    "complementarity": 1.0,
+    "register": 1.0,
+    "coherence": 1.0,
+    "contrast": 1.0,
+    "bass_smoothness": 1.0,
+    "idiom": 1.0,
+    "fidelity": 0.5
+  },
+  "midi": {
+    "melody_track": 1,
+    "bars": [
+      10,
+      58
+    ],
+    "sections": [
+      [
+        0,
+        "A"
+      ],
+      [
+        16,
+        "A"
+      ],
+      [
+        32,
+        "Chorus"
+      ]
+    ],
+    "grid": "auto"
+  },
+  "seed": 1,
+  "input_path": "data/raw/mpb/fico_assim_sem_voce.mid",
+  "input_sha256": "7202f877491e86a6cfb793d8ba09e5ac3bfa7bbc7094d3a0a43ab82555d356ae",
+  "git_commit": "bb47d44ed4326eb09e387228e3c888ed00b5fc12",
+  "git_dirty": true,
+  "created": "2026-10-11T23:27:47+00:00",
+  "run_id": "fico_assim_sem_voce-s1-31684ebd",
+  "best_fitness": 0.8539858087765546,
+  "stop_reason": "stagnation",
+  "generations": 1779,
+  "audio": true
+}

@@ -1,6 +1,6 @@
 # Listening notes: ievan-polkka-s1-contrast0
 
-Run `ievan_polkka-s1-175532e9`: Ievan Polkka, seed 1, with `--set weights.contrast=0`. Best
+Run `ievan_polkka-s1-8e2f2e48`: Ievan Polkka, seed 1, with `--set weights.contrast=0`. Best
 fitness 0.871 over the six other criteria, after 330 generations.
 
 - What to listen for: compare with `ievan-polkka-s1`. Without the contrast criterion, the GA

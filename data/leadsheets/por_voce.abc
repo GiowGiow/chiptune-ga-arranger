@@ -1,0 +1,35 @@
+%abc-2.1
+% Por Você, as performed by Barão Vermelho (composers: Frejat, Maurício Barros, Mauro Santa
+% Cecília).
+% This lead sheet is the project's reduction of a fan-made MIDI file: the melody of one track, the
+% chords detected in the other tracks every half bar, and the part labels. It is our
+% reinterpretation of the song, not the original recording or arrangement, made for academic use
+% only (DCC831 TP1, UFMG).
+% Source: https://www.beakauffmann.com/mpb_p/por-voce.html (file
+% https://www.beakauffmann.com/mpb_p/som/por-voce.mid). From Beatriz Kauffmann's Web Site, a
+% non-commercial site of MPB MIDI sequences; neither the page nor the file names the sequencer.
+% Saved as por_voce_bk.mid to tell it from another sequence of the same song.
+% Reduced from data/raw/mpb/por_voce_bk.mid (sha256
+% 8f3b706ffd32561caba1e3eff7ad0e1d1b66b702e9adea9a3dc2fec1e7dd8701): melody track 4, bars 4-48
+% (0-based, end excluded), sections A at bar 0, Pre at bar 20, Chorus at bar 28, beat grid auto.
+% Written by: uv run src/main.py abc samples/por-voce-s1
+X:1
+T:Por Você
+M:4/4
+L:1/16
+Q:1/4=120
+K:none
+P:A
+"Eb"z8 _B,2 z _E3 G2 | "Eb"G3 z7 _B,2 C z _E2 | "Eb"_A z _A3 z _A3 z G2 _E2 G2 | "Cm7"G z G z7 _B,2 C z _E2 |
+"Eb7"_A z _A z _A z _A z G2 _E z F4 | "Db"F2 z10 _D2 _E2 | "B"^F2 ^F3 z ^F3 z ^F3 z ^F2 | "Db"^F z ^F3 z =F3 z _D3 _E3 |
+"Eb"_E8 z8 | "Fm7"z6 C z C2 z _E2 F2 z | "Eb"G2 z _E2 z9 _B,2 | "Fm7"_A z _A z _A z _A z "Eb"G z _E z G2 z2 |
+"Eb"z8 "Cm7"z2 _B,2 C z _E2 | "Eb7"_A z _A z _A z _A z G2 _E z F4 | "Db"F2 z10 _D2 _E2 | "B"^F2 ^F3 z ^F3 z ^F3 z ^F2 |
+"Db"^F z ^F3 z =F3 z _D3 _E3 | "Eb"_E8 z8 | "Eb"z8 _E2 G3 z _B2 | "Cm7"_B6 z4 _E z _E2 G2 |
+P:Pre
+"Ab"_B z _B3 z _B3 z F z G4 | "Cm7"G3 z13 | "Bb"z8 _E2 z G2 z _B2 | "Cm7"_B5 z5 _E2 _E z _E2 |
+"Ab"_B2 _B3 z _B3 z _B2 _E2 G2 | "Cm7"G3 z7 G z G2 _E2 | "Bb"F z F2 _E2 F2- "Gm7"F z _B,2 z4 | "Ab"z2 G3 z _A2 G4 C3 _E |
+P:Chorus
+"Eb"_E8 z8 | "Eb"z16 | "Ab"z10 _E2 F2 G2 | "Gm7"_B2 _B4 _B6 F2 G2 |
+"Eb"G2 G2 z6 G z G2 _E2 | "Bb"F2 F2 G z F3 z F2 _E2 _E2 | "Ab"_E2 _E2 z6 _A z _A2 G z | "Bb"F3 z _E2 F3 z _E z G2 z _E |
+"Cm7"_E3 z9 G3 z | "Gm7"F5 z _E5 z C3 z | "Eb"_E6 z10 | "Ab"z8 "Fm7"C2 _E3 z _B2 |
+"Eb"_B2 F z G7 z5 | "Ab"z8 "Fm7"F2 _E3 z _E2 | "Eb"_E4 z12 | "Ab"z8 "Fm7"C2 _E3 z _B2 |

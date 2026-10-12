@@ -66,3 +66,5 @@ data/raw/
 # Spec Kit catalog cache
 .specify/presets/.cache/
 .specify/extensions/.cache/
+.claude/launch.json
+.claude/worktrees/
