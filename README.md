@@ -59,6 +59,24 @@ All hyperparameters are in [configs/default.json](configs/default.json) and can 
 `--set`, for example `--set weights.contrast=3`. The design is in
 [specs/001-ga-chiptune-arranger/](specs/001-ga-chiptune-arranger/).
 
+**Hyperparameters and what the samples change.** Every run records its full configuration in the
+`config.json` of its folder.
+
+| Hyperparameter | Default | What it does | Samples that change it |
+|---|---|---|---|
+| `seed` (command line) | required | Starts the one random generator. The same seed and configuration give the same piece; another seed gives another plan. | `korobeiniki-s2` uses seed 2; all others seed 1 |
+| `population_size` | 60 | Plans (genotypes) per generation. | none |
+| `max_generations` | 3000 | Upper limit on the number of generations. | MIDI songs: 4000 (they are longer) |
+| `stagnation_window` | 300 | Stop after this many generations without a better plan. | MIDI songs: 400 |
+| `mutation_rate` | 0.01 | Chance that each gene of a child changes to another valid value (about one gene per child). | none |
+| `elite_count` | 2 | Best plans copied unchanged into the next generation. | none |
+| `phrase_length` | 4 | Bars per phrase; coherence and drum fills follow phrases. | none |
+| `weights.<criterion>` | 1, fidelity 0.5 | Importance of each fitness criterion in the weighted mean; 0 removes it. | `ievan-polkka-s1-fidelity0`: fidelity 0, so the GA is free to move the melody by an octave |
+| `midi.melody_track` | none | MIDI songs only: the track (or tracks) read as the melody. | each MIDI song (the track that carries the lyrics, or the line that plays throughout) |
+| `midi.bars` | whole file | MIDI songs only: the excerpt, first and last bar. | each MIDI song |
+| `midi.sections` | one part | MIDI songs only: part labels by bar; a label with "Chorus" (or "B") gets the chorus role, which the contrast criterion uses. | each MIDI song |
+| `midi.grid` | `auto` | MIDI songs only: use the file's beat grid, or re-estimate it from the drums when the file's tempo does not fit them. | none (Voa Voa is re-estimated automatically) |
+
 ```mermaid
 flowchart LR
     A[ABC lead sheet<br/>melody, chords, parts] --> B[Lead sheet<br/>bars, roles, phrases]
@@ -178,8 +196,8 @@ uv run src/main.py sample outputs/ievan_polkka-s1-39aaf0de ievan-polkka-s1
 ```
 
 ```bash
-uv run src/main.py arrange data/leadsheets/ievan_polkka.abc --seed 1 --set weights.contrast=0
-uv run src/main.py sample outputs/ievan_polkka-s1-5bb65127 ievan-polkka-s1-contrast0
+uv run src/main.py arrange data/leadsheets/ievan_polkka.abc --seed 1 --set weights.fidelity=0
+uv run src/main.py sample outputs/ievan_polkka-s1-5bf5c409 ievan-polkka-s1-fidelity0
 ```
 
 ```bash
@@ -302,17 +320,17 @@ https://github.com/user-attachments/assets/3bf0bb7b-a31a-47ff-b9cc-4fdefa915eb8
 |---|---|---|---|
 | [input.mp3](samples/ievan-polkka-s1/input.mp3) | [piece.mp3](samples/ievan-polkka-s1/piece.mp3) | [piece-chip.mp3](samples/ievan-polkka-s1/piece-chip.mp3) | [piece.mp4](samples/ievan-polkka-s1/piece.mp4) |
 
-Input: ABC lead sheet (Loituma melody). Varied: default. Best fitness 0.912. Files and notes: [ievan-polkka-s1](samples/ievan-polkka-s1/).
+Input: ABC lead sheet (Loituma melody). Settings: default configuration, seed 1. Best fitness 0.912. Files and notes: [ievan-polkka-s1](samples/ievan-polkka-s1/).
 
-### Ievan Polkka, contrast weight 0
+### Ievan Polkka, fidelity weight 0
 
-https://github.com/user-attachments/assets/71e46ea0-82be-4bf0-a47e-cd894ad9d8a0
+FIDELITY0_VIDEO_URL
 
 | Original | Generated (General MIDI) | Generated (chip) | Video |
 |---|---|---|---|
-| [input.mp3](samples/ievan-polkka-s1-contrast0/input.mp3) | [piece.mp3](samples/ievan-polkka-s1-contrast0/piece.mp3) | [piece-chip.mp3](samples/ievan-polkka-s1-contrast0/piece-chip.mp3) | [piece.mp4](samples/ievan-polkka-s1-contrast0/piece.mp4) |
+| [input.mp3](samples/ievan-polkka-s1-fidelity0/input.mp3) | [piece.mp3](samples/ievan-polkka-s1-fidelity0/piece.mp3) | [piece-chip.mp3](samples/ievan-polkka-s1-fidelity0/piece-chip.mp3) | [piece.mp4](samples/ievan-polkka-s1-fidelity0/piece.mp4) |
 
-Input: same lead sheet. Varied: hyperparameter: contrast weight 0. Best fitness 0.887*. Files and notes: [ievan-polkka-s1-contrast0](samples/ievan-polkka-s1-contrast0/).
+Input: same lead sheet. Settings: seed 1 and `weights.fidelity=0` (default 0.5), so nothing keeps the melody in its written octave: the GA raises 12 of the 24 melody bars by an octave to win the register criterion. Best fitness 0.903*. Files and notes: [ievan-polkka-s1-fidelity0](samples/ievan-polkka-s1-fidelity0/).
 
 ### Korobeiniki (Tetris theme)
 
@@ -322,7 +340,7 @@ https://github.com/user-attachments/assets/d9213a11-9394-4832-a063-dfd7ac4a0b5d
 |---|---|---|---|
 | [input.mp3](samples/korobeiniki-s1/input.mp3) | [piece.mp3](samples/korobeiniki-s1/piece.mp3) | [piece-chip.mp3](samples/korobeiniki-s1/piece-chip.mp3) | [piece.mp4](samples/korobeiniki-s1/piece.mp4) |
 
-Input: ABC lead sheet. Varied: default. Best fitness 0.922. Files and notes: [korobeiniki-s1](samples/korobeiniki-s1/).
+Input: ABC lead sheet. Settings: default configuration, seed 1. Best fitness 0.922. Files and notes: [korobeiniki-s1](samples/korobeiniki-s1/).
 
 ### Korobeiniki, seed 2
 
@@ -332,7 +350,7 @@ https://github.com/user-attachments/assets/67b0a38b-c3c7-4ca5-aa69-256e6b8eab10
 |---|---|---|---|
 | [input.mp3](samples/korobeiniki-s2/input.mp3) | [piece.mp3](samples/korobeiniki-s2/piece.mp3) | [piece-chip.mp3](samples/korobeiniki-s2/piece-chip.mp3) | [piece.mp4](samples/korobeiniki-s2/piece.mp4) |
 
-Input: same lead sheet. Varied: seed 2. Best fitness 0.936. Files and notes: [korobeiniki-s2](samples/korobeiniki-s2/).
+Input: same lead sheet. Settings: default configuration, seed 2 (only the random generator changes). Best fitness 0.936. Files and notes: [korobeiniki-s2](samples/korobeiniki-s2/).
 
 ### Voa Voa (Chiclete com Banana)
 
@@ -342,7 +360,7 @@ https://github.com/user-attachments/assets/46fc19e9-d85f-4d2e-a9c1-3cae9aae9c2b
 |---|---|---|---|
 | [input.mp3](samples/voa-voa-s1/input.mp3) | [piece.mp3](samples/voa-voa-s1/piece.mp3) | [piece-chip.mp3](samples/voa-voa-s1/piece-chip.mp3) | [piece.mp4](samples/voa-voa-s1/piece.mp4) |
 
-Input: MIDI, bars 8–56. Varied: beat grid re-estimated (110 BPM). Best fitness 0.853. Files and notes: [voa-voa-s1](samples/voa-voa-s1/).
+Input: MIDI excerpt, bars 8–56 (`midi.bars`), melody on track 3, tenor sax (`midi.melody_track`), parts A / Pre / Chorus (`midi.sections`); beat grid re-estimated from the drums at 110 BPM. Settings: seed 1, up to 4000 generations, stagnation window 400. Best fitness 0.853. Files and notes: [voa-voa-s1](samples/voa-voa-s1/).
 
 ### Mulher de Fases (Raimundos)
 
@@ -352,7 +370,7 @@ https://github.com/user-attachments/assets/48e0348a-4b8b-410c-bbf6-74ba0b314aba
 |---|---|---|---|
 | [input.mp3](samples/mulher-de-fases-s1/input.mp3) | [piece.mp3](samples/mulher-de-fases-s1/piece.mp3) | [piece-chip.mp3](samples/mulher-de-fases-s1/piece-chip.mp3) | [piece.mp4](samples/mulher-de-fases-s1/piece.mp4) |
 
-Input: MIDI, bars 8–40. Varied: melody: harmonica track. Best fitness 0.896. Files and notes: [mulher-de-fases-s1](samples/mulher-de-fases-s1/).
+Input: MIDI excerpt, bars 8–40 (`midi.bars`), melody on track 6, harmonica (`midi.melody_track`), parts A / Chorus (`midi.sections`). Settings: seed 1, up to 4000 generations, stagnation window 400. Best fitness 0.896. Files and notes: [mulher-de-fases-s1](samples/mulher-de-fases-s1/).
 
 ### Amor I Love You (Marisa Monte)
 
@@ -362,7 +380,7 @@ https://github.com/user-attachments/assets/e94da227-9dfa-401c-af68-7cc1cdedfb1b
 |---|---|---|---|
 | [input.mp3](samples/amor-i-love-you-s1/input.mp3) | [piece.mp3](samples/amor-i-love-you-s1/piece.mp3) | [piece-chip.mp3](samples/amor-i-love-you-s1/piece-chip.mp3) | [piece.mp4](samples/amor-i-love-you-s1/piece.mp4) |
 
-Input: MIDI, bars 0–56. Varied: melody: flute track. Best fitness 0.833. Files and notes: [amor-i-love-you-s1](samples/amor-i-love-you-s1/).
+Input: MIDI excerpt, bars 0–56 (`midi.bars`), melody on track 2, flute (`midi.melody_track`), parts A / B / Chorus (`midi.sections`). Settings: seed 1, up to 4000 generations, stagnation window 400. Best fitness 0.833. Files and notes: [amor-i-love-you-s1](samples/amor-i-love-you-s1/).
 
 ### Por Você (Barão Vermelho)
 
@@ -372,7 +390,7 @@ https://github.com/user-attachments/assets/4aba3706-2c88-4fd3-95e0-dcd7eaeed1a8
 |---|---|---|---|
 | [input.mp3](samples/por-voce-s1/input.mp3) | [piece.mp3](samples/por-voce-s1/piece.mp3) | [piece-chip.mp3](samples/por-voce-s1/piece-chip.mp3) | [piece.mp4](samples/por-voce-s1/piece.mp4) |
 
-Input: MIDI, bars 4–48. Varied: melody: flute track. Best fitness 0.896. Files and notes: [por-voce-s1](samples/por-voce-s1/).
+Input: MIDI excerpt, bars 4–48 (`midi.bars`), melody on track 4, flute (`midi.melody_track`), parts A / Pre / Chorus (`midi.sections`). Settings: seed 1, up to 4000 generations, stagnation window 400. Best fitness 0.896. Files and notes: [por-voce-s1](samples/por-voce-s1/).
 
 ### Aquarela (Toquinho)
 
@@ -382,7 +400,7 @@ https://github.com/user-attachments/assets/92e76147-4e57-4d09-b384-c397432a9e27
 |---|---|---|---|
 | [input.mp3](samples/aquarela-s1/input.mp3) | [piece.mp3](samples/aquarela-s1/piece.mp3) | [piece-chip.mp3](samples/aquarela-s1/piece-chip.mp3) | [piece.mp4](samples/aquarela-s1/piece.mp4) |
 
-Input: MIDI, bars 4–36. Varied: melody: clarinet track. Best fitness 0.895. Files and notes: [aquarela-s1](samples/aquarela-s1/).
+Input: MIDI excerpt, bars 4–36 (`midi.bars`), melody on track 3, clarinet (`midi.melody_track`), parts A / B (`midi.sections`). Settings: seed 1, up to 4000 generations, stagnation window 400. Best fitness 0.895. Files and notes: [aquarela-s1](samples/aquarela-s1/).
 
 ### Fico Assim Sem Você (Adriana Calcanhotto)
 
@@ -392,9 +410,9 @@ https://github.com/user-attachments/assets/78bfe0fa-7884-493e-a075-6dec0ca33e5e
 |---|---|---|---|
 | [input.mp3](samples/fico-assim-sem-voce-s1/input.mp3) | [piece.mp3](samples/fico-assim-sem-voce-s1/piece.mp3) | [piece-chip.mp3](samples/fico-assim-sem-voce-s1/piece-chip.mp3) | [piece.mp4](samples/fico-assim-sem-voce-s1/piece.mp4) |
 
-Input: MIDI, bars 10–58. Varied: melody: flute track. Best fitness 0.891. Files and notes: [fico-assim-sem-voce-s1](samples/fico-assim-sem-voce-s1/).
+Input: MIDI excerpt, bars 10–58 (`midi.bars`), melody on track 1, flute (`midi.melody_track`), parts A / Chorus (`midi.sections`). Settings: seed 1, up to 4000 generations, stagnation window 400. Best fitness 0.891. Files and notes: [fico-assim-sem-voce-s1](samples/fico-assim-sem-voce-s1/).
 
-\* The contrast-0 run is scored without the contrast criterion, so its fitness is not comparable
+\* The fidelity-0 run is scored without the fidelity criterion, so its fitness is not comparable
 with the others.
 
 How to read the results:

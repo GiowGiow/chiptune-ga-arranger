@@ -41,6 +41,9 @@ CHANNEL_COLORS = {"P1": "#5F9ED1", "P2": "#FF800E", "TR": "#CFCFCF"}
 DRUM_COLOR = "#FFBC79"
 CHANNEL_NAMES = {"P1": "P1 melody", "P2": "P2 harmony", "TR": "TR bass", "NO": "NO drums"}
 PLAYHEAD_FRACTION = 0.75
+# AAC rate of the video soundtrack, high enough to sound like the source MP3.
+AUDIO_BITRATE = "192k"
+LEGEND_SEPARATOR = "  ·  "
 
 # Glow layers as (width in points, opacity, whiteness), from the wide faint halo to the narrow
 # core, which is mixed with white to look hot. Points are relative to the frame (the dpi follows
@@ -209,6 +212,31 @@ def dark_figure(width: int, height: int) -> tuple[Figure, FigureCanvasAgg, Axes,
     return figure, canvas, pitch_axes, drum_axes
 
 
+def legend_lines(
+    item_widths: Sequence[float], separator_width: float, line_width: float
+) -> list[list[int]]:
+    """Split the legend items into lines, as lists of item indices, filling each line greedily.
+
+    The separator before an item counts as part of that item: an item that does not fit together
+    with its separator starts the next line, and the separator is dropped at the break. So a
+    separator always sits between two items of the same line, never at a line's start or end. An
+    item wider than the whole line still gets a line of its own.
+
+    >>> legend_lines([3.0, 3.0, 3.0], separator_width=1.0, line_width=8.0)
+    [[0, 1], [2]]
+    """
+    lines: list[list[int]] = []
+    used = 0.0
+    for index, width in enumerate(item_widths):
+        if lines and used + separator_width + width <= line_width:
+            lines[-1].append(index)
+            used += separator_width + width
+        else:
+            lines.append([index])
+            used = width
+    return lines
+
+
 def draw_colored_title(
     figure: Figure,
     canvas: FigureCanvasAgg,
@@ -218,21 +246,36 @@ def draw_colored_title(
 ) -> None:
     """Write the (name, color) pairs as "name · name · ...", each name in its own color.
 
-    A name that would run past the right edge starts a new line below.
+    A name that would run past the right edge starts a new line below, without the separator
+    before it, so no line starts or ends with a separator (see `legend_lines`).
     """
     pieces = []
     for name, color in names:
-        pieces += [(name, color), ("  ·  ", "#8A8F99")]
+        pieces += [(name, color), (LEGEND_SEPARATOR, "#8A8F99")]
     renderer = canvas.get_renderer()
-    x, y = 0.02, top
+    # Matplotlib has no multicolor text, so each piece starts where the previous one ends. All
+    # pieces go on one line first, to measure them; a legend that fits keeps exactly this layout.
+    artists, widths, x = [], [], 0.02
     for text, color in pieces[:-1]:
-        artist = figure.text(x, y, text, color=color, fontsize=fontsize, va="center", weight="bold")
-        # Matplotlib has no multicolor text, so each piece starts where the previous one ends.
-        width = artist.get_window_extent(renderer).width / figure.bbox.width
-        if x + width > 0.98 and x > 0.02:
-            x, y = 0.02, y - 1.6 * fontsize / 72 * figure.dpi / figure.bbox.height
-            artist.set_position((x, y))
-        x += width
+        artists.append(
+            figure.text(x, top, text, color=color, fontsize=fontsize, va="center", weight="bold")
+        )
+        widths.append(artists[-1].get_window_extent(renderer).width / figure.bbox.width)
+        x += widths[-1]
+    separator_width = widths[1] if len(widths) > 1 else 0.0
+    lines = legend_lines(widths[::2], separator_width, line_width=0.96)
+    if len(lines) <= 1:
+        return
+    line_height = 1.6 * fontsize / 72 * figure.dpi / figure.bbox.height
+    for line_number, line in enumerate(lines):
+        x, y = 0.02, top - line_number * line_height
+        if line_number:
+            # Item i sits at piece 2i, and the separator before it at piece 2i - 1.
+            artists[2 * line[0] - 1].remove()
+        for position, item in enumerate(line):
+            for piece in ([2 * item - 1] if position else []) + [2 * item]:
+                artists[piece].set_position((x, y))
+                x += widths[piece]
 
 
 def add_drum_marks(drum_axes: Axes) -> list[LineCollection]:
@@ -333,13 +376,16 @@ def encode_frames(
     """Pipe `frame_count` frames, drawn at times 0, 1/fps, ..., to ffmpeg, which adds the audio.
 
     `-shortest` ends the video with the audio when the audio is shorter. `video_options` are
-    extra encoder flags, for example a CRF that trades quality for a smaller file.
+    extra encoder flags, for example a CRF that trades quality for a smaller file. The audio is
+    encoded at AUDIO_BITRATE: ffmpeg's default AAC rate is low for mono input (about 69 kbit/s),
+    and the chip's bright square waves then sound noticeably worse than the MP3 they come from.
     """
     command = [
         "ffmpeg", "-y", "-loglevel", "error",
         "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{width}x{height}", "-r", str(fps), "-i", "-",
         "-i", str(audio_path),
-        "-c:v", "libx264", *video_options, "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest",
+        "-c:v", "libx264", *video_options, "-pix_fmt", "yuv420p",
+        "-c:a", "aac", "-b:a", AUDIO_BITRATE, "-shortest",
         str(mp4_path),
     ]  # fmt: skip
     with subprocess.Popen(command, stdin=subprocess.PIPE) as encoder:

@@ -245,6 +245,8 @@ tests in `tests/`. Run the tests with `uv run pytest`. Units: MIDI pitches, quar
 - [X] T061 [P] Tests, then loudness normalization of every listening MP3 (FR-037); re-render the audio of the ten samples from their MIDI files, re-mux `piece.mp4`, re-render and re-upload the comparison videos
 - [X] T062 [P] Tests, then `video --input` and `src/export/input_video.py` (FR-038); render `input.mp4` for the ten samples
 - [X] T063 Redesign the listening page from a Superdesign draft (liner-notes layout, animated aurora in the channel colors, poster frames, collapsible original visualization)
+- [X] T064 Replace the contrast-weight-0 sample, whose difference was hard to hear, by a fidelity-weight-0 sample (`ievan-polkka-s1-fidelity0`); explain every hyperparameter and what each sample changes in the README and on the listening page
+- [X] T065 Listening page: one A/B player per song (Original / General MIDI / NES chip on one timeline, sound from the MP3 files, the picture switching between the original and the generated visualization); video soundtracks at AAC 192 kbit/s; legend lines never start or end with a separator
 
 ## Dependencies and execution order
 

@@ -11,10 +11,10 @@
     "complementarity": 1.0,
     "register": 1.0,
     "coherence": 1.0,
-    "contrast": 0,
+    "contrast": 1.0,
     "bass_smoothness": 1.0,
     "idiom": 1.0,
-    "fidelity": 0.5
+    "fidelity": 0
   },
   "midi": {
     "melody_track": null,
@@ -25,12 +25,12 @@
   "seed": 1,
   "input_path": "data/leadsheets/ievan_polkka.abc",
   "input_sha256": "3c8f7310aa018657c2133bd57b0943c42df23761952e2ff162077a5a70d7177b",
-  "git_commit": "0aa9d91370c1fc8902e948b137d919e094246f67",
+  "git_commit": "8800ca1ac6deb79848a329e16f57c7f17ce87dff",
   "git_dirty": true,
-  "created": "2026-10-12T00:46:31+00:00",
-  "run_id": "ievan_polkka-s1-5bb65127",
-  "best_fitness": 0.8871302308802309,
+  "created": "2026-10-12T01:57:26+00:00",
+  "run_id": "ievan_polkka-s1-5bf5c409",
+  "best_fitness": 0.9033412643903715,
   "stop_reason": "stagnation",
-  "generations": 868,
+  "generations": 915,
   "audio": true
 }

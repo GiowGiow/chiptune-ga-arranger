@@ -7,9 +7,13 @@ import pretty_midi
 import pytest
 
 from export.video import (
+    LEGEND_SEPARATOR,
     build_scene,
     channel_paths,
+    dark_figure,
+    draw_colored_title,
     frame_at,
+    legend_lines,
     render_video,
     sounding_pitch,
     visible_until,
@@ -102,6 +106,46 @@ def test_frame_reveals_more_of_the_piece_as_time_advances():
     assert lit_pixels(frame_at(scene, 0.2)) < lit_pixels(frame_at(scene, 2.5))
 
 
+def test_legend_lines_keep_every_item_on_one_line_when_they_fit():
+    assert legend_lines([3.0, 3.0, 3.0], separator_width=1.0, line_width=11.0) == [[0, 1, 2]]
+
+
+def test_legend_lines_wrap_before_the_item_that_would_cross_the_right_edge():
+    assert legend_lines([3.0, 3.0, 3.0], separator_width=1.0, line_width=8.0) == [[0, 1], [2]]
+
+
+def test_legend_lines_count_the_separator_before_an_item_as_part_of_it():
+    # 4 + 3 fits in 8, but 4 + separator + 3 does not, so the second item starts a new line.
+    assert legend_lines([4.0, 3.0], separator_width=2.0, line_width=8.0) == [[0], [1]]
+    assert legend_lines([4.0, 3.0], separator_width=1.0, line_width=8.0) == [[0, 1]]
+
+
+def test_legend_lines_give_an_item_wider_than_the_line_a_line_of_its_own():
+    assert legend_lines([10.0, 2.0], separator_width=1.0, line_width=8.0) == [[0], [1]]
+    assert legend_lines([2.0, 10.0, 2.0], separator_width=1.0, line_width=8.0) == [[0], [1], [2]]
+    assert legend_lines([], separator_width=1.0, line_width=8.0) == []
+
+
+def test_wrapped_title_never_starts_or_ends_a_line_with_a_separator():
+    figure, canvas, _, _ = dark_figure(320, 180)
+    names = [(f"track {number} long name", "#FF800E") for number in range(9)]
+    draw_colored_title(figure, canvas, names, fontsize=12)
+    rows: dict[float, list] = {}
+    for artist in figure.texts:
+        x, y = artist.get_position()
+        rows.setdefault(round(y, 6), []).append((x, artist.get_text()))
+    assert len(rows) > 1, "nine long names should not fit on one line"
+    for row in rows.values():
+        texts = [text for _, text in sorted(row)]
+        # Items and separators alternate, so every separator sits between two items.
+        assert texts[::2] == [text for text in texts if text != LEGEND_SEPARATOR]
+        assert all(text == LEGEND_SEPARATOR for text in texts[1::2])
+        assert len(texts) % 2 == 1
+    # Wrapping drops separators only: every name is still drawn, in order.
+    drawn = [artist.get_text() for artist in figure.texts]
+    assert [text for text in drawn if text != LEGEND_SEPARATOR] == [name for name, _ in names]
+
+
 def test_missing_ffmpeg_skips_the_video_with_a_notice(tmp_path, monkeypatch, capsys):
     mid = tmp_path / "piece.mid"
     tiny_midi().write(str(mid))
@@ -126,3 +170,23 @@ def test_video_lasts_as_long_as_the_piece_plus_one_second(tmp_path):
         text=True,
     )
     assert abs(float(probe.stdout) - 4.0) < 1.5
+
+
+@pytest.mark.skipif(not FFMPEG_AVAILABLE, reason="ffmpeg or ffprobe is not installed")
+def test_video_audio_keeps_the_quality_of_the_mp3_it_comes_from(tmp_path):
+    mid, audio, mp4 = tmp_path / "piece.mid", tmp_path / "piece.wav", tmp_path / "piece.mp4"
+    tiny_midi().write(str(mid))
+    # Noise makes the AAC encoder spend its whole bit budget, so the stream rate shows the setting.
+    noise = (np.random.default_rng(0).uniform(-0.5, 0.5, 44100 * 4) * 32767).astype("<i2")
+    with wave.open(str(audio), "wb") as out:
+        out.setnchannels(1)
+        out.setsampwidth(2)
+        out.setframerate(44100)
+        out.writeframes(noise.tobytes())
+    assert render_video(mid, audio, mp4, fps=10, width=160, height=90) is True
+    probe = subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries", "stream=bit_rate",
+         "-of", "csv=p=0", str(mp4)],
+        check=True, capture_output=True, text=True,
+    )  # fmt: skip
+    assert int(probe.stdout) >= 150_000

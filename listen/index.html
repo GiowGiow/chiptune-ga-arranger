@@ -126,18 +126,51 @@
     font-family: var(--mono); font-size: .8rem; color: var(--no); background: rgba(255,188,121,.08); border: 1px solid rgba(255,188,121,.25);
   }
   .note { color: #c3c9d6; font-size: .9rem; margin: 0 0 14px; }
-  .player { margin-bottom: 12px; }
-  .player label { display: flex; align-items: center; gap: 8px; font-size: .74rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--c); margin-bottom: 5px; }
-  audio { display: block; width: 100%; height: 38px; }
-  .files { font-size: .88rem; }
-  details { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 14px; }
-  summary { cursor: pointer; list-style: none; color: var(--muted); font-weight: 600; font-size: .92rem; display: inline-flex; align-items: center; gap: 10px; }
-  summary::-webkit-details-marker { display: none; }
-  summary::before { content: ""; width: 0; height: 0; border-left: 7px solid var(--p1); border-top: 5px solid transparent; border-bottom: 5px solid transparent; transition: transform .2s; }
-  details[open] summary::before { transform: rotate(90deg); }
-  summary:hover { color: var(--text); }
-  details video { margin-top: 14px; }
-  .details-note { color: var(--muted); font-size: .85rem; margin: 10px 0 0; }
+  .files { font-size: .88rem; display: inline-block; margin-top: 6px; }
+  .settings { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+  .setting { font-family: var(--mono); font-size: .72rem; padding: 2px 9px; border-radius: 999px; color: var(--muted); border: 1px solid var(--line); background: rgba(11,14,23,.5); }
+  .setting.changed { color: var(--p2); border-color: rgba(255,128,14,.45); background: rgba(255,128,14,.08); }
+  .explain { margin: 34px 0 0; padding: 18px 20px; border-radius: 16px; background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(14px); }
+  .explain h2 { font-size: 1.05rem; margin: 0 0 10px; }
+  .explain dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 16px; margin: 0; font-size: .9rem; }
+  .explain dt { font-family: var(--mono); font-size: .8rem; color: var(--no); padding-top: 2px; }
+  .explain dd { margin: 0; color: #c3c9d6; }
+  .explain p { color: var(--muted); font-size: .85rem; margin: 12px 0 0; }
+  @media (max-width: 640px) { .explain dl { grid-template-columns: minmax(0, 1fr); } .explain dd { margin-bottom: 6px; } }
+  .downloads { color: var(--muted); font-size: .8rem; margin-top: 10px; }
+  .downloads a { color: var(--muted); }
+  .downloads a:hover { color: var(--text); }
+
+  /* A/B player: one timeline, three versions. Switching keeps the position, so the ear compares
+     the same bars; the picture switches between the original and the generated visualization. */
+  .stage { position: relative; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: #000; box-shadow: 0 10px 30px -12px rgba(0,0,0,.8); }
+  .stage video { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 0; box-shadow: none; transition: opacity .35s; }
+  .stage video.hidden { opacity: 0; }
+  .stage .badge {
+    position: absolute; left: 12px; bottom: 12px; padding: 3px 10px; border-radius: 999px; font-size: .74rem; font-weight: 700;
+    letter-spacing: .06em; text-transform: uppercase; background: rgba(11,14,23,.75); color: var(--c); border: 1px solid var(--c);
+  }
+  .bigplay {
+    position: absolute; inset: 0; margin: auto; width: 64px; height: 64px; border-radius: 50%; border: 0; cursor: pointer;
+    background: rgba(230,233,240,.92); color: #0B0E17; display: grid; place-items: center; box-shadow: 0 0 30px rgba(95,158,209,.45);
+    transition: transform .2s, opacity .2s;
+  }
+  .bigplay:hover { transform: scale(1.06); }
+  .playing .bigplay { opacity: 0; pointer-events: none; }
+  .modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 12px 0 10px; padding: 4px; border-radius: 12px; background: rgba(11,14,23,.55); border: 1px solid var(--line); }
+  .mode {
+    border: 0; border-radius: 9px; padding: 8px 6px; cursor: pointer; font: 600 .82rem Inter, system-ui, sans-serif; color: var(--muted);
+    background: transparent; display: flex; align-items: center; justify-content: center; gap: 7px; transition: background .2s, color .2s;
+  }
+  .mode:hover { color: var(--text); }
+  .mode[aria-pressed="true"] { color: #0B0E17; background: var(--c); box-shadow: 0 0 18px -4px var(--c); }
+  .mode[aria-pressed="true"] .dot { background: #0B0E17; box-shadow: none; }
+  .bar { display: flex; align-items: center; gap: 10px; }
+  .toggle { width: 36px; height: 36px; flex: none; border-radius: 50%; border: 1px solid var(--line); background: rgba(11,14,23,.55); color: var(--text); cursor: pointer; display: grid; place-items: center; }
+  .toggle:hover { border-color: var(--p1); }
+  .seek { flex: 1; min-width: 0; accent-color: var(--p1); }
+  .time { font-family: var(--mono); font-size: .78rem; color: var(--muted); min-width: 92px; text-align: right; }
+  .hint { color: var(--muted); font-size: .82rem; margin: 8px 0 0; }
 
   footer { margin-top: 64px; color: var(--muted); font-size: .88rem; text-align: center; }
 
@@ -186,6 +219,16 @@
       <span class="chip"><span class="dot" style="--c: var(--tr)"></span>TR triangle · bass</span>
       <span class="chip"><span class="dot" style="--c: var(--no)"></span>NO noise · drums</span>
     </div>
+    <section class="explain" aria-labelledby="settings-title">
+      <h2 id="settings-title">Reading the settings of each song</h2>
+      <dl>
+        <dt>seed</dt><dd>Starts the random generator. The same seed and settings always give the same piece; another seed gives another arrangement of the same song.</dd>
+        <dt>fidelity weight</dt><dd>How much the fitness rewards keeping the melody in its written octave (default 0.5). At 0 the GA is free to move melody bars up or down an octave.</dd>
+        <dt>generations, stagnation</dt><dd>The GA stops after a maximum number of generations, or earlier when the best plan has not improved for a window of generations (default 3000 and 300; 4000 and 400 for the longer MIDI songs).</dd>
+        <dt>melody, bars, parts</dt><dd>For a MIDI song: the track read as the melody, the excerpt that is arranged, and the part labels; a chorus part gets a denser accompaniment through the contrast criterion.</dd>
+      </dl>
+      <p>Orange settings differ from the default configuration. The full list of hyperparameters is in the README.</p>
+    </section>
   </header>
 
   <div id="tracks"></div>
@@ -196,27 +239,40 @@
 </main>
 <script>
   // One entry per folder in samples/; the text matches the "Generated pieces" section of the README.
+  // One entry per folder in samples/: folder, title, artist, note, best fitness, settings.
+  // A setting marked true differs from the default configuration (configs/default.json).
+  const MIDI = (track, bars, parts) => [
+    [`melody: track ${track}`, false], [`bars ${bars}`, false], [`parts ${parts}`, false],
+    ["≤ 4000 generations", true], ["stagnation 400", true], ["seed 1", false],
+  ];
   const SECTIONS = [
     ["Folk tunes", [
-      ["ievan-polkka-s1", "Ievan Polkka", "Traditional (Loituma's version)", "ABC lead sheet (Loituma melody). Default configuration, seed 1.", "0.912"],
-      ["ievan-polkka-s1-contrast0", "Ievan Polkka, contrast weight 0", "Traditional (Loituma's version)", "Same lead sheet, contrast weight 0 (fitness not comparable).", "0.887"],
-      ["korobeiniki-s1", "Korobeiniki", "Traditional (the Tetris theme)", "ABC lead sheet. Default configuration, seed 1.", "0.922"],
-      ["korobeiniki-s2", "Korobeiniki, seed 2", "Traditional (the Tetris theme)", "Same lead sheet, seed 2.", "0.936"],
+      ["ievan-polkka-s1", "Ievan Polkka", "Traditional (Loituma's version)", "ABC lead sheet of Loituma's melody.", "0.912",
+        [["seed 1", false], ["default configuration", false]]],
+      ["ievan-polkka-s1-fidelity0", "Ievan Polkka, fidelity weight 0", "Traditional (Loituma's version)",
+        "Same lead sheet and seed. Nothing keeps the melody in its written octave, so the GA raises 12 of its 24 bars by an octave to win the register criterion: listen for the melody jumping between registers. Its fitness leaves fidelity out, so it is not comparable.", "0.903",
+        [["seed 1", false], ["fidelity weight 0 (default 0.5)", true]]],
+      ["korobeiniki-s1", "Korobeiniki", "Traditional (the Tetris theme)", "ABC lead sheet in the A A B A form of the game.", "0.922",
+        [["seed 1", false], ["default configuration", false]]],
+      ["korobeiniki-s2", "Korobeiniki, seed 2", "Traditional (the Tetris theme)", "Same lead sheet and configuration; only the random generator changes.", "0.936",
+        [["seed 2", true], ["default configuration", false]]],
     ]],
     ["Brazilian songs", [
-      ["voa-voa-s1", "Voa Voa", "Chiclete com Banana", "MIDI, bars 8–56, beat grid re-estimated at 110 BPM.", "0.853"],
-      ["mulher-de-fases-s1", "Mulher de Fases", "Raimundos", "MIDI, bars 8–40, melody on the harmonica track.", "0.896"],
-      ["amor-i-love-you-s1", "Amor I Love You", "Marisa Monte", "MIDI, bars 0–56, melody on the flute track.", "0.833"],
-      ["por-voce-s1", "Por Você", "Barão Vermelho", "MIDI, bars 4–48, melody on the flute track.", "0.896"],
-      ["aquarela-s1", "Aquarela", "Toquinho", "MIDI, bars 4–36, melody on the clarinet track.", "0.895"],
-      ["fico-assim-sem-voce-s1", "Fico Assim Sem Você", "Adriana Calcanhotto", "MIDI, bars 10–58, melody on the flute track.", "0.891"],
+      ["voa-voa-s1", "Voa Voa", "Chiclete com Banana", "Fan-made MIDI file; its beat grid is re-estimated from the drums at 110 BPM.", "0.853", MIDI("3 (tenor sax)", "8–56", "A / Pre / Chorus")],
+      ["mulher-de-fases-s1", "Mulher de Fases", "Raimundos", "Fan-made MIDI file with the lyrics embedded.", "0.896", MIDI("6 (harmonica)", "8–40", "A / Chorus")],
+      ["amor-i-love-you-s1", "Amor I Love You", "Marisa Monte", "Fan-made MIDI file with the lyrics embedded.", "0.833", MIDI("2 (flute)", "0–56", "A / B / Chorus")],
+      ["por-voce-s1", "Por Você", "Barão Vermelho", "Fan-made MIDI file with the lyrics embedded.", "0.896", MIDI("4 (flute)", "4–48", "A / Pre / Chorus")],
+      ["aquarela-s1", "Aquarela", "Toquinho", "Fan-made MIDI file; the melody is the clarinet line.", "0.895", MIDI("3 (clarinet)", "4–36", "A / B")],
+      ["fico-assim-sem-voce-s1", "Fico Assim Sem Você", "Adriana Calcanhotto", "Fan-made MIDI file with the lyrics embedded.", "0.891", MIDI("1 (flute)", "10–58", "A / Chorus")],
     ]],
   ];
   const PLAYERS = [
     ["input.mp3", "Original", "var(--tr)"],
-    ["piece.mp3", "Generated · General MIDI", "var(--p1)"],
-    ["piece-chip.mp3", "Generated · NES chip", "var(--p2)"],
+    ["piece.mp3", "General MIDI", "var(--p1)"],
+    ["piece-chip.mp3", "NES chip", "var(--p2)"],
   ];
+  const PLAY_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>';
+  const PAUSE_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>';
   const REPO = "https://github.com/GiowGiow/chiptune-ga-arranger/tree/main/samples/";
   const root = document.getElementById("tracks");
   let number = 0;
@@ -225,37 +281,130 @@
     head.className = "section-label";
     head.innerHTML = `<h2>${label}</h2><span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="rule"></span>`;
     root.appendChild(head);
-    for (const [folder, title, artist, note, fitness] of songs) {
+    for (const [folder, title, artist, note, fitness, settings] of songs) {
       number += 1;
       const base = `../samples/${folder}/`;
-      const players = PLAYERS.map(([file, name, color], i) => {
-        const id = `${folder}-${i}`;
-        return `<div class="player"><label for="${id}" style="--c: ${color}"><span class="dot" style="--c: ${color}"></span>${name}</label>` +
-          `<audio id="${id}" controls preload="none" src="${base}${file}"></audio></div>`;
-      }).join("");
+      const modes = PLAYERS.map(([, name, color], i) =>
+        `<button class="mode" data-mode="${i}" style="--c: ${color}" aria-pressed="${i === 2}"><span class="dot" style="--c: ${color}"></span>${name}</button>`).join("");
       const track = document.createElement("article");
       track.className = "track reveal";
       track.id = folder;
       track.innerHTML =
         `<div class="num" aria-hidden="true">${String(number).padStart(2, "0")}</div>` +
-        `<div class="card"><div class="card-grid">` +
-        `<video controls preload="none" poster="${base}poster.jpg" src="${base}piece.mp4" aria-label="${title}: the four NES channels in sync with the chip version"></video>` +
+        `<div class="card"><div class="card-grid"><div>` +
+        `<div class="stage">` +
+        `<video class="vis-original hidden" muted playsinline preload="none" src="${base}input.mp4" aria-hidden="true"></video>` +
+        `<video class="vis-generated" muted playsinline preload="none" poster="${base}poster.jpg" src="${base}piece.mp4" aria-hidden="true"></video>` +
+        `<span class="badge"></span>` +
+        `<button class="bigplay" aria-label="Play ${title}"><svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"/></svg></button>` +
+        `</div>` +
+        `<div class="modes" role="group" aria-label="Version">${modes}</div>` +
+        `<div class="bar"><button class="toggle" aria-label="Play or pause">${PLAY_ICON}</button>` +
+        `<input class="seek" type="range" min="0" max="1000" value="0" aria-label="Position">` +
+        `<span class="time">0:00 / 0:00</span></div>` +
+        `<p class="hint">Switch versions while it plays: the position is kept, so you hear the same bars.</p>` +
+        `</div>` +
         `<div class="info"><h3>${title}</h3><div class="artist">${artist}</div>` +
-        `<span class="fitness">best fitness ${fitness}</span><p class="note">${note}</p>${players}` +
-        `<a class="files" href="${REPO}${folder}">Files and listening notes →</a></div></div>` +
-        `<details><summary>Original visualization</summary>` +
-        `<video controls preload="none" src="${base}input.mp4" aria-label="${title}: the original input, every instrument as a glowing line"></video>` +
-        `<p class="details-note">The input as the arranger received it, every instrument drawn as a glowing line; the melody track is blue.</p></details>` +
-        `</div>`;
+        `<span class="fitness">best fitness ${fitness}</span><p class="note">${note}</p>` +
+        `<div class="settings" aria-label="Settings">${settings.map(([text, changed]) =>
+          `<span class="setting${changed ? " changed" : ""}">${text}</span>`).join("")}</div>` +
+        `<a class="files" href="${REPO}${folder}">Files and listening notes →</a>` +
+        `<div class="downloads">MP3: <a href="${base}input.mp3">original</a> · <a href="${base}piece.mp3">General MIDI</a> · ` +
+        `<a href="${base}piece-chip.mp3">NES chip</a> · <a href="${base}piece.mid">MIDI</a></div></div>` +
+        `</div></div>`;
+      for (const [file] of PLAYERS) {
+        const audio = new Audio();
+        audio.preload = "none";
+        audio.dataset.src = `${base}${file}`;
+        track.audios = track.audios || [];
+        track.audios.push(audio);
+      }
       root.appendChild(track);
     }
   }
-  // Only one player sounds at a time: starting one pauses the others.
-  document.addEventListener("play", (event) => {
-    for (const media of document.querySelectorAll("audio, video")) {
-      if (media !== event.target) media.pause();
+  // A/B player. The sound always comes from the MP3 files (best quality); the videos are muted
+  // pictures kept in step with the sound. Version 0 shows the original's visualization, 1 and 2
+  // the generated one (both generated versions share the same notes).
+  const fmt = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+  let current = null;
+  function setup(track) {
+    const card = track.querySelector(".card");
+    const [visOriginal, visGenerated] = track.querySelectorAll(".stage video");
+    const badge = track.querySelector(".badge");
+    const toggle = track.querySelector(".toggle");
+    const seek = track.querySelector(".seek");
+    const time = track.querySelector(".time");
+    const buttons = [...track.querySelectorAll(".mode")];
+    let mode = 2;
+    const audio = () => track.audios[mode];
+    const video = () => (mode === 0 ? visOriginal : visGenerated);
+    const load = (media) => { if (!media.src && media.dataset.src) media.src = media.dataset.src; };
+    function show() {
+      const [, name, color] = PLAYERS[mode];
+      badge.textContent = mode === 0 ? "Original" : name;
+      badge.style.setProperty("--c", color);
+      visOriginal.classList.toggle("hidden", mode !== 0);
+      visGenerated.classList.toggle("hidden", mode === 0);
+      buttons.forEach((b, i) => b.setAttribute("aria-pressed", String(i === mode)));
     }
-  }, true);
+    function playing() { return !audio().paused; }
+    function play() {
+      if (current && current !== api) current.pause();
+      current = api;
+      // Load all three versions on the first play, so that switching later is instant.
+      track.audios.forEach((a) => { a.preload = "auto"; load(a); });
+      visOriginal.preload = visGenerated.preload = "auto";
+      const v = video();
+      audio().play().catch(() => {});
+      v.currentTime = audio().currentTime || 0;
+      v.play().catch(() => {});
+      card.classList.add("playing");
+      toggle.innerHTML = PAUSE_ICON;
+    }
+    function pause() {
+      track.audios.forEach((a) => a.pause());
+      visOriginal.pause(); visGenerated.pause();
+      card.classList.remove("playing");
+      toggle.innerHTML = PLAY_ICON;
+    }
+    function switchTo(next) {
+      if (next === mode) return;
+      const was = playing();
+      const t = audio().currentTime || 0;
+      audio().pause(); video().pause();
+      mode = next;
+      load(audio());
+      const a = audio();
+      const jump = () => { a.currentTime = Math.min(t, (a.duration || t + 1) - 0.05); };
+      if (a.readyState >= 1) jump(); else a.addEventListener("loadedmetadata", jump, { once: true });
+      video().currentTime = t;
+      show();
+      if (was) play();
+    }
+    const api = { pause };
+    track.audios.forEach((a) => {
+      a.addEventListener("timeupdate", () => {
+        if (a !== audio()) return;
+        const d = a.duration || 0;
+        seek.value = d ? Math.round((a.currentTime / d) * 1000) : 0;
+        time.textContent = `${fmt(a.currentTime)} / ${fmt(d)}`;
+        const v = video();
+        if (Math.abs(v.currentTime - a.currentTime) > 0.25) v.currentTime = a.currentTime;
+      });
+      a.addEventListener("ended", pause);
+    });
+    track.querySelector(".bigplay").addEventListener("click", play);
+    toggle.addEventListener("click", () => (playing() ? pause() : play()));
+    buttons.forEach((b, i) => b.addEventListener("click", () => switchTo(i)));
+    seek.addEventListener("input", () => {
+      load(audio());
+      const a = audio();
+      const go = () => { a.currentTime = (seek.value / 1000) * (a.duration || 0); video().currentTime = a.currentTime; };
+      if (a.readyState >= 1) go(); else a.addEventListener("loadedmetadata", go, { once: true });
+    });
+    show();
+  }
+  document.querySelectorAll("article.track").forEach(setup);
   // Reveal the cards as they scroll into view (everything is shown at once without IntersectionObserver).
   const cards = document.querySelectorAll(".reveal");
   if ("IntersectionObserver" in window) {
