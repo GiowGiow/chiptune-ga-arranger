@@ -1,7 +1,7 @@
 {
   "population_size": 60,
   "max_generations": 4000,
-  "stagnation_window": 200,
+  "stagnation_window": 400,
   "mutation_rate": 0.01,
   "elite_count": 2,
   "phrase_length": 4,
@@ -41,12 +41,12 @@
   "seed": 1,
   "input_path": "data/raw/mpb/fico_assim_sem_voce.mid",
   "input_sha256": "7202f877491e86a6cfb793d8ba09e5ac3bfa7bbc7094d3a0a43ab82555d356ae",
-  "git_commit": "bb47d44ed4326eb09e387228e3c888ed00b5fc12",
+  "git_commit": "0aa9d91370c1fc8902e948b137d919e094246f67",
   "git_dirty": true,
-  "created": "2026-10-11T23:27:47+00:00",
-  "run_id": "fico_assim_sem_voce-s1-31684ebd",
-  "best_fitness": 0.8539858087765546,
+  "created": "2026-10-12T00:47:24+00:00",
+  "run_id": "fico_assim_sem_voce-s1-d4fbaf8e",
+  "best_fitness": 0.891031578530654,
   "stop_reason": "stagnation",
-  "generations": 1779,
+  "generations": 3840,
   "audio": true
 }

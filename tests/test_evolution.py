@@ -28,7 +28,9 @@ def busy_melody_tables() -> ScoreTables:
         act_no=np.zeros(5),
         reg_both=np.zeros((n, 3, 5)),
         reg_ok=np.zeros((n, 3, 5)),
-        bass_smooth=np.ones((n - 1, 4, 4)),
+        bass_inner=np.full((n, 4), np.nan),
+        bass_inner_leaps=np.zeros((n, 4), dtype=int),
+        bass_across=np.ones((n - 1, 4, 4)),
         single_chord=np.zeros(n, dtype=bool),
         phrase_end=np.zeros(n, dtype=bool),
         phrase=np.zeros(n, dtype=int),
@@ -109,6 +111,20 @@ def test_it_stops_when_the_best_fitness_stagnates():
 
     assert result.stop_reason == "stagnation"
     assert [stats.generation for stats in result.log] == list(range(6))
+
+
+def test_the_ga_runs_when_no_weighted_criterion_applies_to_the_tune():
+    # One bar per phrase: coherence finds no pair of bars to compare and scores NaN for every
+    # plan. Every plan then has fitness 0, selection draws uniformly and the run stagnates.
+    tables = dataclasses.replace(busy_melody_tables(), phrase=np.arange(N_BARS))
+    coherence_only = dict.fromkeys(CRITERIA, 0.0) | {"coherence": 1.0}
+    params = dataclasses.replace(PARAMS, stagnation_window=5)
+
+    result = evolve(np.random.default_rng(0), tables, N_BARS, params, coherence_only)
+
+    assert result.best_fitness == 0.0
+    assert result.stop_reason == "stagnation"
+    assert all(np.isfinite([stats.best, stats.mean]).all() for stats in result.log)
 
 
 def test_diversity_is_the_share_of_distinct_plans_in_the_population():

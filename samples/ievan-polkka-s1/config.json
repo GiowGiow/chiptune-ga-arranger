@@ -1,7 +1,7 @@
 {
   "population_size": 60,
-  "max_generations": 1000,
-  "stagnation_window": 100,
+  "max_generations": 3000,
+  "stagnation_window": 300,
   "mutation_rate": 0.01,
   "elite_count": 2,
   "phrase_length": 4,
@@ -19,17 +19,18 @@
   "midi": {
     "melody_track": null,
     "bars": null,
-    "sections": null
+    "sections": null,
+    "grid": "auto"
   },
   "seed": 1,
   "input_path": "data/leadsheets/ievan_polkka.abc",
   "input_sha256": "3c8f7310aa018657c2133bd57b0943c42df23761952e2ff162077a5a70d7177b",
-  "git_commit": "b0fe59e44ce226da5698284063672bd1e712a0d1",
+  "git_commit": "0aa9d91370c1fc8902e948b137d919e094246f67",
   "git_dirty": true,
-  "created": "2026-10-11T22:43:58+00:00",
-  "run_id": "ievan_polkka-s1-220a0105",
-  "best_fitness": 0.9294457052609227,
+  "created": "2026-10-12T00:46:27+00:00",
+  "run_id": "ievan_polkka-s1-39aaf0de",
+  "best_fitness": 0.9122596153846154,
   "stop_reason": "stagnation",
-  "generations": 550,
+  "generations": 717,
   "audio": true
 }

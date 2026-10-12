@@ -1,7 +1,7 @@
 {
   "population_size": 60,
   "max_generations": 4000,
-  "stagnation_window": 200,
+  "stagnation_window": 400,
   "mutation_rate": 0.01,
   "elite_count": 2,
   "phrase_length": 4,
@@ -37,12 +37,12 @@
   "seed": 1,
   "input_path": "data/raw/mpb/aquarela.mid",
   "input_sha256": "bf8fbbc2c6af6c049cff5820445d5d5780dfde41a14d2aabe32d30d745728961",
-  "git_commit": "bb47d44ed4326eb09e387228e3c888ed00b5fc12",
+  "git_commit": "0aa9d91370c1fc8902e948b137d919e094246f67",
   "git_dirty": true,
-  "created": "2026-10-11T23:15:58+00:00",
-  "run_id": "aquarela-s1-54a43520",
-  "best_fitness": 0.864643025127606,
+  "created": "2026-10-12T00:47:13+00:00",
+  "run_id": "aquarela-s1-d9735b16",
+  "best_fitness": 0.8952627538298198,
   "stop_reason": "stagnation",
-  "generations": 894,
+  "generations": 1325,
   "audio": true
 }

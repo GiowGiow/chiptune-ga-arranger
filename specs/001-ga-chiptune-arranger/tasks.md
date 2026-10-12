@@ -241,7 +241,7 @@ tests in `tests/`. Run the tests with `uv run pytest`. Units: MIDI pitches, quar
 - [X] T057 Fix the layout of the abstract (wide Table 2, song list) and cross-check every claim against the assignment statement, the code and the data
 - [X] T058 [P] Tests, then `fetch` (download the web MIDI songs listed in `data/sources.json`, check SHA-256) and `abc` (write each MIDI reduction as an ABC lead sheet that reads back to the same lead sheet); commit the six ABC lead sheets (constitution 1.2.0)
 - [X] T059 Run the seed, random-search and ablation experiments on the six MIDI songs and add them to Table 2 of the abstract
-- [ ] T060 Fix the fitness after the review: bass smoothness scores every leap of the bass line, idiom pools its counts, a fill matches only at a phrase end, NaN for criteria that do not apply, weight validation, roulette tolerance; then re-run every sample, experiment, video and comparison video
+- [X] T060 Fix the fitness after the review: bass smoothness scores every leap of the bass line, idiom pools its counts, a fill matches only at a phrase end, NaN for criteria that do not apply, weight validation, roulette tolerance; default stopping 3000 generations / stagnation 300 (4000 / 400 for the MIDI songs), measured so that no one-gene change improves the final plans; then re-run every sample, experiment, video and comparison video
 
 ## Dependencies and execution order
 

@@ -36,16 +36,19 @@ complete 4/4 bars.
 - **Fitness:** a weighted mean of seven music-theory criteria, each from 0 to 1:
   - *complementarity*: P2 calm when the melody is busy, active when it rests;
   - *register*: P2 below P1;
-  - *coherence*: the same textures inside a 4-bar phrase;
+  - *coherence*: the same textures inside a 4-bar phrase (a drum fill may close the phrase);
   - *contrast*: the chorus denser than the verse;
-  - *bass smoothness*: small leaps of the bass between bars;
-  - *idiom*: arpeggios over long chords, drum fills at phrase ends;
+  - *bass smoothness*: small leaps along the bass line, inside bars and across bar lines (the
+    upper notes of the octave pump are an ornament, not leaps);
+  - *idiom*: arpeggios over bars with a single chord, drum fills exactly at phrase ends;
   - *fidelity*: the melody stays in its written octave.
 - **Selection:** roulette wheel with windowing (fitness minus the generation's minimum), plus
   elitism (the 2 best plans survive unchanged).
 - **Crossover:** one cut point, only between bars.
 - **Mutation:** each gene changes with probability 0.01.
-- **Stopping:** 1000 generations, or 100 generations without improvement.
+- **Stopping:** 3000 generations, or 300 generations without improvement (4000 and 400 for the
+  MIDI songs). With these windows, no single-gene change improves the final plans of the ABC
+  tunes; on the longer MIDI songs it adds at most 0.005.
 
 All hyperparameters are in [configs/default.json](configs/default.json) and can be changed with
 `--set`, for example `--set weights.contrast=3`. The design is in
@@ -161,29 +164,27 @@ uv run pytest
 ## Reproducing the results
 
 Each sample was made by one `arrange` command and copied with `sample`. The same command
-rebuilds the same notes. The run folder name ends with the hash of the configuration: `e8357f24`
-is the default configuration today. (The `config.json` of the four ABC samples records older run
-ids, `220a0105` and `8e2f2e48`, because the `midi` block was added to the configuration after
-they were made; the notes are the same.)
+rebuilds the same notes. The run folder name ends with the hash of the configuration: `39aaf0de`
+is the default configuration.
 
 ```bash
 uv run src/main.py arrange data/leadsheets/ievan_polkka.abc --seed 1
-uv run src/main.py sample outputs/ievan_polkka-s1-e8357f24 ievan-polkka-s1
+uv run src/main.py sample outputs/ievan_polkka-s1-39aaf0de ievan-polkka-s1
 ```
 
 ```bash
 uv run src/main.py arrange data/leadsheets/ievan_polkka.abc --seed 1 --set weights.contrast=0
-uv run src/main.py sample outputs/ievan_polkka-s1-a8cecc06 ievan-polkka-s1-contrast0
+uv run src/main.py sample outputs/ievan_polkka-s1-5bb65127 ievan-polkka-s1-contrast0
 ```
 
 ```bash
 uv run src/main.py arrange data/leadsheets/korobeiniki.abc --seed 1
-uv run src/main.py sample outputs/korobeiniki-s1-e8357f24 korobeiniki-s1
+uv run src/main.py sample outputs/korobeiniki-s1-39aaf0de korobeiniki-s1
 ```
 
 ```bash
 uv run src/main.py arrange data/leadsheets/korobeiniki.abc --seed 2
-uv run src/main.py sample outputs/korobeiniki-s2-e8357f24 korobeiniki-s2
+uv run src/main.py sample outputs/korobeiniki-s2-39aaf0de korobeiniki-s2
 ```
 
 The MIDI songs need their source files in `data/raw/`. This command downloads the five that are on
@@ -197,10 +198,10 @@ uv run src/main.py fetch
 ```
 
 Each command below sets the melody track, the bar excerpt and the sections. The longer songs use
-up to 4000 generations with a stagnation window of 200:
+up to 4000 generations with a stagnation window of 400:
 
 ```bash
-G="--set max_generations=4000 --set stagnation_window=200"
+G="--set max_generations=4000 --set stagnation_window=400"
 uv run src/main.py arrange data/raw/chiclete/voa_voa.mid --seed 1 $G --set midi.melody_track=3 \
     --set 'midi.bars=[8,56]' --set 'midi.sections=[[0,"A"],[16,"Pre"],[32,"Chorus"]]'
 uv run src/main.py arrange data/raw/mpb/mulher_de_fases.mid --seed 1 $G --set midi.melody_track=6 \
@@ -216,14 +217,14 @@ uv run src/main.py arrange data/raw/mpb/fico_assim_sem_voce.mid --seed 1 $G --se
 ```
 
 Then copy each run to `samples/` with the names used below, for example
-`uv run src/main.py sample outputs/voa_voa-s1-a4ef6256 voa-voa-s1`. The run folders are:
+`uv run src/main.py sample outputs/voa_voa-s1-ccca2416 voa-voa-s1`. The run folders are:
 
-- `voa_voa-s1-a4ef6256`
-- `mulher_de_fases-s1-3d09095f`
-- `amor_i_love_you-s1-f7b81f72`
-- `por_voce_bk-s1-7d4f337d`
-- `aquarela-s1-54a43520`
-- `fico_assim_sem_voce-s1-31684ebd`
+- `voa_voa-s1-ccca2416`
+- `mulher_de_fases-s1-7de7248c`
+- `amor_i_love_you-s1-e24d1066`
+- `por_voce_bk-s1-c9ff249f`
+- `aquarela-s1-d9735b16`
+- `fico_assim_sem_voce-s1-d4fbaf8e`
 
 Videos: `uv run src/main.py video samples/<sample-name>` for each sample.
 
@@ -236,7 +237,7 @@ them inline in this README): `uv run src/main.py compare samples/<sample-name>`,
 it for every song), so a fresh clone can rerun every MIDI sample from them, Voa Voa included:
 
 ```bash
-G="--set max_generations=4000 --set stagnation_window=200"
+G="--set max_generations=4000 --set stagnation_window=400"
 uv run src/main.py arrange data/leadsheets/voa_voa.abc --seed 1 $G
 uv run src/main.py arrange data/leadsheets/mulher_de_fases.abc --seed 1 $G
 uv run src/main.py arrange data/leadsheets/amor_i_love_you.abc --seed 1 $G
@@ -274,13 +275,15 @@ uv run src/main.py experiment data/leadsheets/korobeiniki.abc --seed 1
 
 ![Korobeiniki, seed 1: the four NES channels drawn as glowing lines in sync with the music](samples/korobeiniki-s1/preview.gif)
 
-*Korobeiniki, seed 1. The image shows a few seconds of the video: P1 is the melody (blue), P2
-the arpeggios (orange), TR the bass (grey), and the bottom band holds the drum hits.*
+*Korobeiniki, seed 1, in the bridge. The image shows a few seconds of the video: P1 is the melody
+(blue), P2 the arpeggios (orange), TR the octave-pump bass (grey), and the bottom band holds the
+drum hits of a sixteenth-note beat.*
 
 The [listening page](https://giowgiow.github.io/dcc831-tp1/listen/) plays every version in the
-browser. Each song below starts with three renderings: the original input, the generated arrangement with
-General MIDI timbres, and the same arrangement on the NES chip synthesizer. Then come the video
-and the folder with every other file:
+browser. Each song below starts with a short video that plays its three renderings one after the other:
+the original input, the generated arrangement with General MIDI timbres, and the same arrangement
+on the NES chip synthesizer (made with `uv run src/main.py compare`). Then come links to each
+file, the full video, and the folder with every other file:
 
 - `piece.mid`;
 - the piano roll;
@@ -294,92 +297,112 @@ soundfont and cut to the same bars.
 
 ### Ievan Polkka
 
+https://github.com/user-attachments/assets/99c51840-345a-4198-97d8-bc2bc49dde6a
+
 | Original | Generated (General MIDI) | Generated (chip) | Video |
 |---|---|---|---|
 | [input.mp3](samples/ievan-polkka-s1/input.mp3) | [piece.mp3](samples/ievan-polkka-s1/piece.mp3) | [piece-chip.mp3](samples/ievan-polkka-s1/piece-chip.mp3) | [piece.mp4](samples/ievan-polkka-s1/piece.mp4) |
 
-Input: ABC lead sheet (Loituma melody). Varied: default. Best fitness 0.929. Files and notes: [ievan-polkka-s1](samples/ievan-polkka-s1/).
+Input: ABC lead sheet (Loituma melody). Varied: default. Best fitness 0.912. Files and notes: [ievan-polkka-s1](samples/ievan-polkka-s1/).
 
 ### Ievan Polkka, contrast weight 0
+
+https://github.com/user-attachments/assets/ad1cb685-7217-4201-8f42-4a59e0ab2074
 
 | Original | Generated (General MIDI) | Generated (chip) | Video |
 |---|---|---|---|
 | [input.mp3](samples/ievan-polkka-s1-contrast0/input.mp3) | [piece.mp3](samples/ievan-polkka-s1-contrast0/piece.mp3) | [piece-chip.mp3](samples/ievan-polkka-s1-contrast0/piece-chip.mp3) | [piece.mp4](samples/ievan-polkka-s1-contrast0/piece.mp4) |
 
-Input: same lead sheet. Varied: hyperparameter: contrast weight 0. Best fitness 0.871*. Files and notes: [ievan-polkka-s1-contrast0](samples/ievan-polkka-s1-contrast0/).
+Input: same lead sheet. Varied: hyperparameter: contrast weight 0. Best fitness 0.887*. Files and notes: [ievan-polkka-s1-contrast0](samples/ievan-polkka-s1-contrast0/).
 
 ### Korobeiniki (Tetris theme)
+
+https://github.com/user-attachments/assets/ed86c752-3502-4d88-819d-08527809bdf2
 
 | Original | Generated (General MIDI) | Generated (chip) | Video |
 |---|---|---|---|
 | [input.mp3](samples/korobeiniki-s1/input.mp3) | [piece.mp3](samples/korobeiniki-s1/piece.mp3) | [piece-chip.mp3](samples/korobeiniki-s1/piece-chip.mp3) | [piece.mp4](samples/korobeiniki-s1/piece.mp4) |
 
-Input: ABC lead sheet. Varied: default. Best fitness 0.912. Files and notes: [korobeiniki-s1](samples/korobeiniki-s1/).
+Input: ABC lead sheet. Varied: default. Best fitness 0.922. Files and notes: [korobeiniki-s1](samples/korobeiniki-s1/).
 
 ### Korobeiniki, seed 2
+
+https://github.com/user-attachments/assets/2db22bab-f7a2-440a-aad0-40713cbeeffc
 
 | Original | Generated (General MIDI) | Generated (chip) | Video |
 |---|---|---|---|
 | [input.mp3](samples/korobeiniki-s2/input.mp3) | [piece.mp3](samples/korobeiniki-s2/piece.mp3) | [piece-chip.mp3](samples/korobeiniki-s2/piece-chip.mp3) | [piece.mp4](samples/korobeiniki-s2/piece.mp4) |
 
-Input: same lead sheet. Varied: seed 2. Best fitness 0.889. Files and notes: [korobeiniki-s2](samples/korobeiniki-s2/).
+Input: same lead sheet. Varied: seed 2. Best fitness 0.936. Files and notes: [korobeiniki-s2](samples/korobeiniki-s2/).
 
 ### Voa Voa (Chiclete com Banana)
+
+https://github.com/user-attachments/assets/98330022-99aa-4a24-a5ba-5c3d18ca5851
 
 | Original | Generated (General MIDI) | Generated (chip) | Video |
 |---|---|---|---|
 | [input.mp3](samples/voa-voa-s1/input.mp3) | [piece.mp3](samples/voa-voa-s1/piece.mp3) | [piece-chip.mp3](samples/voa-voa-s1/piece-chip.mp3) | [piece.mp4](samples/voa-voa-s1/piece.mp4) |
 
-Input: MIDI, bars 8–56. Varied: beat grid re-estimated (110 BPM). Best fitness 0.802. Files and notes: [voa-voa-s1](samples/voa-voa-s1/).
+Input: MIDI, bars 8–56. Varied: beat grid re-estimated (110 BPM). Best fitness 0.853. Files and notes: [voa-voa-s1](samples/voa-voa-s1/).
 
 ### Mulher de Fases (Raimundos)
+
+https://github.com/user-attachments/assets/729d8893-a89e-42a3-8c57-ea96e56264ef
 
 | Original | Generated (General MIDI) | Generated (chip) | Video |
 |---|---|---|---|
 | [input.mp3](samples/mulher-de-fases-s1/input.mp3) | [piece.mp3](samples/mulher-de-fases-s1/piece.mp3) | [piece-chip.mp3](samples/mulher-de-fases-s1/piece-chip.mp3) | [piece.mp4](samples/mulher-de-fases-s1/piece.mp4) |
 
-Input: MIDI, bars 8–40. Varied: melody: harmonica track. Best fitness 0.878. Files and notes: [mulher-de-fases-s1](samples/mulher-de-fases-s1/).
+Input: MIDI, bars 8–40. Varied: melody: harmonica track. Best fitness 0.896. Files and notes: [mulher-de-fases-s1](samples/mulher-de-fases-s1/).
 
 ### Amor I Love You (Marisa Monte)
+
+https://github.com/user-attachments/assets/6f264358-9aed-4a30-94af-263ae51860e7
 
 | Original | Generated (General MIDI) | Generated (chip) | Video |
 |---|---|---|---|
 | [input.mp3](samples/amor-i-love-you-s1/input.mp3) | [piece.mp3](samples/amor-i-love-you-s1/piece.mp3) | [piece-chip.mp3](samples/amor-i-love-you-s1/piece-chip.mp3) | [piece.mp4](samples/amor-i-love-you-s1/piece.mp4) |
 
-Input: MIDI, bars 0–56. Varied: melody: flute track. Best fitness 0.830. Files and notes: [amor-i-love-you-s1](samples/amor-i-love-you-s1/).
+Input: MIDI, bars 0–56. Varied: melody: flute track. Best fitness 0.833. Files and notes: [amor-i-love-you-s1](samples/amor-i-love-you-s1/).
 
 ### Por Você (Barão Vermelho)
+
+https://github.com/user-attachments/assets/db636566-d785-40f3-93da-748810e7ba9e
 
 | Original | Generated (General MIDI) | Generated (chip) | Video |
 |---|---|---|---|
 | [input.mp3](samples/por-voce-s1/input.mp3) | [piece.mp3](samples/por-voce-s1/piece.mp3) | [piece-chip.mp3](samples/por-voce-s1/piece-chip.mp3) | [piece.mp4](samples/por-voce-s1/piece.mp4) |
 
-Input: MIDI, bars 4–48. Varied: melody: flute track. Best fitness 0.879. Files and notes: [por-voce-s1](samples/por-voce-s1/).
+Input: MIDI, bars 4–48. Varied: melody: flute track. Best fitness 0.896. Files and notes: [por-voce-s1](samples/por-voce-s1/).
 
 ### Aquarela (Toquinho)
+
+https://github.com/user-attachments/assets/3817c82d-7437-4acc-b5e5-8bc74fa71341
 
 | Original | Generated (General MIDI) | Generated (chip) | Video |
 |---|---|---|---|
 | [input.mp3](samples/aquarela-s1/input.mp3) | [piece.mp3](samples/aquarela-s1/piece.mp3) | [piece-chip.mp3](samples/aquarela-s1/piece-chip.mp3) | [piece.mp4](samples/aquarela-s1/piece.mp4) |
 
-Input: MIDI, bars 4–36. Varied: melody: clarinet track. Best fitness 0.865. Files and notes: [aquarela-s1](samples/aquarela-s1/).
+Input: MIDI, bars 4–36. Varied: melody: clarinet track. Best fitness 0.895. Files and notes: [aquarela-s1](samples/aquarela-s1/).
 
 ### Fico Assim Sem Você (Adriana Calcanhotto)
+
+https://github.com/user-attachments/assets/7f29034f-1020-4e59-94bf-a92bbf5ac99c
 
 | Original | Generated (General MIDI) | Generated (chip) | Video |
 |---|---|---|---|
 | [input.mp3](samples/fico-assim-sem-voce-s1/input.mp3) | [piece.mp3](samples/fico-assim-sem-voce-s1/piece.mp3) | [piece-chip.mp3](samples/fico-assim-sem-voce-s1/piece-chip.mp3) | [piece.mp4](samples/fico-assim-sem-voce-s1/piece.mp4) |
 
-Input: MIDI, bars 10–58. Varied: melody: flute track. Best fitness 0.854. Files and notes: [fico-assim-sem-voce-s1](samples/fico-assim-sem-voce-s1/).
+Input: MIDI, bars 10–58. Varied: melody: flute track. Best fitness 0.891. Files and notes: [fico-assim-sem-voce-s1](samples/fico-assim-sem-voce-s1/).
 
 \* The contrast-0 run is scored without the contrast criterion, so its fitness is not comparable
 with the others.
 
 How to read the results:
 
-- **Stopping:** every run stopped after its stagnation window (100 generations for the ABC
-  tunes, 200 for the MIDI songs).
-- **The MIDI songs score lower** (0.80–0.88 against 0.89–0.93) for two reasons:
+- **Stopping:** every run stopped after its stagnation window (300 generations for the ABC
+  tunes, 400 for the MIDI songs), except Voa Voa, which reached the 4000-generation cap.
+- **The MIDI songs score lower** (0.83–0.90 against 0.91–0.94) for two reasons:
   - Their melodies often sit in octave 3 or 4. That pits the register criterion against fidelity.
   - They are longer, and their chords are detected automatically.
 

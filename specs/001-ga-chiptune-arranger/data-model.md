@@ -92,7 +92,8 @@ stores:
 | `act_tr` | `(n, 4)` | TR activity |
 | `act_no` | `(5,)` | NO activity per pattern |
 | `reg_both`, `reg_ok` | `(n, 3, 5)` | sixteenth steps where P1 and P2 both sound, and where P2 < P1 |
-| `bass_smooth` | `(n − 1, 4, 4)` | leap score from the last TR note of bar i to the first of bar i + 1 |
+| `bass_inner`, `bass_inner_leaps` | `(n, 4)` | mean leap score and number of leaps of the bass line inside the bar (NaN, 0 for a single note); the line is every TR note, or only the roots of the octave pump |
+| `bass_across` | `(n − 1, 4, 4)` | leap score from the last note of the bass line in bar i to the first TR note of bar i + 1 |
 | `single_chord`, `phrase_end`, `is_chorus` | `(n,)` bool | bar facts |
 | `phrase` | `(n,)` int | phrase id |
 
@@ -104,13 +105,16 @@ applicable":
 - **complementarity**: mean over bars of `1 − |act_p2 − (1 − act_p1)|`.
 - **register**: `Σ reg_ok / Σ reg_both` over bars, or 1 when `Σ reg_both = 0`.
 - **coherence**: the share of adjacent pairs inside a phrase with equal P2, TR and P1 genes and with
-  NO genes that are equal or include a *fill*. The score is 1 when no pair exists.
+  equal NO genes, except that a *fill* may follow any pattern in the bar that ends the phrase. NaN
+  when no pair exists.
 - **contrast**: with density = (act_p2 + act_tr + act_no) / 3, the score is
   `clip(0.5 + mean_chorus − mean_verse, 0, 1)`. It is NaN unless both roles exist.
-- **bass_smoothness**: the mean of `bass_smooth` over bar pairs. A leap d scores 1 if d ≤ 5,
-  0 if d ≥ 12, and (12 − d) / 7 in between. The score is 1 for a single bar.
-- **idiom**: the nanmean of two shares: arp16 or arp32 among single-chord bars, and
-  `(NO == fill) == phrase_end` among all bars.
+- **bass_smoothness**: the mean leap score over every leap of the bass line, inside bars
+  (`bass_inner` weighted by `bass_inner_leaps`) and across bar lines (`bass_across`), each leap
+  counted once. A leap d scores 1 if d ≤ 5, 0 if d ≥ 12, and (12 − d) / 7 in between. NaN when the
+  line never leaps.
+- **idiom**: pooled decisions, (single-chord bars with arp16 or arp32 + bars where
+  `(NO == fill) == phrase_end`) / (single-chord bars + bars).
 - **fidelity**: the share of bars with P1 octave gene 0 (written octave).
 
 `fitness(tables, population, weights) = Σ w·s / Σ w` over the applicable criteria (0 when the
@@ -132,8 +136,8 @@ weight sum is 0).
 ```json
 {
   "population_size": 60,
-  "max_generations": 1000,
-  "stagnation_window": 100,
+  "max_generations": 3000,
+  "stagnation_window": 300,
   "mutation_rate": 0.01,
   "elite_count": 2,
   "phrase_length": 4,

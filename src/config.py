@@ -9,6 +9,7 @@ the same configuration always gives the same hash.
 import copy
 import hashlib
 import json
+import math
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -22,7 +23,9 @@ def load_config(path: Path | str | None = None, overrides: Sequence[str] = ()) -
     """Return the defaults, updated by an optional JSON file and by `key=value` overrides.
 
     Dotted keys reach nested values (`weights.contrast=3`). Values are parsed as JSON, and a value
-    that is not valid JSON is kept as a string (`role_map.A=chorus`).
+    that is not valid JSON is kept as a string (`role_map.A=chorus`). A ValueError rejects an
+    unknown key and criterion weights that are not finite numbers of at least 0, or that are all
+    0, since the fitness is their weighted mean.
 
     >>> load_config(overrides=["weights.contrast=3"])["weights"]["contrast"]
     3
@@ -35,6 +38,7 @@ def load_config(path: Path | str | None = None, overrides: Sequence[str] = ()) -
         if not sep or not key:
             raise ValueError(f"override {item!r} must look like key=value")
         _set_dotted(config, key.strip(), _parse_value(raw_value.strip()))
+    _check_weights(config["weights"])
     return config
 
 
@@ -46,6 +50,22 @@ def config_hash(config: dict) -> str:
     """
     canonical = json.dumps(config, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode()).hexdigest()[:8]
+
+
+def _check_weights(weights: dict) -> None:
+    """Reject criterion weights that would break the weighted mean of the fitness.
+
+    A NaN weight turns every fitness into NaN (scored as 0), an infinite one makes the roulette
+    wheel undefined, a negative one rewards breaking the rule it weighs, and weights that are
+    all 0 leave nothing to optimize.
+    """
+    for name, weight in weights.items():
+        if isinstance(weight, bool) or not isinstance(weight, int | float):
+            raise ValueError(f"weights.{name} must be a number, got {weight!r}")
+        if not math.isfinite(weight) or weight < 0:
+            raise ValueError(f"weights.{name} must be finite and at least 0, got {weight!r}")
+    if sum(weights.values()) == 0:
+        raise ValueError("the weights must not all be 0: the fitness would have nothing to score")
 
 
 def _parse_value(raw_value: str) -> object:

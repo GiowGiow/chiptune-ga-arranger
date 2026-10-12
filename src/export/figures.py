@@ -88,7 +88,7 @@ def plot_evolution(log: Sequence, path: Path | str) -> None:
     # that its 8-point text stays 8 points when LaTeX places it; the PNG gets a higher dpi instead.
     style = {"font.size": 8, "axes.titlesize": 8, "legend.fontsize": 7}
     with matplotlib.style.context("tableau-colorblind10"), matplotlib.rc_context(style):
-        figure = Figure(figsize=(3.4, 2.5), layout="constrained")
+        figure = Figure(figsize=(3.4, 2.2), layout="constrained")
         fitness_axes, diversity_axes = figure.subplots(
             2, 1, sharex=True, gridspec_kw={"height_ratios": [3, 1]}
         )

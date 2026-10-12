@@ -1,22 +1,17 @@
 # Listening notes: voa-voa-s1
 
-Run `voa_voa-s1-a4ef6256`: "Voa Voa" (Chiclete com Banana), bars 8–56 of a fan-made MIDI file
+Run `voa_voa-s1-ccca2416`: "Voa Voa" (Chiclete com Banana), bars 8–56 of a fan-made MIDI file
 recorded live. The file says 120 BPM, but the reader re-estimated the beat grid from the drums at
 110.1 BPM. The melody is track 3 (tenor sax), and the chords are detected from the other tracks.
 The sections are: verse (A) bars 8–23, pre-chorus bars 24–39, and chorus bars 40–55, which
-modulates to G#m–D#m–C#m. Seed 1, with up to 4000 generations. Best fitness 0.802 after 1784
-generations.
+modulates to G#m–D#m–C#m. Seed 1, with up to 4000 generations and a stagnation window of 400. Best fitness 0.853 after 4000 generations.
 
-- What to listen for:
-  - The verse starts sparse: P2 holds the root, there are no drums, and the melody is one octave
-    up.
-  - It then moves to echoes and arpeggios.
-  - The chorus switches to an octave-pump or walking bass with a sixteenth-note beat and fast
-    arpeggios.
-- What works: the chorus is clearly the climax, and the chip rendering (`piece-chip.mp3`)
-  sounds like an NES cover.
-- What does not work:
-  - The sax melody sits low (around B3), so P2 often has to stay above it or the GA moves the
-    melody up an octave. Register (0.93) and fidelity (0.73) are lower than for the ABC tunes.
-  - Detected chords are spelled with flats (Ebm7 for D#m7).
-- Original for comparison: `input.mp3`, the same bars of the band MIDI file.
+- The plan per part (bar counts of each texture, from `metrics.json`):
+  - bars 1–16 (A): P2 16th arpeggio ×8, third ×8; TR root ×8, walking ×6, octave pump ×2; NO none ×11, fill ×3, eighth beat ×2; melody as written ×10, an octave up ×6.
+  - bars 17–32 (Pre): P2 third ×10, 16th arpeggio ×5, 32nd arpeggio ×1; TR root ×10, walking ×6; NO none ×10, fill ×4, eighth beat ×2.
+  - bars 33–48 (Chorus): P2 32nd arpeggio ×11, 16th arpeggio ×5; TR octave pump ×16; NO sixteenth beat ×10, fill ×4, half time ×2.
+- What to listen for: compare `input.mp3` (the input), `piece.mp3` (the arrangement with General
+  MIDI timbres) and `piece-chip.mp3` (the same arrangement on the chip synthesizer); `piece.mp4`
+  shows the four channels.
+- What works: to be written by the student after listening.
+- What does not work: to be written by the student after listening.

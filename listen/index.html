@@ -42,9 +42,7 @@
   .track.gm h3 { color: var(--p1); }
   .track.chip h3 { color: var(--p2); }
   audio { width: 100%; height: 40px; }
-  details { margin-top: 14px; }
-  summary { cursor: pointer; color: var(--muted); font-size: 0.9rem; }
-  video { width: 100%; margin-top: 10px; border-radius: 6px; background: #000; aspect-ratio: 16 / 9; }
+  video { display: block; width: 100%; margin: 0 0 14px; border-radius: 6px; background: #000; aspect-ratio: 16 / 9; }
   footer { color: var(--muted); font-size: 0.85rem; margin-top: 32px; }
   @media (max-width: 720px) {
     .tracks { grid-template-columns: 1fr; }
@@ -56,7 +54,8 @@
   <h1>A genetic algorithm that arranges songs for the NES sound chip</h1>
   <p class="lead">DCC831 Generative AI for Music (UFMG, 2026/2), Assignment 1. Every song has three
   renderings: the original input, the generated arrangement with General MIDI timbres, and the same
-  arrangement on our NES chip synthesizer. The video draws each channel as a glowing line.</p>
+  arrangement on our NES chip synthesizer. The video plays the chip version and draws each
+  channel as a glowing line.</p>
   <p class="lead">For an ABC tune, the original is the lead sheet played plainly. For a MIDI song,
   the original is the fan-made MIDI file itself, rendered with the same soundfont and cut to the
   same bars. Code, method and paper: <a href="https://github.com/GiowGiow/dcc831-tp1">GiowGiow/dcc831-tp1</a>.</p>
@@ -73,16 +72,16 @@
 <script>
   // One entry per folder in samples/; the text matches the "Generated pieces" section of the README.
   const SAMPLES = [
-    ["ievan-polkka-s1", "Ievan Polkka", "ABC lead sheet (Loituma melody). Varied: default.", "0.929"],
-    ["ievan-polkka-s1-contrast0", "Ievan Polkka, contrast weight 0", "Same lead sheet. Varied: contrast weight 0 (fitness not comparable).", "0.871"],
-    ["korobeiniki-s1", "Korobeiniki (Tetris theme)", "ABC lead sheet. Varied: default.", "0.912"],
-    ["korobeiniki-s2", "Korobeiniki, seed 2", "Same lead sheet. Varied: seed 2.", "0.889"],
-    ["voa-voa-s1", "Voa Voa (Chiclete com Banana)", "MIDI, bars 8–56. Beat grid re-estimated (110 BPM).", "0.802"],
-    ["mulher-de-fases-s1", "Mulher de Fases (Raimundos)", "MIDI, bars 8–40. Melody: harmonica track.", "0.878"],
-    ["amor-i-love-you-s1", "Amor I Love You (Marisa Monte)", "MIDI, bars 0–56. Melody: flute track.", "0.830"],
-    ["por-voce-s1", "Por Você (Barão Vermelho)", "MIDI, bars 4–48. Melody: flute track.", "0.879"],
-    ["aquarela-s1", "Aquarela (Toquinho)", "MIDI, bars 4–36. Melody: clarinet track.", "0.865"],
-    ["fico-assim-sem-voce-s1", "Fico Assim Sem Você (Adriana Calcanhotto)", "MIDI, bars 10–58. Melody: flute track.", "0.854"],
+    ["ievan-polkka-s1", "Ievan Polkka", "ABC lead sheet (Loituma melody). Varied: default.", "0.912"],
+    ["ievan-polkka-s1-contrast0", "Ievan Polkka, contrast weight 0", "Same lead sheet. Varied: contrast weight 0 (fitness not comparable).", "0.887"],
+    ["korobeiniki-s1", "Korobeiniki (Tetris theme)", "ABC lead sheet. Varied: default.", "0.922"],
+    ["korobeiniki-s2", "Korobeiniki, seed 2", "Same lead sheet. Varied: seed 2.", "0.936"],
+    ["voa-voa-s1", "Voa Voa (Chiclete com Banana)", "MIDI, bars 8–56. Beat grid re-estimated (110 BPM).", "0.853"],
+    ["mulher-de-fases-s1", "Mulher de Fases (Raimundos)", "MIDI, bars 8–40. Melody: harmonica track.", "0.896"],
+    ["amor-i-love-you-s1", "Amor I Love You (Marisa Monte)", "MIDI, bars 0–56. Melody: flute track.", "0.833"],
+    ["por-voce-s1", "Por Você (Barão Vermelho)", "MIDI, bars 4–48. Melody: flute track.", "0.896"],
+    ["aquarela-s1", "Aquarela (Toquinho)", "MIDI, bars 4–36. Melody: clarinet track.", "0.895"],
+    ["fico-assim-sem-voce-s1", "Fico Assim Sem Você (Adriana Calcanhotto)", "MIDI, bars 10–58. Melody: flute track.", "0.891"],
   ];
   const TRACKS = [
     ["input.mp3", "Original", "original"],
@@ -101,9 +100,9 @@
     section.innerHTML =
       `<header><h2>${title}</h2><span class="fitness">best fitness ${fitness}</span></header>` +
       `<p class="meta">${meta} <a href="https://github.com/GiowGiow/dcc831-tp1/tree/main/samples/${folder}">Files and notes</a></p>` +
-      `<div class="tracks">${tracks}</div>` +
-      `<details><summary>Video: the four channels in sync with the chip audio</summary>` +
-      `<video controls preload="none" src="${base}piece.mp4"></video></details>`;
+      `<video controls preload="metadata" src="${base}piece.mp4#t=0.5"` +
+      ` aria-label="${title}: the four channels in sync with the chip audio"></video>` +
+      `<div class="tracks">${tracks}</div>`;
     songs.appendChild(section);
   }
   // Only one player sounds at a time: starting one pauses the others.

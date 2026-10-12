@@ -7,6 +7,14 @@ thousands of fitness evaluations of a run fast and keeps the notes out of the GA
 
 Activity measures how busy a channel is in a bar: min(1, onsets / 16), so one onset on every
 sixteenth note (or more) counts as fully active, and silence as 0.
+
+The bass is measured as a *line*: the notes a listener follows as the bass melody. For most TR
+textures that is every note. For the octave pump it is only the roots on the beats: the upper
+octave between them is an ornament that colors the line, not a step of it, as a listener hears
+"C C C C" in a C pump, not a melody that jumps an octave eight times a bar. Every leap of the
+line is scored, inside a bar (`bass_inner`) and across a bar line (`bass_across`), because a
+walking bar starts and ends next to the neighboring roots but can leap by more than an octave
+in between.
 """
 
 from dataclasses import dataclass
@@ -30,8 +38,11 @@ class ScoreTables:
         act_no: (5,) NO activity for each drum pattern (the same in every bar).
         reg_both: (n, 3, 5) sixteenth steps where P1 (octave gene) and P2 (texture) both sound.
         reg_ok: (n, 3, 5) sixteenth steps where both sound and P2 is lower than P1.
-        bass_smooth: (n - 1, 4, 4) score in [0, 1] of the leap from TR texture i in bar b to
-            TR texture j in bar b + 1.
+        bass_inner: (n, 4) mean leap score over consecutive notes of the bass line inside bar b
+            for each TR texture; NaN when the line has a single note in the bar.
+        bass_inner_leaps: (n, 4) number of those leaps (notes of the line in the bar minus 1).
+        bass_across: (n - 1, 4, 4) leap score from the last note of the line of TR texture i in
+            bar b to the first note of TR texture j in bar b + 1.
         single_chord: (n,) True when one chord lasts the whole bar.
         phrase_end: (n,) True when the bar ends its phrase.
         phrase: (n,) phrase id of each bar.
@@ -44,7 +55,9 @@ class ScoreTables:
     act_no: np.ndarray
     reg_both: np.ndarray
     reg_ok: np.ndarray
-    bass_smooth: np.ndarray
+    bass_inner: np.ndarray
+    bass_inner_leaps: np.ndarray
+    bass_across: np.ndarray
     single_chord: np.ndarray
     phrase_end: np.ndarray
     phrase: np.ndarray
@@ -55,6 +68,8 @@ class ScoreTables:
 STEPS_PER_BAR = 16
 STEP = 0.25
 
+OCTAVE_PUMP = TR_TEXTURES.index("octave_pump")
+
 
 def build_tables(lead_sheet: LeadSheet) -> ScoreTables:
     """Realize every (bar, channel, gene value) choice once and measure it.
@@ -63,8 +78,10 @@ def build_tables(lead_sheet: LeadSheet) -> ScoreTables:
     >>> c = ChordSegment("C", 0, (0, 4, 7), 0.0, 4.0)
     >>> bar = Bar(0, (MelodyNote(72, 0.0, 4.0),), (c,), "A", "verse", 0, True)
     >>> tables = build_tables(LeadSheet("one bar", "c major", 120.0, (bar,)))
-    >>> float(tables.act_p2[0, 1]), tables.bass_smooth.shape
+    >>> float(tables.act_p2[0, 1]), tables.bass_across.shape
     (1.0, (0, 4, 4))
+    >>> tables.bass_inner_leaps[0].tolist()  # root, octave_pump, root_fifth, walking
+    [0, 3, 3, 3]
     """
     bars = lead_sheet.bars
     n = len(bars)
@@ -73,6 +90,8 @@ def build_tables(lead_sheet: LeadSheet) -> ScoreTables:
     act_tr = np.zeros((n, len(TR_TEXTURES)))
     reg_both = np.zeros((n, len(P1_OCTAVES), len(P2_TEXTURES)))
     reg_ok = np.zeros_like(reg_both)
+    bass_inner = np.full((n, len(TR_TEXTURES)), np.nan)
+    bass_inner_leaps = np.zeros((n, len(TR_TEXTURES)), dtype=int)
     bass_first = np.zeros((n, len(TR_TEXTURES)))
     bass_last = np.zeros((n, len(TR_TEXTURES)))
     for b, bar in enumerate(bars):
@@ -93,12 +112,14 @@ def build_tables(lead_sheet: LeadSheet) -> ScoreTables:
         for texture in range(len(TR_TEXTURES)):
             notes = realize_tr(bar, texture, next_bar)
             act_tr[b, texture] = _activity(notes)
-            bass_first[b, texture] = notes[0].pitch
-            bass_last[b, texture] = notes[-1].pitch
+            line = bass_line(texture, [note.pitch for note in notes])
+            bass_first[b, texture], bass_last[b, texture] = line[0], line[-1]
+            bass_inner_leaps[b, texture] = len(line) - 1
+            if len(line) > 1:
+                bass_inner[b, texture] = _leap_score(np.abs(np.diff(line))).mean()
     act_no = np.array([_activity(realize_no(pattern)) for pattern in range(len(NO_PATTERNS))])
-    # Leap from the last bass note of bar b (texture i) to the first of bar b + 1 (texture j).
+    # Leap from the line's last note in bar b (texture i) to its first in bar b + 1 (texture j).
     leaps = np.abs(bass_last[:-1, :, np.newaxis] - bass_first[1:, np.newaxis, :])
-    bass_smooth = _leap_score(leaps)
     return ScoreTables(
         act_p1=act_p1,
         act_p2=act_p2,
@@ -106,12 +127,27 @@ def build_tables(lead_sheet: LeadSheet) -> ScoreTables:
         act_no=act_no,
         reg_both=reg_both,
         reg_ok=reg_ok,
-        bass_smooth=bass_smooth,
+        bass_inner=bass_inner,
+        bass_inner_leaps=bass_inner_leaps,
+        bass_across=_leap_score(leaps),
         single_chord=np.array([len(bar.chords) == 1 for bar in bars], dtype=bool),
         phrase_end=np.array([bar.phrase_end for bar in bars], dtype=bool),
         phrase=np.array([bar.phrase for bar in bars], dtype=int),
         is_chorus=np.array([bar.role == "chorus" for bar in bars], dtype=bool),
     )
+
+
+def bass_line(tr_texture: int, pitches: list[int]) -> list[int]:
+    """The pitches of a TR bar that form the bass line: all of them, except in the octave pump.
+
+    The pump alternates root and upper octave on the eighths; its line is the roots alone.
+
+    >>> bass_line(OCTAVE_PUMP, [36, 48, 36, 48, 43, 55, 43, 55])
+    [36, 36, 43, 43]
+    >>> bass_line(TR_TEXTURES.index("walking"), [36, 40, 43, 42])
+    [36, 40, 43, 42]
+    """
+    return pitches[::2] if tr_texture == OCTAVE_PUMP else pitches
 
 
 def _activity(notes) -> float:

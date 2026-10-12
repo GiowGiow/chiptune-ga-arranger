@@ -22,21 +22,26 @@ import numpy as np
 
 from ga.genome import GENE_SIZES
 
+# Fitness values closer than this are ties: the same weighted mean summed in a different order
+# can differ in the last bits, and that noise must not decide who reproduces.
+TIE_TOLERANCE = 1e-12
+
 
 def roulette_select(rng: np.random.Generator, fitness: np.ndarray, n: int) -> np.ndarray:
     """Pick n parent indices with probability proportional to fitness minus the lowest fitness.
 
-    The worst plan of the generation gets an empty slice. When all fitness values are equal,
-    every plan gets the same slice.
+    The worst plan of the generation gets an empty slice. When all fitness values are equal (up
+    to TIE_TOLERANCE), every plan gets the same slice: windowing would otherwise give the whole
+    wheel to whichever plan is one rounding error above the others.
 
     >>> rng = np.random.default_rng(0)
     >>> picks = roulette_select(rng, np.array([0.2, 0.9, 0.9]), n=1000)
     >>> bool((picks == 0).any())  # the worst plan is never picked
     False
     """
-    window = fitness - fitness.min()
-    if window.sum() == 0:
+    if np.ptp(fitness) <= TIE_TOLERANCE:
         return rng.choice(len(fitness), size=n)  # all plans equally fit: equal slices
+    window = fitness - fitness.min()
     return rng.choice(len(fitness), size=n, p=window / window.sum())
 
 

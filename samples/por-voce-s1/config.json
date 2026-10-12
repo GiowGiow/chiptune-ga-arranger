@@ -1,7 +1,7 @@
 {
   "population_size": 60,
   "max_generations": 4000,
-  "stagnation_window": 200,
+  "stagnation_window": 400,
   "mutation_rate": 0.01,
   "elite_count": 2,
   "phrase_length": 4,
@@ -41,12 +41,12 @@
   "seed": 1,
   "input_path": "data/raw/mpb/por_voce_bk.mid",
   "input_sha256": "8f3b706ffd32561caba1e3eff7ad0e1d1b66b702e9adea9a3dc2fec1e7dd8701",
-  "git_commit": "bb47d44ed4326eb09e387228e3c888ed00b5fc12",
+  "git_commit": "0aa9d91370c1fc8902e948b137d919e094246f67",
   "git_dirty": true,
-  "created": "2026-10-11T23:15:41+00:00",
-  "run_id": "por_voce_bk-s1-7d4f337d",
-  "best_fitness": 0.8792154584188056,
+  "created": "2026-10-12T00:48:22+00:00",
+  "run_id": "por_voce_bk-s1-c9ff249f",
+  "best_fitness": 0.8955709353610499,
   "stop_reason": "stagnation",
-  "generations": 2442,
+  "generations": 2896,
   "audio": true
 }

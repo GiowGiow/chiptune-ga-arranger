@@ -1,12 +1,13 @@
 # Listening notes: korobeiniki-s1
 
-Run `korobeiniki-s1-220a0105`: Korobeiniki (Tetris theme), seed 1, default configuration. Best
-fitness 0.912 after 934 generations.
+Run `korobeiniki-s1-39aaf0de`: Korobeiniki (Tetris theme), seed 1, default configuration. Best fitness 0.922 after 1886 generations.
 
-- What to listen for: P2 arpeggiates the chords all the way through, in 16th notes in the A parts
-  and mostly in 32nd notes in the slow bridge (B), where the melody holds half notes. The drums
-  stay light (half time or silent) in the A parts and switch to a sixteenth-note beat in the
-  bridge, with fills at phrase ends.
-- What works: the arpeggios give the typical game-music sound, and the denser bridge balances
-  the long melody notes. The student liked the result on first listening.
-- What does not work: the arpeggios never stop, which gets busy over 51 seconds.
+- The plan per part (bar counts of each texture, from `metrics.json`):
+  - bars 1–16 (A): P2 16th arpeggio ×8, 32nd arpeggio ×6, third ×2; TR root ×14, walking ×2; NO none ×12, fill ×4.
+  - bars 17–24 (B): P2 16th arpeggio ×8; TR octave pump ×8; NO sixteenth beat ×8.
+  - bars 25–32 (A): P2 32nd arpeggio ×6, 16th arpeggio ×2; TR root ×6, octave pump ×2; NO none ×6, fill ×2.
+- What to listen for: compare `input.mp3` (the input), `piece.mp3` (the arrangement with General
+  MIDI timbres) and `piece-chip.mp3` (the same arrangement on the chip synthesizer); `piece.mp4`
+  shows the four channels.
+- What works: to be written by the student after listening.
+- What does not work: to be written by the student after listening.

@@ -136,7 +136,8 @@ def evolve(
     >>> two_bars = ScoreTables(
     ...     act_p1=np.ones((2, 3)), act_p2=np.zeros((2, 5)), act_tr=np.zeros((2, 4)),
     ...     act_no=np.zeros(5), reg_both=np.zeros((2, 3, 5)), reg_ok=np.zeros((2, 3, 5)),
-    ...     bass_smooth=np.ones((1, 4, 4)), single_chord=np.zeros(2, dtype=bool),
+    ...     bass_inner=np.full((2, 4), np.nan), bass_inner_leaps=np.zeros((2, 4), dtype=int),
+    ...     bass_across=np.ones((1, 4, 4)), single_chord=np.zeros(2, dtype=bool),
     ...     phrase_end=np.zeros(2, dtype=bool), phrase=np.array([0, 0]),
     ...     is_chorus=np.zeros(2, dtype=bool))
     >>> params = GAParams(population_size=10, max_generations=30, stagnation_window=10,

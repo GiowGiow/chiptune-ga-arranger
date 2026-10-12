@@ -241,15 +241,17 @@ and that each channel appears as its own line.
     both sound and P2 is lower; it is 1 when they never sound together.
   - **C3 Coherence**: bars inside a phrase keep the same choices. The score is the share of
     adjacent bar pairs, inside each phrase, with equal P2, TR, P1-octave and NO genes; a fill
-    counts as equal to any NO pattern.
+    counts as equal to any NO pattern only in the bar that ends the phrase.
   - **C4 Contrast**: the chorus is denser than the verse. Density is the mean activity of P2, TR
     and NO. The score is 0.5 + mean density(chorus) − mean density(verse), clipped to 0 to 1. It
     applies only when both roles exist.
-  - **C5 Bass smoothness**: small leaps between the last TR note of a bar and the first TR note of
-    the next bar. A pair scores 1 up to 5 semitones and 0 from 12 semitones, linear in between.
-  - **C6 Idiom**: the mean of two shares: among bars with one chord for the whole bar, the share
-    that uses arp16 or arp32 on P2 (left out when no such bar exists); and among all bars, the
-    share where "NO is a fill" matches "the bar ends a phrase".
+  - **C5 Bass smoothness**: small leaps along the bass line, inside each bar and across bar lines.
+    The line is every TR note, except in the octave pump, whose upper octaves are an ornament
+    (only its roots count). A leap scores 1 up to 5 semitones and 0 from 12 semitones, linear in
+    between; the score is the mean over all leaps.
+  - **C6 Idiom**: the share of good decisions, pooled: every bar with one chord for the whole bar
+    makes a harmony decision (good when P2 plays arp16 or arp32), and every bar makes a drum
+    decision (good when "NO is a fill" matches "the bar ends a phrase").
   - **C7 Fidelity**: the share of bars where P1 plays the melody at its written octave. It keeps
     octave shifts for bars where another criterion gains more, and stops the degenerate plan that
     moves the whole melody up an octave to win C2 (warning in `references/tp1/ga-arranjo-nes.md`

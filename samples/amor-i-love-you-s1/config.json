@@ -1,7 +1,7 @@
 {
   "population_size": 60,
   "max_generations": 4000,
-  "stagnation_window": 200,
+  "stagnation_window": 400,
   "mutation_rate": 0.01,
   "elite_count": 2,
   "phrase_length": 4,
@@ -45,12 +45,12 @@
   "seed": 1,
   "input_path": "data/raw/mpb/amor_i_love_you.mid",
   "input_sha256": "973e33c89cf71fedf89dedc6e1cd14e4d0c371ad9d265d7c2b6e72efa6d571cb",
-  "git_commit": "bb47d44ed4326eb09e387228e3c888ed00b5fc12",
+  "git_commit": "0aa9d91370c1fc8902e948b137d919e094246f67",
   "git_dirty": true,
-  "created": "2026-10-11T23:15:13+00:00",
-  "run_id": "amor_i_love_you-s1-f7b81f72",
-  "best_fitness": 0.8303265537300863,
+  "created": "2026-10-12T00:47:41+00:00",
+  "run_id": "amor_i_love_you-s1-e24d1066",
+  "best_fitness": 0.8333845696509383,
   "stop_reason": "stagnation",
-  "generations": 3084,
+  "generations": 2935,
   "audio": true
 }

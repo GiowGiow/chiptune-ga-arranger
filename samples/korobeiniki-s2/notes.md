@@ -1,12 +1,13 @@
 # Listening notes: korobeiniki-s2
 
-Run `korobeiniki-s2-220a0105`: Korobeiniki, seed 2, same configuration as `korobeiniki-s1`. Best
-fitness 0.889 after 841 generations.
+Run `korobeiniki-s2-39aaf0de`: Korobeiniki, seed 2, same configuration as `korobeiniki-s1`. Best fitness 0.936 after 1986 generations.
 
-- What to listen for: the variation between seeds. This run uses 32nd-note arpeggios in more bars
-  and an octave-pump bass at the start of the bridge, and it places its drum patterns
-  differently. 38% of the genes differ, on average, between the five seeds of the experiment.
-- What works: it is recognizably the same arrangement idea with a different surface, which is the
-  expected effect of a new seed.
-- What does not work: P2 is denser than in seed 1 (6.8 against 5.3 notes per beat), so the
-  texture is busier.
+- The plan per part (bar counts of each texture, from `metrics.json`):
+  - bars 1–16 (A): P2 32nd arpeggio ×12, 16th arpeggio ×4; TR root ×12, walking ×4; NO none ×12, fill ×4.
+  - bars 17–24 (B): P2 32nd arpeggio ×8; TR octave pump ×8; NO sixteenth beat ×7, fill ×1.
+  - bars 25–32 (A): P2 16th arpeggio ×4, 32nd arpeggio ×4; TR walking ×4, root ×4; NO none ×6, fill ×2.
+- What to listen for: compare `input.mp3` (the input), `piece.mp3` (the arrangement with General
+  MIDI timbres) and `piece-chip.mp3` (the same arrangement on the chip synthesizer); `piece.mp4`
+  shows the four channels.
+- What works: to be written by the student after listening.
+- What does not work: to be written by the student after listening.

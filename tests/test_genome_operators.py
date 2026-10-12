@@ -91,6 +91,17 @@ def test_roulette_is_uniform_when_all_fitness_values_are_equal():
     np.testing.assert_allclose(shares, [0.25] * 4, atol=0.02)
 
 
+def test_roulette_is_uniform_when_fitness_differs_only_by_rounding():
+    # The same weighted mean summed in another order can differ in the last bit. Windowing would
+    # give the whole wheel to the plan that happens to be one rounding step higher.
+    fitness = np.array([0.7, 0.7, 0.7 + 1e-15, 0.7])
+
+    picks = roulette_select(rng(), fitness, n=8000)
+
+    shares = np.bincount(picks, minlength=4) / len(picks)
+    np.testing.assert_allclose(shares, [0.25] * 4, atol=0.02)
+
+
 def test_roulette_is_the_same_for_the_same_seed():
     fitness = np.array([0.1, 0.5, 0.9])
 

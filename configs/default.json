@@ -1,7 +1,7 @@
 {
   "population_size": 60,
-  "max_generations": 1000,
-  "stagnation_window": 100,
+  "max_generations": 3000,
+  "stagnation_window": 300,
   "mutation_rate": 0.01,
   "elite_count": 2,
   "phrase_length": 4,

@@ -30,6 +30,27 @@ def test_unknown_keys_are_rejected():
         load_config(overrides=["weights.loudness=1"])
 
 
+@pytest.mark.parametrize(
+    "override",
+    [
+        "weights.contrast=-1",  # a negative weight would reward breaking the rule
+        "weights.contrast=NaN",  # NaN makes every weighted mean NaN
+        "weights.contrast=Infinity",  # one infinite weight swamps the others
+        'weights.contrast="heavy"',  # not a number at all
+    ],
+)
+def test_config_rejects_negative_or_non_finite_weights(override):
+    with pytest.raises(ValueError, match="weights.contrast"):
+        load_config(overrides=[override])
+
+
+def test_config_rejects_weights_that_are_all_zero():
+    zeros = [f"weights.{name}=0" for name in load_config()["weights"]]
+
+    with pytest.raises(ValueError, match="weights"):
+        load_config(overrides=zeros)
+
+
 def test_an_override_without_equals_sign_is_rejected():
     with pytest.raises(ValueError):
         load_config(overrides=["mutation_rate"])
