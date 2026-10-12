@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-12
 
-**Status**: Planned (see [plan.md](plan.md); corrections from research R3, R8, R9 applied)
+**Status**: Implemented on 2026-10-12 (see [plan.md](plan.md) and [tasks.md](tasks.md); corrections from research R3, R8, R9 applied)
 
 **Input**: User description: "Spec 003, on the post-deadline branch (not main):
 
