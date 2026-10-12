@@ -41,12 +41,12 @@
   "seed": 1,
   "input_path": "data/raw/chiclete/voa_voa.mid",
   "input_sha256": "d7e4c13991ba7c1c2e5298568439cdaad8de1d521faea264b52cd17107013522",
-  "git_commit": "0aa9d91370c1fc8902e948b137d919e094246f67",
-  "git_dirty": true,
-  "created": "2026-10-12T00:48:22+00:00",
+  "git_commit": "7971fe0c3221c53b2f1186afe87398de3323bd7d",
+  "git_dirty": false,
+  "created": "2026-10-12T05:34:19+00:00",
   "run_id": "voa_voa-s1-ccca2416",
-  "best_fitness": 0.8532289448553224,
-  "stop_reason": "max_generations",
-  "generations": 4000,
+  "best_fitness": 0.8389906842385721,
+  "stop_reason": "stagnation",
+  "generations": 3953,
   "audio": true
 }

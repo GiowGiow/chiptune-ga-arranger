@@ -367,7 +367,7 @@ https://github.com/user-attachments/assets/544a20bb-52da-4fce-b5d9-ef037b895f44
 |---|---|---|---|
 | [input.mp3](samples/voa-voa-s1/input.mp3) | [piece.mp3](samples/voa-voa-s1/piece.mp3) | [piece-chip.mp3](samples/voa-voa-s1/piece-chip.mp3) | [piece.mp4](samples/voa-voa-s1/piece.mp4) |
 
-Input: MIDI excerpt, bars 8–56 (`midi.bars`), melody on track 3, tenor sax (`midi.melody_track`), parts A / Pre / Chorus (`midi.sections`); beat grid re-estimated from the drums at 110 BPM. Settings: seed 1, up to 4000 generations, stagnation window 400. Best fitness 0.853. Files and notes: [voa-voa-s1](samples/voa-voa-s1/).
+Input: MIDI excerpt, bars 8–56 (`midi.bars`), melody on track 3, tenor sax (`midi.melody_track`), parts A / Pre / Chorus (`midi.sections`); beat grid re-estimated from the drums at 110 BPM. Settings: seed 1, up to 4000 generations, stagnation window 400. Best fitness 0.839. Files and notes: [voa-voa-s1](samples/voa-voa-s1/).
 
 ### Mulher de Fases (Raimundos)
 
@@ -407,7 +407,7 @@ https://github.com/user-attachments/assets/1eca7356-e7d2-4cbd-bf85-d0adb6c6c067
 |---|---|---|---|
 | [input.mp3](samples/aquarela-s1/input.mp3) | [piece.mp3](samples/aquarela-s1/piece.mp3) | [piece-chip.mp3](samples/aquarela-s1/piece-chip.mp3) | [piece.mp4](samples/aquarela-s1/piece.mp4) |
 
-Input: MIDI excerpt, bars 4–36 (`midi.bars`), melody on track 3, clarinet (`midi.melody_track`), parts A / B (`midi.sections`). Settings: seed 1, up to 4000 generations, stagnation window 400. Best fitness 0.895. Files and notes: [aquarela-s1](samples/aquarela-s1/).
+Input: MIDI excerpt, bars 4–36 (`midi.bars`), melody on track 3, clarinet (`midi.melody_track`), parts A / B (`midi.sections`). Settings: seed 1, up to 4000 generations, stagnation window 400. Best fitness 0.871. Files and notes: [aquarela-s1](samples/aquarela-s1/).
 
 ### Fico Assim Sem Você (Adriana Calcanhotto)
 
@@ -417,7 +417,7 @@ https://github.com/user-attachments/assets/caea6a4b-3200-4e8b-8829-0c0d47537097
 |---|---|---|---|
 | [input.mp3](samples/fico-assim-sem-voce-s1/input.mp3) | [piece.mp3](samples/fico-assim-sem-voce-s1/piece.mp3) | [piece-chip.mp3](samples/fico-assim-sem-voce-s1/piece-chip.mp3) | [piece.mp4](samples/fico-assim-sem-voce-s1/piece.mp4) |
 
-Input: MIDI excerpt, bars 10–58 (`midi.bars`), melody on track 1, flute (`midi.melody_track`), parts A / Chorus (`midi.sections`). Settings: seed 1, up to 4000 generations, stagnation window 400. Best fitness 0.891. Files and notes: [fico-assim-sem-voce-s1](samples/fico-assim-sem-voce-s1/).
+Input: MIDI excerpt, bars 10–58 (`midi.bars`), melody on track 1, flute (`midi.melody_track`), parts A / Chorus (`midi.sections`). Settings: seed 1, up to 4000 generations, stagnation window 400. Best fitness 0.872. Files and notes: [fico-assim-sem-voce-s1](samples/fico-assim-sem-voce-s1/).
 
 \* The fidelity-0 run is scored without the fidelity criterion, so its fitness is not comparable
 with the others.
@@ -425,7 +425,7 @@ with the others.
 How to read the results:
 
 - **Stopping:** every run stopped after its stagnation window (300 generations for the ABC
-  tunes, 400 for the MIDI songs), except Voa Voa, which reached the 4000-generation cap.
+  tunes, 400 for the MIDI songs).
 - **The MIDI songs score lower** (0.83–0.90 against 0.91–0.94) for two reasons:
   - Their melodies often sit in octave 3 or 4. That pits the register criterion against fidelity.
   - They are longer, and their chords are detected automatically.
