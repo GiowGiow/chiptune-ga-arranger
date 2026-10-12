@@ -22,6 +22,7 @@ import { renderChip } from "../audio/chip-synth.js";
 import { matchLoudness } from "../audio/loudness.js";
 import { leadSheetVoices, midiExcerptVoices, renderVoices } from "../audio/plain-synth.js";
 import { createPlayer } from "../audio/player.js";
+import { createCatalogPanel } from "./catalog-panel.js";
 import { createChannelView } from "./channel-view.js";
 import { createDownloads } from "./downloads.js";
 import { createEvolutionView } from "./evolution-view.js";
@@ -55,6 +56,11 @@ const [version, defaultConfig, sources] = await Promise.all([
 ]);
 $("#app-version").textContent = version.commit === "dev" ? "dev" : version.commit.slice(0, 7);
 
+// Offline use after the first visit (FR-035); the page works without it.
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+
 /** The app state: everything the panels show comes from here. */
 const state = {
   /** @type {Settings} */
@@ -81,6 +87,7 @@ const defaults = defaultSettings(defaultConfig);
 clearPlaceholder("#input");
 const inputPanel = createInputPanel($("#input"), {
   examples: buildExamples(sources),
+  onFileDropped: (name) => catalogPanel.claim(name),
   readOptions: () => ({
     phraseLength: state.settings.phrase_length,
     roleMap: state.settings.role_map,
@@ -101,6 +108,9 @@ const inputPanel = createInputPanel($("#input"), {
     updateRunButtons();
   },
 });
+
+clearPlaceholder("#catalog");
+const catalogPanel = createCatalogPanel($("#catalog"));
 
 clearPlaceholder("#settings");
 const settingsPanel = createSettingsPanel($("#settings"), {
@@ -283,7 +293,13 @@ async function finishRun(message) {
     bestFitness: message.bestFitness,
     stopReason: message.stopReason,
     generations: message.generations,
-    app: { name: "chiptune-ga-arranger web", pace: state.pace },
+    app: {
+      name: "chiptune-ga-arranger web",
+      pace: state.pace,
+      ...(input.input.catalogEntry
+        ? { catalog_page: /** @type {{u: string}} */ (input.input.catalogEntry).u }
+        : {}),
+    },
   });
   const id = /** @type {string} */ (state.currentRunId);
   const downloadFiles = [

@@ -370,11 +370,22 @@ export function createInputPanel(container, options) {
         <div><dt>Melody</dt><dd class="mono">${melody.length ? `${Math.min(...melody)}–${Math.max(...melody)}` : "none"}</dd></div>
         <div class="span"><dt>Parts</dt><dd data-parts></dd></div>
       </dl>
+      <p class="credit" data-credit hidden></p>
       <p class="label">Chord of every bar</p>
       <ol class="chord-strip mono" data-chords></ol>`;
     /** @type {HTMLElement} */ (summary.querySelector("[data-title]")).textContent =
       leadSheet.title || input.name;
     /** @type {HTMLElement} */ (summary.querySelector("[data-parts]")).textContent = parts.join(" · ");
+    const entry = /** @type {{t: string, p: string, u: string} | null} */ (input.catalogEntry);
+    if (entry) {
+      const credit = /** @type {HTMLElement} */ (summary.querySelector("[data-credit]"));
+      credit.innerHTML = `From <a href="https://www.beakauffmann.com/" rel="noopener">Beatriz Kauffmann's
+        Web Site</a>: <a data-page rel="noopener" target="_blank"></a>`;
+      const page = /** @type {HTMLAnchorElement} */ (credit.querySelector("[data-page]"));
+      page.href = entry.u;
+      page.textContent = [entry.t, entry.p].filter(Boolean).join(" — ");
+      credit.hidden = false;
+    }
     const strip = /** @type {HTMLElement} */ (summary.querySelector("[data-chords]"));
     leadSheet.bars.forEach((bar, index) => {
       const item = document.createElement("li");

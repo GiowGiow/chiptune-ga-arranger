@@ -80,8 +80,8 @@ export function createSettingsPanel(container, options) {
      <div class="toolbar">
        <button type="button" class="button" data-reset>Reset to defaults</button>
        <button type="button" class="button" data-export>Export settings</button>
-       <label class="button" tabindex="0">Import settings
-         <input type="file" accept=".json,application/json" data-import hidden></label>
+       <button type="button" class="button" data-import-button>Import settings</button>
+       <input type="file" accept=".json,application/json" data-import hidden>
      </div>
      <p class="status" data-settings-status role="status" aria-live="polite"></p>`,
   );
@@ -149,6 +149,7 @@ export function createSettingsPanel(container, options) {
     setTimeout(() => URL.revokeObjectURL(link.href), 1000);
   });
   const importInput = /** @type {HTMLInputElement} */ (container.querySelector("[data-import]"));
+  container.querySelector("[data-import-button]")?.addEventListener("click", () => importInput.click());
   importInput.addEventListener("change", async () => {
     const file = importInput.files?.[0];
     importInput.value = "";

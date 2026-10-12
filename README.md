@@ -15,6 +15,10 @@ sound chip. A **genetic algorithm** (GA) chooses, bar by bar, what each voice pl
 **Listen:** [giowgiow.github.io/chiptune-ga-arranger/listen](https://giowgiow.github.io/chiptune-ga-arranger/listen/)
 has a player for the original, General MIDI and chip versions of every piece, and its video.
 
+**Arrange your own song:** [giowgiow.github.io/chiptune-ga-arranger/arranger](https://giowgiow.github.io/chiptune-ga-arranger/arranger/)
+runs the same genetic algorithm in your browser on an ABC or MIDI file of your choice (see
+[Arrange your own song in the browser](#arrange-your-own-song-in-the-browser)).
+
 ## Method
 
 **Stylistic constraint: the NES 2A03 four-voice idiom.** The chip has four channels, and each one
@@ -109,6 +113,9 @@ flowchart LR
 - `outputs/`: every generation run, one folder per run (not versioned)
 - `listen/`: a static listening page (audio players and videos of every sample), served by GitHub
   Pages
+- `arranger/`: the browser arranger, a static page that runs the method in the visitor's browser
+  (JavaScript modules, tests in `arranger/tests/`, no build step)
+- `src/catalog/`: the crawler that lists the MPB MIDI catalog for the browser arranger's search
 - `paper/`: the ISMIR abstract (`tp1.tex`), with the official ISMIR 2026 template files from
   [ismir/paper_templates@2026v1](https://github.com/ismir/paper_templates/tree/2026v1/2026/latex)
 - `specs/` and `.specify/`: [Spec Kit](https://github.com/github/spec-kit) design documents; the
@@ -429,6 +436,68 @@ Piano rolls of two arrangements (every sample folder has its own `pianoroll.png`
 |---|---|
 | ![Korobeiniki piano roll](samples/korobeiniki-s1/pianoroll.png) | ![Voa Voa piano roll](samples/voa-voa-s1/pianoroll.png) |
 
+## Arrange your own song in the browser
+
+The [arranger page](https://giowgiow.github.io/chiptune-ga-arranger/arranger/) (spec
+`specs/002-browser-arranger/`) brings the method to any song:
+
+1. Drop an ABC lead sheet or a multi-track MIDI file, or pick one of the 8 committed lead sheets.
+   For a MIDI song, choose the melody track (the likeliest one is preselected), the bars to
+   arrange and where each part starts. The page shows the lead sheet it read before any run.
+2. Change any setting of `configs/default.json`; each one says what it changes in the music.
+3. Press Arrange. The GA runs in a background thread (a Web Worker) and the page draws its
+   evolution live: the best and mean fitness, the generation and stagnation counters, and the
+   best plan of four genes per bar. The "watch" pace runs about 400 generations per second so the
+   evolution can be followed; "full speed" finishes in under a second.
+4. Play the arrangement with the NES chip sound, switch to the original at the same position,
+   and download the MIDI, the run's `config.json` and the lead sheet as ABC.
+
+Files never leave the device: the page fetches only its own files. After the first visit it
+works offline (a service worker caches it).
+
+**Same algorithm, own random numbers.** The browser code is a module-by-module JavaScript port of
+`src/`. It uses its own seeded generator (sfc32) instead of numpy's, so a seed reproduces the
+same arrangement in any browser, but the same seed in the command line gives a different,
+equally valid arrangement. Tests compare the port with this Python code on everything that does
+not draw random numbers: the 8 lead sheets read from ABC, the 6 MIDI songs reduced to lead
+sheets, the score tables, and the fitness of the 10 samples' plans (equal to 2·10⁻¹⁶). The
+downloaded `config.json` reruns in the command line:
+
+```bash
+uv run src/main.py arrange song.mid --config song-s1-1234abcd.config.json --seed 1
+```
+
+**MPB MIDI catalog.** The page can search 3,671 songs of
+[Beatriz Kauffmann's Web Site](https://www.beakauffmann.com/) by title, composer or performer. The
+site does not let other sites read its files, so you download the song from its page and drop it
+in; the app keeps the credit and the song page link. `arranger/data/catalog.json` holds only
+titles, names and links, never the MIDI files. It is rebuilt with a polite crawl (one request per
+second, about an hour, resumable):
+
+```bash
+uv run src/main.py catalog
+```
+
+**Develop and test.** Serve the repository root and open `/arranger/`; run the JavaScript tests
+with Node 22 (no install); regenerate the Python reference values they compare with:
+
+```bash
+python3 -m http.server 8765 --bind 127.0.0.1
+```
+
+```bash
+cd arranger && node --test
+```
+
+```bash
+uv run src/main.py fixtures
+```
+
+Terms used here: a *seeded generator* gives the same random numbers for the same seed; a *Web
+Worker* runs code beside the page so the page stays responsive; the *skyline* of a MIDI track is
+its highest note at each moment, which turns chords into a melody line; the *beat grid* places
+the beats of a MIDI recording; *A/B* is switching between two versions at the same position.
+
 ## Inputs, sources and licenses
 
 - **Ievan Polkka** ([data/leadsheets/ievan_polkka.abc](data/leadsheets/ievan_polkka.abc)).
@@ -519,6 +588,9 @@ Piano rolls of two arrangements (every sample folder has its own `pianoroll.png`
 | Review | "Execute validação cruzada do abstract contra os requisitos formais do trabalho e alinhe o escopo." | Initiated automated compliance checks of the abstract against formal assignment requirements. |
 | Review | "Audite a função de fitness: valide a implementação dos parâmetros e garanta alinhamento estrito com a literatura." | Commanded a rigorous theoretical audit of the fitness function parameters against cited literature. |
 | Review | "Aplique as correções estruturais na função de fitness com base na auditoria e regenere os samples." | Mandated structural corrections to the fitness function based on the audit and triggered sample regeneration. |
+| After submission | "Vamos fazer as coisas em outra branch sem ser a main. Faça a spec para o nosso app que vai rodar no GitHub Pages: rápido, com os parâmetros configuráveis, animação das gerações e da estagnação, buscar por música ou artista no catálogo de MIDIs de MPB, ou mandar um MIDI ou ABC arbitrário (opção primária)." | Specified the browser arranger (spec 002) on a separate branch, keeping the submitted state on `main`. |
+| After submission | "Só reprodutível no site." / "Baixar e soltar." | Chose an independent seeded generator for the browser (no numpy parity) and a download-and-drop route for catalog songs (no third-party relay). |
+| After submission | "Pode fazer a emenda e dar push da branch." / "Pode rodar o plan." / "Pode rodar o tasks." / "Pode rodar o implement." | Approved the constitution amendment (1.3.0, web app rules) and each Spec Kit stage of the browser arranger. |
 
 ## License
 

@@ -644,7 +644,7 @@ catalog and drop the file in, with the credit kept (FR-029 to FR-032).
   2. Run `uv run src/main.py catalog` in the background (about 3,700 requests, about 62
      minutes at 1 request per second).
   3. Commit `arranger/data/catalog.json` and check that it stays under 1 MB.
-- [ ] T078 [P] [US4] Write a failing test, `arranger/tests/catalog.test.js`, for
+- [X] T078 [P] [US4] Write a failing test, `arranger/tests/catalog.test.js`, for
   `arranger/src/core/catalog.js`.
   - `searchKey` gives "mulher de fases digao e rodolfo raimundos".
   - `search(index, "voce")` finds "Você".
@@ -652,8 +652,8 @@ catalog and drop the file in, with the credit kept (FR-029 to FR-032).
     alphabetical.
   - At most 50 results, and nothing below 2 characters.
   - `matchDroppedFile("mulher-de-fases.mid", entry)` is true, and `"other.mid"` is false.
-- [ ] T079 [US4] Implement `arranger/src/core/catalog.js`. Make T078 pass.
-- [ ] T080 [US4] Implement `arranger/src/ui/catalog-panel.js` (FR-029 to FR-032).
+- [X] T079 [US4] Implement `arranger/src/core/catalog.js`. Make T078 pass.
+- [X] T080 [US4] Implement `arranger/src/ui/catalog-panel.js` (FR-029 to FR-032).
   - Fetch `data/catalog.json` the first time the panel opens.
   - A search box that shows results while typing, each with title, composers and performer.
   - When an entry is picked, show the two steps:
@@ -671,13 +671,13 @@ catalog and drop the file in, with the credit kept (FR-029 to FR-032).
 
 ## Phase 7: Polish and cross-cutting concerns
 
-- [ ] T082 [P] Implement `arranger/sw.js` and its registration in `arranger/src/ui/main.js`
+- [X] T082 [P] Implement `arranger/sw.js` and its registration in `arranger/src/ui/main.js`
   (FR-035, research R10).
   - Precache the app shell, `vendor/`, `../configs/default.json` and the 8 examples.
   - Serve cache-first, and cache `data/catalog.json` at run time.
   - The cache name holds the commit from `version.json`, and `activate` deletes old caches.
   - Check: quickstart.md row 14.
-- [ ] T083 [P] Make a phone-width and keyboard pass in `arranger/style.css` and `arranger/src/ui/*`
+- [X] T083 [P] Make a phone-width and keyboard pass in `arranger/style.css` and `arranger/src/ui/*`
   (FR-036, FR-037).
   - No horizontal scroll at 375 px.
   - Visible focus rings, and every control reachable with Tab.
@@ -691,7 +691,7 @@ catalog and drop the file in, with the credit kept (FR-029 to FR-032).
   - Credit for the catalog, and the abcjs license line.
 - [X] T085 [P] Add the link to the app on `listen/index.html`: a hero pill "Arrange your own song"
   pointing to `../arranger/`.
-- [ ] T086 Write the README section "Arrange your own song in the browser" in `README.md`.
+- [X] T086 Write the README section "Arrange your own song in the browser" in `README.md`.
   - What the app does, and the link.
   - How to run it locally.
   - `cd arranger && node --test` and `uv run src/main.py fixtures`.
