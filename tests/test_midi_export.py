@@ -43,3 +43,45 @@ def test_music21_reads_back_the_melody_written_to_the_file(tmp_path):
     score = music21.converter.parse(path)
     melody_part = next(p for p in score.parts if p.partName == "P1")
     assert [n.pitch.midi for n in melody_part.flatten().notes] == [76, 71]
+
+
+# --- meters (spec 003, research R11) ---------------------------------------------------------
+
+
+def signatures(midi):
+    return [(ts.numerator, ts.denominator, ts.time) for ts in midi.time_signature_changes]
+
+
+def test_an_all_four_four_arrangement_declares_one_four_four_time_signature():
+    assert signatures(arrangement_to_midi(small_arrangement())) == [(4, 4, 0.0)]
+
+
+def test_the_midi_file_declares_the_first_meter_and_each_change():
+    from dataclasses import replace
+
+    from leadsheet.meter import parse_meter
+
+    meters = tuple(parse_meter(text) for text in ("3/4", "3/4", "2/4", "4/4", "4/4"))
+    arrangement = replace(small_arrangement(), meters=meters)
+
+    # At 120 BPM a beat lasts 0.5 s: the 2/4 bar starts on beat 6 (3 s), 4/4 on beat 8 (4 s).
+    assert signatures(arrangement_to_midi(arrangement)) == [(3, 4, 0.0), (2, 4, 3.0), (4, 4, 4.0)]
+
+
+def test_a_sample_reruns_to_the_same_midi_bytes(tmp_path):
+    import json
+    from pathlib import Path
+
+    import numpy as np
+
+    from arrangement.assemble import assemble
+    from leadsheet.abc_reader import read_lead_sheet
+
+    root = Path(__file__).resolve().parent.parent
+    sample = root / "samples" / "korobeiniki-s1"
+    plan = np.array(json.loads((sample / "metrics.json").read_text())["genome"])
+    lead_sheet = read_lead_sheet(root / "data" / "leadsheets" / "korobeiniki.abc")
+
+    write_midi(assemble(lead_sheet, plan), tmp_path / "piece.mid")
+
+    assert (tmp_path / "piece.mid").read_bytes() == (sample / "piece.mid").read_bytes()

@@ -7,7 +7,9 @@ best and mean fitness, and the diversity of the population, change over the gene
 figures use the colorblind-safe `tableau-colorblind10` palette.
 """
 
+import math
 from collections.abc import Sequence
+from itertools import accumulate
 from pathlib import Path
 
 import matplotlib.style
@@ -43,6 +45,20 @@ def step_line(notes: Sequence[ChannelNote]) -> tuple[list[float], list[float]]:
     return xs, ys
 
 
+def bar_lines(arrangement: Arrangement, total_beats: float) -> list[float]:
+    """The beats where bars start (and the last one ends), from the meters of the arrangement.
+
+    An arrangement without meters is 4/4 throughout.
+
+    >>> bar_lines(Arrangement("t", 120.0, (), {}), total_beats=8.0)
+    [0.0, 4.0, 8.0]
+    """
+    lengths = [meter.bar_beats for meter in arrangement.meters]
+    if not lengths:
+        lengths = [4.0] * max(1, math.ceil(total_beats / 4.0 - 1e-9))
+    return [0.0, *accumulate(lengths)]
+
+
 def plot_pianoroll(arrangement: Arrangement, path: Path | str) -> None:
     """Save a piano roll of the arrangement (PNG or PDF, chosen by the file suffix)."""
     total_beats = max(
@@ -61,7 +77,7 @@ def plot_pianoroll(arrangement: Arrangement, path: Path | str) -> None:
             row, _ = DRUM_ROWS.get(hit.pitch, (2, "other"))
             drum_axes.plot(hit.onset, row, marker="|", markersize=9, color="0.25")
         for axes in (pitch_axes, drum_axes):
-            for bar_start in range(0, int(total_beats) + 1, 4):
+            for bar_start in bar_lines(arrangement, total_beats):
                 axes.axvline(bar_start, color="0.85", lw=0.6, zorder=0)
         pitch_axes.set_ylabel("MIDI pitch")
         pitch_axes.legend(loc="upper right", fontsize=8)

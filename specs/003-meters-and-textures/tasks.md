@@ -299,14 +299,14 @@ exported in their own meter. 4/4 stays byte-identical.
 
   Then implement `M:` from the first bar and `[M:x]` on changes, with units per bar from the
   meter, in `src/leadsheet/abc_writer.py` (research R10).
-- [ ] T032 [US1] Write the failing test in `tests/test_midi_export.py`: a 3/4 arrangement writes
+- [X] T032 [US1] Write the failing test in `tests/test_midi_export.py`: a 3/4 arrangement writes
   one 3/4 time signature, and an all-4/4 one writes the same bytes as before (compare
   `samples/korobeiniki-s1/piece.mid` after rerunning its plan). Then write the time signatures
   in `src/export/midi.py` (research R11).
-- [ ] T033 [P] [US1] Draw the grey bar lines at `bar_starts` in `src/export/figures.py`:
+- [X] T033 [P] [US1] Draw the grey bar lines at `bar_starts` in `src/export/figures.py`:
   `plot_pianoroll` takes the arrangement's `meters`. Add a test in `tests/test_figures.py` that
   checks the line positions for a 3/4 arrangement.
-- [ ] T034 [US1] Write the fixtures for the meter tunes in `src/export/fixtures.py` (research
+- [X] T034 [US1] Write the fixtures for the meter tunes in `src/export/fixtures.py` (research
   R13):
   - lead sheets with `"meter": "3/4"` (a string), and no `beats_per_bar`;
   - realizations, tables, `plans/meters-<id>.json` (plan gene `b % size` per column) and the
@@ -395,7 +395,7 @@ the walking bass plays two dotted quarters.
   - `jig.abc` reads 16 bars of 6/8, each 3 quarters;
   - `slow_twelve.abc` reads 8 bars of 12/8;
   - a synthetic 12/8 MIDI song has 6-beat bars and chords on half bars (US2 scenario 3).
-- [ ] T044 [US2] Add the synthetic MIDI songs `synthetic-waltz` and `synthetic-twelve-eight` to
+- [X] T044 [US2] Add the synthetic MIDI songs `synthetic-waltz` and `synthetic-twelve-eight` to
   `src/export/fixtures.py`. Build them with pretty_midi from fixed note lists, write them to
   `arranger/tests/fixtures/midi-songs/` (`.mid` and the reduction `.json`), and rerun
   `uv run src/main.py fixtures`.
@@ -428,7 +428,7 @@ arrange bar by bar with no violation.
   - an estimated grid on a 7/8 file is refused with the file-grid hint.
 
   Implement any missing case in `src/leadsheet/midi_reader.py`.
-- [ ] T048 [US4] Add `synthetic-changes` (4/4 → 2/4 → 4/4) and `synthetic-count-in` (drum-only
+- [X] T048 [US4] Add `synthetic-changes` (4/4 → 2/4 → 4/4) and `synthetic-count-in` (drum-only
   3/4 count-in, then 4/4) to `src/export/fixtures.py`. Then run `uv run src/main.py fixtures`.
 - [ ] T049 [US4] Write the JS tests in `arranger/tests/midi-song.test.js`,
   `arranger/tests/abc-reader.test.js` and `arranger/tests/arrangement.test.js`:
@@ -453,7 +453,7 @@ arrange bar by bar with no violation.
     contracts/config.md.
 - [ ] T052 [P] Add a short note to `specs/002-browser-arranger/spec.md` under FR-004: "Replaced by
   spec 003 FR-004: 2/4 is read natively." Add a note in its research R11 too.
-- [ ] T053 Run a semantic fixture check: a script in the scratchpad loads every
+- [X] T053 Run a semantic fixture check: a script in the scratchpad loads every
   `arranger/tests/fixtures/**/*.json` at the commit before T034 and now, and compares every
   shared value. The only allowed differences are `meter` (added), `beats_per_bar` (removed) and
   `act_no` (a 1D vector becomes n equal rows). Report the result in the commit message.

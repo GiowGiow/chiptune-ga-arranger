@@ -77,7 +77,9 @@ def test_fixtures_hold_the_python_reference_of_chords_lead_sheets_tables_and_pla
     realized = json.loads((out / "realizations/korobeiniki.json").read_text())
     assert len(realized["bars"]) == 32
     assert len(realized["bars"][0]["p2"]) == 5 and len(realized["bars"][0]["tr"]) == 4
-    assert len(realized["no"]) == 5
+    assert len(realized["bars"][0]["no"]) == 5
+    assert sheet["bars"][0]["meter"] == "4/4" and "beats_per_bar" not in sheet
+    assert len(tables["act_no"]) == 32 and len(tables["act_no"][0]) == 5
     pitch, onset, duration, velocity = realized["bars"][0]["p1"][0][0]
     assert (onset, velocity) == (0.0, 100)
 
@@ -121,3 +123,27 @@ def test_a_sample_whose_rerun_fitness_differs_is_reported_and_its_plan_is_the_re
     assert "stale-s1" in notices[0] and "-1.0" in notices[0] and str(plan["fitness"]) in notices[0]
     assert plan["fitness"] != record["best_fitness"]
     assert len(plan["best_plan"]) == 32
+
+
+def test_fixtures_hold_the_meter_tunes_and_the_synthetic_midi_songs(small_fixtures):
+    out, _ = small_fixtures
+
+    waltz = json.loads((out / "leadsheets/waltz.json").read_text())
+    assert {bar["meter"] for bar in waltz["bars"]} == {"3/4"}
+    changes = json.loads((out / "leadsheets/changes.json").read_text())
+    assert [bar["meter"] for bar in changes["bars"]][:5] == ["4/4", "4/4", "2/4", "2/4", "3/4"]
+    tables = json.loads((out / "tables/waltz.json").read_text())
+    assert len(tables["act_no"]) == 16
+    plan = json.loads((out / "plans/meters-jig.json").read_text())
+    assert plan["best_plan"][7] == [2, 3, 2, 1]  # bar 7: 7 mod 5, 7 mod 4, 7 mod 5, 7 mod 3
+    assert 0.0 <= plan["fitness"] <= 1.0
+    assert "[M:2/4]" in (out / "abc/changes.abc").read_text()
+
+    count_in = json.loads((out / "midi-songs/synthetic-count-in.json").read_text())
+    assert (out / "midi-songs/synthetic-count-in.mid").exists()
+    meters = [bar["meter"] for bar in count_in["leadsheet"]["bars"]]
+    assert meters == ["4/4"] * 4  # the drum-only count-in is left out
+    twelve = json.loads((out / "midi-songs/synthetic-twelve-eight.json").read_text())
+    first_bar = twelve["leadsheet"]["bars"][0]
+    assert first_bar["meter"] == "12/8"
+    assert [(c["onset"], c["duration"]) for c in first_bar["chords"]] == [(0.0, 3.0), (3.0, 3.0)]

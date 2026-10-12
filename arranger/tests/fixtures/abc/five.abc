@@ -1,0 +1,10 @@
+%abc-2.1
+X:1
+T:Test Five
+M:5/4
+L:1/16
+Q:1/4=140
+K:Am
+P:A
+"Am"A4 c4 e4 "Dm"d4 f4 | "Am"e12 "E7"d4 B4 | "Am"c4 B4 A4 "Dm"d8 | "E7"B12 "Am"A8 |
+"F"A4 c4 f4 "G"g4 d4 | "C"e12 "E7"d4 B4 | "Am"c4 e4 a4 "E7"_a4 e4 | "Am"a12 A8 |

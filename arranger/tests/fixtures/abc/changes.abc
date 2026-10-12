@@ -1,0 +1,10 @@
+%abc-2.1
+X:1
+T:Test Changes
+M:4/4
+L:1/16
+Q:1/4=120
+K:G
+P:A
+"G"G4 B4 d4 B4 | "C"c4 e4 "D7"d4 c4 | [M:2/4]"G"B4 d4 | "D7"A4 F4 |
+[M:3/4]"G"G4 B4 d4 | "Em"e4 g4 e4 | [M:4/4]"C"c4 e4 "D7"d4 F4 | "G"G16 |
