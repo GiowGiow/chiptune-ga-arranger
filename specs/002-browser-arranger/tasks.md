@@ -174,11 +174,11 @@ modules (random, genome, chords, lead sheet) that every story uses.
     `[{p2: "arp16", tr: "walking", no: "fill", p1Octave: -12}]`.
 - [X] T015 Implement `arranger/src/core/genome.js`. The plan layout is data-model.md "Plan":
   bar `b` holds genes `4b … 4b+3`. Make T014 pass.
-- [ ] T016 [P] Write a failing test, `arranger/tests/chords.test.js`.
+- [X] T016 [P] Write a failing test, `arranger/tests/chords.test.js`.
   - For every symbol in `fixtures/chords.json`, `chordTones(symbol)` equals the fixture.
   - Every symbol under `"rejected"` throws an `Error` whose message names the symbol.
   - The `placeInRegister` doctests: `(0, 48)` gives 48 and `(1, 50)` gives 61.
-- [ ] T017 Implement `arranger/src/core/chords.js`.
+- [X] T017 Implement `arranger/src/core/chords.js`.
   - It parses a root (letter plus `#` or `b`) and a quality table in the order root, third,
     fifth, seventh, matching music21 on the fixtures.
   - Export `chordTones` and `placeInRegister`.
@@ -218,7 +218,7 @@ committed.
 
 ### Tests and core for User Story 1
 
-- [ ] T020 [P] [US1] Write a failing test, `arranger/tests/textures.test.js`.
+- [X] T020 [P] [US1] Write a failing test, `arranger/tests/textures.test.js`.
   - For each bar of `fixtures/realizations/korobeiniki.json` and `mulher_de_fases.json`,
     `realizeP1`, `realizeP2`, `realizeTr` (with the next bar) and `realizeNo` give exactly the
     fixture notes.
@@ -228,7 +228,7 @@ committed.
     - arp16 starts 48, 52, 55, 48;
     - walking C to G gives `[36, 40, 43, 30]`;
     - half_time gives `[(0, 36), (1, 42), (2, 38), (3, 42)]`.
-- [ ] T021 [US1] Implement `arranger/src/core/textures.js`, porting `src/arrangement/textures.py`
+- [X] T021 [US1] Implement `arranger/src/core/textures.js`, porting `src/arrangement/textures.py`
   and the constants of `src/arrangement/model.py`:
   - `PITCH_RANGES` P1/P2 33–108 and TR 21–108;
   - `P2_ROOT_LOW = 48` and `TR_ROOT_LOW = 28`;
@@ -236,23 +236,23 @@ committed.
   - drums 36/38/42 with velocities 100/90/60, and the drum priority kick > snare > hi-hat.
 
   Make T020 pass.
-- [ ] T022 [P] [US1] Write a failing test, `arranger/tests/tables.test.js`.
+- [X] T022 [P] [US1] Write a failing test, `arranger/tests/tables.test.js`.
   - For each of the 8 lead sheets in `fixtures/leadsheets/`, `buildTables(leadSheet)` equals
     `fixtures/tables/<id>.json` array by array (6 decimals, `null` as NaN).
   - Port the `bass_line` doctests: the octave pump keeps `[36, 36, 43, 43]`, walking keeps
     every note.
-- [ ] T023 [US1] Implement `arranger/src/core/tables.js` (port of `src/ga/tables.py`).
+- [X] T023 [US1] Implement `arranger/src/core/tables.js` (port of `src/ga/tables.py`).
   - Flat typed arrays, with the shapes listed in the header comment.
   - Activity is `min(1, onsets / 16)`; the leap score is `clip((12 − leap) / 7, 0, 1)`.
   - Make T022 pass.
-- [ ] T024 [P] [US1] Write a failing test, `arranger/tests/fitness.test.js`.
+- [X] T024 [P] [US1] Write a failing test, `arranger/tests/fitness.test.js`.
   - For each of the 10 `fixtures/plans/*.json`, `criterionScores` and `fitness` of the
     sample's `best_plan` (one-plan population, weights from its settings) match the fixture to
     6 decimal places. Use `null` where Python had NaN. This is SC-010.
   - Port the one-bar doctests of `src/ga/fitness.py`:
     - complementarity `[1, 0]`, idiom `[0.5, 1]`, coherence `[NaN, NaN]`;
     - fitness `[0.875, 0.5]`.
-- [ ] T025 [US1] Implement `arranger/src/core/fitness.js` (port of `src/ga/fitness.py`).
+- [X] T025 [US1] Implement `arranger/src/core/fitness.js` (port of `src/ga/fitness.py`).
   - `CRITERIA`, `criterionScores(tables, population, nBars)` and
     `fitness(tables, population, nBars, weights)`, over a flat `Uint8Array` population.
   - Counts are pooled as in Python; NaN marks a criterion that does not apply.
@@ -270,7 +270,7 @@ committed.
   - The elite sort is stable.
   - Mutation adds a shift from 1 to size − 1, modulo the size.
   - Make T026 pass.
-- [ ] T028 [P] [US1] Write a failing test, `arranger/tests/evolution.test.js`.
+- [X] T028 [P] [US1] Write a failing test, `arranger/tests/evolution.test.js`.
   - Port the doctest: two bars with fidelity-only weights give `bestFitness` 1 and octave genes
     `[0, 0]`.
   - `evolve` is a generator that yields one stats object per generation:
@@ -281,23 +281,23 @@ committed.
   - Two runs with seed 7 give identical logs and best plans.
   - Calling `.return()` mid-run leaves a result holding the best plan so far.
   - `GAParams` validation: `elite_count` must be in 0..`population_size` − 1.
-- [ ] T029 [US1] Implement `arranger/src/core/evolution.js` (port of `src/ga/evolution.py`).
+- [X] T029 [US1] Implement `arranger/src/core/evolution.js` (port of `src/ga/evolution.py`).
   - `IMPROVEMENT_TOLERANCE = 1e-12`.
   - When the number of free places is odd, drop the second child of the last pair.
   - `diversity` is the share of distinct plans.
   - The result object is `{bestPlan, bestFitness, log, stopReason, initialBestPlan}`.
   - Make T028 pass.
-- [ ] T030 [P] [US1] Write a failing test, `arranger/tests/arrangement.test.js`.
+- [X] T030 [P] [US1] Write a failing test, `arranger/tests/arrangement.test.js`.
   - `assemble(leadSheet, plan)` of each `fixtures/plans/*.json` equals the fixture
     `arrangement` note for note.
   - `findViolations` returns `[]` for those arrangements.
   - It reports an overlap, a P1 pitch of 110 and a bar with an incomplete NO grid. Messages
     name channel and bar, as `src/arrangement/validation.py` does.
-- [ ] T031 [US1] Implement `arranger/src/core/arrangement.js`.
+- [X] T031 [US1] Implement `arranger/src/core/arrangement.js`.
   - Port `src/arrangement/assemble.py` and `src/arrangement/validation.py`, including the
     strong-beat chord-tone rule with the echo exception.
   - Make T030 pass.
-- [ ] T032 [P] [US1] Write a failing test, `arranger/tests/abc-reader.test.js`, using
+- [X] T032 [P] [US1] Write a failing test, `arranger/tests/abc-reader.test.js`, using
   `loadAbcjs()` from `helpers.js`. Cases (research R3):
   - Committed lead sheets: each of the 8 `data/leadsheets/*.abc` read with `phrase_length` 4
     equals `fixtures/leadsheets/<id>.json` bar for bar (melody, chords, label, role, phrase,
@@ -316,7 +316,7 @@ committed.
     - `[CEG]` keeps G.
   - Tempo: `Q:1/4=132.500055` gives tempo 132.500055.
   - Chord names: chord symbols stay ASCII (`F#m`, `Bb`).
-- [ ] T033 [US1] Implement `arranger/src/core/abc-reader.js`.
+- [X] T033 [US1] Implement `arranger/src/core/abc-reader.js`.
   - Export `listTunes(ABCJS, text)` and
     `readLeadSheetAbc(ABCJS, text, {tuneIndex, phraseLength, roleMap, tempoOverride})`.
   - Follow research R3 steps 1–9:
@@ -331,23 +331,23 @@ committed.
   - Errors are `Error` objects whose message names the bar when it can.
   - The header comment states the known limits of R3.
   - Make T032 pass.
-- [ ] T034 [P] [US1] Write a failing test, `arranger/tests/midi-file.test.js`.
+- [X] T034 [P] [US1] Write a failing test, `arranger/tests/midi-file.test.js`.
   - Writing then reading a 2-track file gives back the same notes, names, programs, tempo and
     480 ticks per quarter.
   - pretty_midi semantics, on hand-built byte arrays:
-    - notes before a program change go to a straggler instrument;
+    - a note belongs to the program in effect when it ends (pretty_midi's stragglers hold no notes);
     - a note-off closes every open note of that pitch and channel except zero-length ones;
     - running status is read;
     - a tempo change mid-file maps ticks to the right seconds;
     - `timeToTick` inverts `tickToTime`.
   - For each `fixtures/midi-songs/<id>.json`, reading `data/raw/<path>` gives the same
     instrument summary. Skip when the raw file is missing.
-- [ ] T035 [US1] Implement `arranger/src/core/midi-file.js`.
+- [X] T035 [US1] Implement `arranger/src/core/midi-file.js`.
   - Export `readMidiFile(bytes)`, which returns
     `{resolution, tempoChanges, timeSignatures, instruments: [{name, program, isDrum, notes: [{start, end, pitch, velocity}]}], timeToTick, tickToTime}`.
   - Export `writeMidiFile({resolution, tempoBpm, timeSignature, tracks})`.
   - Follow research R4. Make T034 pass.
-- [ ] T036 [P] [US1] Write a failing test, `arranger/tests/midi-song.test.js`.
+- [X] T036 [P] [US1] Write a failing test, `arranger/tests/midi-song.test.js`.
   - Port the doctests of `src/leadsheet/midi_reader.py`:
     - `skyline([[0, 2, 60], [0, 1, 64], [1, 2, 62]])`;
     - `detectChord` of C-E-G weights with bass 0 gives `"C"`;
@@ -358,7 +358,7 @@ committed.
   - `suggestMelodyTrack` ranks the recorded `melody_track` first or second for each of those
     songs (research R11).
   - A file with a 3/4 time signature throws an error that names "3/4"; 2/4 is accepted.
-- [ ] T037 [US1] Implement `arranger/src/core/midi-song.js` (port of
+- [X] T037 [US1] Implement `arranger/src/core/midi-song.js` (port of
   `src/leadsheet/midi_reader.py`).
   - Constants: `GRID = 0.25`, `CHORD_SPAN = 2`, the `QUALITIES` table,
     `BASS_TRACK_MAX_MEAN_PITCH = 50`, `FILE_GRID_MIN_STRENGTH = 0.8`, and `TEMPO_SEARCH` from
@@ -369,7 +369,7 @@ committed.
     - `midi.bars`: "0 ≤ first < end ≤ barCount and end − first ≤ 128";
     - `midi.sections`: "bars inside the excerpt; strictly increasing".
   - Make T036 pass.
-- [ ] T038 [P] [US1] Write a failing test, `arranger/tests/settings.test.js`.
+- [X] T038 [P] [US1] Write a failing test, `arranger/tests/settings.test.js`.
   - `defaultSettings(defaultConfigJson)` adds `seed: 1`.
   - `validateSettings` returns one message per invalid field, naming the field and its range as
     in data-model.md "Settings":
@@ -383,31 +383,31 @@ committed.
   - `runId("mulher-de-fases.mid", settings)` matches `/^mulher-de-fases-s1-[0-9a-f]{8}$/`, and it
     does not change when the key order changes.
   - `configRecord(...)` has exactly the keys of contracts/files.md `<run id>.config.json`.
-- [ ] T039 [US1] Implement `arranger/src/core/settings.js`.
+- [X] T039 [US1] Implement `arranger/src/core/settings.js`.
   - Canonical JSON uses sorted keys. The hash uses `crypto.subtle.digest("SHA-256")`, which is
     async in both browser and Node.
   - Make T038 pass.
-- [ ] T040 [P] [US1] Write a failing test, `arranger/tests/midi-export.test.js`.
+- [X] T040 [P] [US1] Write a failing test, `arranger/tests/midi-export.test.js`.
   - `arrangementToMidi(arrangement)` writes format 1 at 480 ticks per quarter, with tempo and a
     4/4 time signature.
   - The tracks are P1, P2, TR and NO, on channels 0, 1, 2 and 9, with programs 80, 80, 38 and 0.
   - Reading the file back with `readMidiFile` gives the arrangement's notes in seconds.
   - Write `arranger/tests/fixtures/web/korobeiniki-s1.mid` from the plan fixture when
     `process.env.WRITE_WEB_FIXTURES` is set.
-- [ ] T041 [US1] Implement `arranger/src/core/midi-export.js` (contracts/files.md `.mid`).
+- [X] T041 [US1] Implement `arranger/src/core/midi-export.js` (contracts/files.md `.mid`).
   - Make T040 pass.
   - Then run `WRITE_WEB_FIXTURES=1 node --test tests/midi-export.test.js` and commit
     `fixtures/web/korobeiniki-s1.mid`.
-- [ ] T042 [P] [US1] Write a failing pytest, `tests/test_web_midi.py`. pretty_midi reads
+- [X] T042 [P] [US1] Write a failing pytest, `tests/test_web_midi.py`. pretty_midi reads
   `arranger/tests/fixtures/web/korobeiniki-s1.mid`, and its instrument names and notes equal
   `arrangement_to_midi(assemble(lead_sheet, plan))` of the same plan (contracts/files.md: "The
   CLI's pretty_midi reads the file back").
-- [ ] T043 [P] [US1] Write a failing test, `arranger/tests/abc-writer.test.js`. For each
+- [X] T043 [P] [US1] Write a failing test, `arranger/tests/abc-writer.test.js`. For each
   `fixtures/abc/<id>.abc`, `writeLeadSheetAbc(fixtureLeadSheet, meta)` gives the same text after
   the header comment lines.
-- [ ] T044 [US1] Implement `arranger/src/core/abc-writer.js` (port of
+- [X] T044 [US1] Implement `arranger/src/core/abc-writer.js` (port of
   `src/leadsheet/abc_writer.py`). Make T043 pass.
-- [ ] T045 [P] [US1] Write a failing test, `arranger/tests/chip-synth.test.js`.
+- [X] T045 [P] [US1] Write a failing test, `arranger/tests/chip-synth.test.js`.
   - A P1 note of 1 s at 44,100 Hz is high for 25% ±1% of its samples, and a P2 note for 12.5%.
   - The triangle uses exactly 16 levels.
   - The long-mode LFSR repeats after 32,767 steps and the short mode after 93.
@@ -415,13 +415,13 @@ committed.
   - The mix peaks at -3 dBFS within 0.01 dB.
   - The same arrangement renders identical samples twice.
   - Empty channels give silence.
-- [ ] T046 [US1] Implement `arranger/src/audio/chip-synth.js` (port of
+- [X] T046 [US1] Implement `arranger/src/audio/chip-synth.js` (port of
   `src/export/chip_audio.py`, research R7).
   - Export `renderChip(arrangement, sampleRate)`, which returns a `Float32Array`.
   - Same constants: `NOISE_PERIODS`, `PULSE_DUTY`, `CHANNEL_GAINS`, `DRUM_SOUNDS`,
     `FADE_SECONDS` and `TRIANGLE_STEPS`.
   - Make T045 pass.
-- [ ] T047 [P] [US1] Write a failing test, `arranger/tests/runner.test.js`, for
+- [X] T047 [P] [US1] Write a failing test, `arranger/tests/runner.test.js`, for
   `createRunner({post, now, sleep})` (contracts/worker-protocol.md):
   - a `run` message produces `started`, then one or more `progress` messages, then `done`;
   - the union of `progress.generations` covers every generation once, in order;
@@ -430,13 +430,13 @@ committed.
   - `stop` gives `done` with `stopReason: "stopped"` before the next slice ends;
   - invalid settings give `error`;
   - a second `run` cancels the first, which never sends `done`.
-- [ ] T048 [US1] Implement `arranger/src/runner.js` and the thin adapter
+- [X] T048 [US1] Implement `arranger/src/runner.js` and the thin adapter
   `arranger/src/worker.js`.
   - `runner.js` builds tables, drives the `evolve` generator in slices of at most 8 ms, batches
     `progress` at most every 50 ms and handles stop, pace and cancel.
   - `worker.js` wires `self.onmessage` and `self.postMessage` to `createRunner`.
   - Make T047 pass.
-- [ ] T049 [US1] Write an end-to-end test, `arranger/tests/determinism.test.js` (SC-005).
+- [X] T049 [US1] Write an end-to-end test, `arranger/tests/determinism.test.js` (SC-005).
   - Run `readLeadSheetAbc(korobeiniki)`, then the runner at `"full"` pace with seed 1, then
     `assemble`, then `arrangementToMidi`, twice. The bytes must be equal.
   - Pin the SHA-256 of these bytes in the test, so an engine or code change shows up. Update the
@@ -444,7 +444,7 @@ committed.
 
 ### Page for User Story 1
 
-- [ ] T050 [P] [US1] Write a failing test, `arranger/tests/examples.test.js`, for
+- [X] T050 [P] [US1] Write a failing test, `arranger/tests/examples.test.js`, for
   `arranger/src/ui/examples.js`.
   - It lists the 8 files of `data/leadsheets/`, with title and artist from `data/sources.json`,
     or "Traditional" for `korobeiniki` and `ievan_polkka`.
@@ -453,7 +453,7 @@ committed.
   - Every listed path exists in the repository.
 
   Then implement `examples.js`.
-- [ ] T051 [US1] Implement `arranger/src/ui/input-panel.js` (FR-001 to FR-007).
+- [X] T051 [US1] Implement `arranger/src/ui/input-panel.js` (FR-001 to FR-007).
   - A drop zone and a file picker. The kind comes from the `MThd` magic bytes.
   - SHA-256 through Web Crypto.
   - `loadAbcjs()`, which injects `<script src="vendor/abcjs/abcjs-basic-min.js">` once and
@@ -464,25 +464,25 @@ committed.
     rows "bar, label".
   - A lead-sheet summary: title, tempo, bar count, parts and the chord of every bar.
   - Errors keep the previous input and show the message.
-- [ ] T052 [P] [US1] Implement `arranger/src/ui/evolution-view.js` (FR-014).
+- [X] T052 [P] [US1] Implement `arranger/src/ui/evolution-view.js` (FR-014).
   - A canvas line chart: best in `--p1` and mean in `--muted`, generation on x and fitness on y.
   - Counters "generation g / max" and "stagnation s / window", as text and a bar.
   - A caption that states what to see.
   - It redraws on `progress` messages, throttled with `requestAnimationFrame`.
-- [ ] T053 [P] [US1] Implement `arranger/src/ui/plan-grid.js`.
+- [X] T053 [P] [US1] Implement `arranger/src/ui/plan-grid.js`.
   - 4 rows (P2, TR, NO, P1 octave) by n bars, each cell colored by its channel color with the
     gene value as lightness.
   - It updates from `bestPlan` on every `progress`.
-- [ ] T054 [P] [US1] Implement `arranger/src/audio/player.js`, single-buffer version.
+- [X] T054 [P] [US1] Implement `arranger/src/audio/player.js`, single-buffer version.
   - Create the `AudioContext` on the first Play tap.
   - Play, pause and seek with an `AudioBufferSourceNode`.
   - A playhead clock function `currentTime()`.
   - Keyboard: space plays and pauses.
-- [ ] T055 [P] [US1] Implement `arranger/src/ui/downloads.js` (FR-024, FR-025, FR-027).
+- [X] T055 [P] [US1] Implement `arranger/src/ui/downloads.js` (FR-024, FR-025, FR-027).
   - Three buttons make Blob downloads named `<run id>.mid`, `<run id>.config.json` and
     `<run id>.abc`.
   - The config record gets `git_commit` from `version.json`.
-- [ ] T056 [US1] Implement `arranger/src/ui/main.js`, which wires everything.
+- [X] T056 [US1] Implement `arranger/src/ui/main.js`, which wires everything.
   - Load `version.json` and `../configs/default.json`.
   - Create the module worker with `new Worker("src/worker.js", {type: "module"})`.
   - The run state machine of data-model.md "Run state": a new file during a run cancels it.
@@ -493,7 +493,7 @@ committed.
     3. render with `renderChip` at the context sample rate;
     4. show the best fitness, the criterion scores (with "not applicable" for `null`) and the
        stop reason (FR-016, FR-017).
-- [ ] T057 [US1] Check it by hand: serve the repository root, then run quickstart.md rows 1, 2,
+- [X] T057 [US1] Check it by hand: serve the repository root, then run quickstart.md rows 1, 2,
   3, 5, 6, 9 and 10. Fix what fails.
 
 **Checkpoint**: User Story 1 works end to end. This is the MVP.
@@ -512,15 +512,15 @@ settings import and export, and the last 5 runs can be compared.
 4. Set the population to 1 and see the message.
 5. Export the settings, change some, and import them back.
 
-- [ ] T058 [P] [US2] Write a failing test, `arranger/tests/settings-form.test.js`, for the pure
+- [X] T058 [P] [US2] Write a failing test, `arranger/tests/settings-form.test.js`, for the pure
   helpers in `arranger/src/ui/settings-form.js`.
   - `formToSettings(fields)` parses text inputs to numbers or `null` and keeps the other fields.
   - `importConfig(json, defaults)` restores every setting and the seed from a downloaded
     `config.json`. It ignores the run keys and rejects an unknown key with "unknown
     configuration key <name>", as `src/config.py` does.
   - `changedSettings(settings, defaults)` lists the dotted keys that differ.
-- [ ] T059 [US2] Implement `arranger/src/ui/settings-form.js`. Make T058 pass.
-- [ ] T060 [US2] Implement `arranger/src/ui/settings-panel.js` (FR-008 to FR-012).
+- [X] T059 [US2] Implement `arranger/src/ui/settings-form.js`. Make T058 pass.
+- [X] T060 [US2] Implement `arranger/src/ui/settings-panel.js` (FR-008 to FR-012).
   - One field for each Settings row of data-model.md.
   - Each field has a one- or two-sentence explanation. Take the texts from README section
     "Hyperparameters and what the samples change" and from the "Reading the settings" panel of
@@ -531,15 +531,15 @@ settings import and export, and the last 5 runs can be compared.
     "Import settings".
   - A pace switch, watch or full speed (FR-014).
   - During a run: "changes apply to the next run".
-- [ ] T061 [P] [US2] Write a failing test, `arranger/tests/runs.test.js`, for
+- [X] T061 [P] [US2] Write a failing test, `arranger/tests/runs.test.js`, for
   `arranger/src/ui/run-list.js`. The list keeps the last 5 runs, newest first, drops the
   oldest, and gives each run its changed settings and best fitness.
-- [ ] T062 [US2] Implement `arranger/src/ui/run-list.js` and its view `arranger/src/ui/runs.js`
+- [X] T062 [US2] Implement `arranger/src/ui/run-list.js` and its view `arranger/src/ui/runs.js`
   (FR-019).
   - Changed settings appear as orange chips, as on `listen/`.
   - A click on a run restores its arrangement, plan grid and curve for playback.
   - Make T061 pass.
-- [ ] T063 [US2] Check it by hand: quickstart.md rows 7, 8 and 13.
+- [X] T063 [US2] Check it by hand: quickstart.md rows 7, 8 and 13.
 
 **Checkpoint**: US1 and US2 work on their own.
 
@@ -553,47 +553,47 @@ revealed with the playhead, and plan-grid labels.
 **Independent Test**: arrange Mulher de Fases, play, and switch A/B three times. The position
 never jumps and the drawing matches the sound.
 
-- [ ] T064 [P] [US3] Write a failing test, `arranger/tests/plain-synth.test.js`.
+- [X] T064 [P] [US3] Write a failing test, `arranger/tests/plain-synth.test.js`.
   - `renderLeadSheet(leadSheet, sampleRate)` lasts `bars × 4 × 60 / tempo` seconds.
   - It has energy in the melody band and in the chord band.
   - `renderMidiExcerpt(midi, grid, bars, tempo, sampleRate)` lasts the excerpt's beats at the
     run tempo.
   - Drum notes become noise bursts.
   - Both renders are deterministic.
-- [ ] T065 [US3] Implement `arranger/src/audio/plain-synth.js` (research R7).
+- [X] T065 [US3] Implement `arranger/src/audio/plain-synth.js` (research R7).
   - Melody as a soft triangle, chords as a quiet three-note pad.
   - MIDI tracks: a triangle below MIDI 48 and a softened square above.
   - Drums as noise bursts.
   - Everything on the beat timeline.
   - Make T064 pass.
-- [ ] T066 [P] [US3] Write a failing test, `arranger/tests/loudness.test.js`.
+- [X] T066 [P] [US3] Write a failing test, `arranger/tests/loudness.test.js`.
   - Gated RMS over 400 ms blocks with an absolute gate at -70 dBFS.
   - `matchLoudness(a, b)` brings two renders 12 dB apart to within 0.5 dB of each other.
   - Neither peaks above -1 dBFS.
-- [ ] T067 [US3] Implement `arranger/src/audio/loudness.js`. Make T066 pass.
-- [ ] T068 [US3] Extend `arranger/src/audio/player.js` to A/B (FR-022).
+- [X] T067 [US3] Implement `arranger/src/audio/loudness.js`. Make T066 pass.
+- [X] T068 [US3] Extend `arranger/src/audio/player.js` to A/B (FR-022).
   - Two sources started at the same `when`, each through its own gain node.
   - `switchTo("original" | "arrangement")` ramps the gains in 10 ms.
   - A seek restarts both at the same offset.
   - Keys: "a" and "b" switch, the arrows seek ±2 s.
-- [ ] T069 [P] [US3] Write a failing test, `arranger/tests/channel-paths.test.js`. Port the
+- [X] T069 [P] [US3] Write a failing test, `arranger/tests/channel-paths.test.js`. Port the
   tests of `tests/test_video.py`:
   - `channelPaths` gives step lines with gaps at rests;
   - `visibleUntil` reveals up to the playhead and keeps the note that enters from the left;
   - `soundingPitch` is `null` in rests.
-- [ ] T070 [US3] Implement `arranger/src/ui/channel-paths.js` (pure) and
+- [X] T070 [US3] Implement `arranger/src/ui/channel-paths.js` (pure) and
   `arranger/src/ui/channel-view.js` (canvas, FR-023).
   - A scrolling window of 8 s.
   - Arrangement: one line per channel in `--p1`, `--p2`, `--tr` and `--no` (NO as ticks).
   - Original: the melody in `--p1` and the other tracks as faint lines.
   - Drawing is driven by `player.currentTime()`.
   - Make T069 pass.
-- [ ] T071 [US3] Add labels to `arranger/src/ui/plan-grid.js` (US3, acceptance 3).
+- [X] T071 [US3] Add labels to `arranger/src/ui/plan-grid.js` (US3, acceptance 3).
   - Gene names "hold", "arp16", "arp32", "echo", "third", "root", "octave pump",
     "root-fifth", "walking", "none", "half time", "8th beat", "16th beat", "fill", "0", "+12"
     and "−12", shown on hover or focus and in a legend.
   - Part labels above the bars where a part starts.
-- [ ] T072 [US3] Check it by hand: quickstart.md row 4.
+- [X] T072 [US3] Check it by hand: quickstart.md row 4.
 
 **Checkpoint**: US1, US2 and US3 work on their own.
 
@@ -684,12 +684,12 @@ catalog and drop the file in, with the credit kept (FR-029 to FR-032).
   - `aria-label` on the canvases, with a text summary next to each.
   - `prefers-reduced-motion` stops the animated background.
   - Check: quickstart.md row 15.
-- [ ] T084 [P] Write the About section in `arranger/index.html` (FR-028, FR-032, FR-033).
+- [X] T084 [P] Write the About section in `arranger/index.html` (FR-028, FR-032, FR-033).
   - The app has its own random generator: the same seed in the CLI gives a different, equally
     valid arrangement.
   - Files never leave the device.
   - Credit for the catalog, and the abcjs license line.
-- [ ] T085 [P] Add the link to the app on `listen/index.html`: a hero pill "Arrange your own song"
+- [X] T085 [P] Add the link to the app on `listen/index.html`: a hero pill "Arrange your own song"
   pointing to `../arranger/`.
 - [ ] T086 Write the README section "Arrange your own song in the browser" in `README.md`.
   - What the app does, and the link.

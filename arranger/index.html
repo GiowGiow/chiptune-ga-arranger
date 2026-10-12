@@ -6,9 +6,6 @@
 <title>NES Arranger</title>
 <meta name="description" content="Arrange your own ABC or MIDI song for the NES sound chip with a genetic algorithm that runs in your browser. Your file never leaves your device.">
 <meta name="theme-color" content="#0B0E17">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <script type="module" src="src/ui/main.js"></script>
 </head>
@@ -67,7 +64,27 @@
 
     <section id="about" class="card wide" aria-labelledby="about-title">
       <h2 id="about-title">About</h2>
-      <p class="placeholder">How the arranger works: a plan of four genes per bar, scored by seven criteria, evolved by the same genetic algorithm as the project's command line.</p>
+      <div class="about">
+        <p>The arranger is the browser version of the project's command line
+        (<a href="https://github.com/GiowGiow/chiptune-ga-arranger">chiptune-ga-arranger</a>, DCC831 TP1,
+        UFMG). It reads your song into a <em>lead sheet</em>: the melody, the chord of every moment and the
+        parts (verse, chorus). A genetic algorithm then searches for an <em>arrangement plan</em>: four genes
+        per bar, the texture of the second pulse channel (P2), the bass texture of the triangle (TR), the drum
+        pattern of the noise channel (NO) and the octave of the melody (P1). Seven music-theory criteria score
+        each plan, roulette selection with elitism picks parents, one-point crossover at bar lines and
+        per-gene mutation make children, and the run stops when the best plan stops improving.</p>
+        <p><strong>Same seed, same arrangement.</strong> The app has its own seeded random generator, so the same
+        song, seed and settings give the same arrangement in any browser. The command line uses numpy's
+        generator: the same seed there gives a different arrangement, equally valid. The algorithm, the
+        settings and the fitness are the same, and tests check that both score a plan identically.</p>
+        <p><strong>Your files stay here.</strong> Everything runs in this page: nothing you drop is uploaded,
+        and the app fetches only its own files.</p>
+        <p><strong>Credits.</strong> The MPB catalog search lists songs from
+        <a href="https://www.beakauffmann.com/">Beatriz Kauffmann's Web Site</a>, a non-commercial site of MIDI
+        sequences of Brazilian popular music; the app keeps only titles, names and links, and the files stay on
+        that site. ABC files are parsed with <a href="https://github.com/paulrosen/abcjs">abcjs</a> (MIT). Fonts:
+        Inter and JetBrains Mono (SIL Open Font License).</p>
+      </div>
     </section>
   </div>
 

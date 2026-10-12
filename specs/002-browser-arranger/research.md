@@ -93,9 +93,10 @@ records the technical decisions of the plan. Measurements were made on the stude
 
 - **Decision**: our own small standard-MIDI-file reader and writer in `core/midi-file.js`.
   - The reader copies pretty_midi's semantics:
-    - an instrument per (program, channel, track) key, in creation order, and notes before the
-      first program change go to a provisional "straggler" instrument per (channel, track)
-      (pretty_midi `_load_instruments`);
+    - an instrument per (program, channel, track) key, in creation order; a note belongs to
+      the program in effect when it ends, and the provisional "straggler" instruments of
+      pretty_midi `_load_instruments` collect only control changes and pitch bends, so they
+      never hold notes and never appear in the list (found while porting, 2026-10-12);
     - a note-off (or a note-on at velocity 0) closes every open note of that channel and pitch
       except the zero-length ones;
     - times in seconds come from the tempo map;
