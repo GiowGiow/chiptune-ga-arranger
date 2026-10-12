@@ -142,7 +142,7 @@ three times, and check that the position never jumps and that the drawing matche
 ### User Story 4 - Find a song in the MPB MIDI catalog (Priority: P3)
 
 The visitor types part of a song title, a composer or a performer, sees matching songs from
-Beatriz Kauffmann's MPB MIDI catalog (about 3,800 songs over 27 index pages), picks one, and loads
+Beatriz Kauffmann's MPB MIDI catalog (3,671 songs over 27 index pages), picks one, and loads
 it into the app as if they had uploaded it.
 
 **Why this priority**: it is the secondary input route. It widens the choice of songs, but it
@@ -238,7 +238,9 @@ Raimundos), load it, choose the melody track recorded in `data/sources.json`, an
   per-gene mutation, and stopping at the maximum generations or after the stagnation window.
 - **FR-014**: The app MUST draw the evolution live while the GA runs: best and mean fitness per
   generation, the generation counter and its maximum, the stagnation counter and its window, and
-  the current best plan as a grid of 4 genes per bar in the channel colors.
+  the current best plan as a grid of 4 genes per bar in the channel colors. A pace control
+  offers "watch" (the default, slow enough to follow the generations) and "full speed"; the pace
+  never changes the result.
 - **FR-015**: The page MUST stay responsive during a run: scrolling, opening panels and pressing
   Stop work without waiting for the run.
 - **FR-016**: The visitor MUST be able to stop a run at any time and keep the best plan found so
@@ -363,7 +365,7 @@ Raimundos), load it, choose the melody track recorded in `data/sources.json`, an
 - The original MIDI is made audible with simple built-in instrument sounds, not a General MIDI
   soundfont; the General MIDI rendering stays on the listening page.
 - The catalog list is a snapshot. It is rebuilt by a documented command with polite crawling (one
-  request per second, about 3,900 pages), and song pages that disappear later show an error on
+  request per second, about 3,700 pages), and song pages that disappear later show an error on
   pick.
 - The listening page and its 10 samples stay as they are; the app is a new page next to them.
 - The command line stays the reference implementation for the abstract and the samples; a seed
