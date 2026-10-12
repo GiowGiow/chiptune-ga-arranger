@@ -460,10 +460,10 @@ arrange bar by bar with no violation.
 - [X] T054 Rerun `samples/korobeiniki-s1` and `samples/por-voce-s1` from their `config.json`
   with `--no-audio`, and `cmp` their `piece.mid` with the committed ones (quickstart §2). Both
   must be identical.
-- [ ] T055 Run quickstart §3 (every meter tune from the command line, no violation) and §4
+- [X] T055 Run quickstart §3 (every meter tune from the command line, no violation) and §4
   (arp32 disallowed). Run the full suites: `uv run pytest`, `npm test`, and
   `uv run ruff check src tests`.
-- [ ] T056 Check the app in the built-in browser (quickstart §5): the waltz, the allowed
+- [X] T056 Check the app in the built-in browser (quickstart §5): the waltz, the allowed
   textures and their warnings, the downloaded config, and the count-in song. Fix what fails.
 
 ---

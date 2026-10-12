@@ -153,3 +153,12 @@ test("a changed channel names its default, and the run card names the channel", 
   assert.equal(settingLabel("allowed.no"), "Allowed NO drums");
   assert.equal(settingLabel("allowed.p1_octave"), "Allowed P1 melody octave");
 });
+
+test("a changed allowed list reads as the values it leaves out, other settings as their JSON", async () => {
+  const { settingValueText } = await import("../src/ui/settings-panel.js");
+
+  assert.equal(settingValueText("allowed.p2", ["hold", "arp16", "echo", "third"]), "without fast arpeggio (32nd notes)");
+  assert.equal(settingValueText("allowed.p1_octave", [0]), "without octave up, octave down");
+  assert.equal(settingValueText("max_generations", 500), "500");
+  assert.equal(settingValueText("weights.contrast", 2), "2");
+});

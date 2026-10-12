@@ -9,7 +9,7 @@
  */
 
 import { changedSettings, valueAt } from "./settings-form.js";
-import { settingLabel } from "./settings-panel.js";
+import { settingLabel, settingValueText } from "./settings-panel.js";
 
 /** How many runs a visit keeps. */
 export const RUN_LIMIT = 5;
@@ -43,7 +43,7 @@ export function describeRun(run, defaults) {
   const changed = changedSettings(run.settings, defaults).map((key) => ({
     key,
     label: settingLabel(key),
-    value: JSON.stringify(valueAt(run.settings, key)),
+    value: settingValueText(key, valueAt(run.settings, key)),
   }));
   return { id: run.id, seed: run.settings.seed, changed, fitness: run.bestFitness.toFixed(4) };
 }

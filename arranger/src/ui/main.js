@@ -33,7 +33,7 @@ import { addRun } from "./run-list.js";
 import { renderScores } from "./scores-table.js";
 import { changedSettings, valueAt } from "./settings-form.js";
 import { createRunsView } from "./runs.js";
-import { createSettingsPanel, settingLabel } from "./settings-panel.js";
+import { createSettingsPanel, settingLabel, settingValueText } from "./settings-panel.js";
 
 /** @typedef {import("./input-panel.js").LoadedInput} LoadedInput */
 /** @typedef {import("../core/settings.js").Settings} Settings */
@@ -559,7 +559,7 @@ function showChangedSettings() {
     const chip = document.createElement("button");
     chip.type = "button";
     chip.className = "changed mono";
-    chip.textContent = `${settingLabel(key)} ${JSON.stringify(valueAt(state.settings, key))}`;
+    chip.textContent = `${settingLabel(key)} ${settingValueText(key, valueAt(state.settings, key))}`;
     chip.title = "Open the settings";
     chip.addEventListener("click", () => toggleSettings(true));
     box.append(chip);

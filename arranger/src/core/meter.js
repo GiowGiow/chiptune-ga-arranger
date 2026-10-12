@@ -35,7 +35,8 @@
  *   strong.
  * @property {number} steps sixteenth-note steps in one bar, the grid of the drums and of the
  *   score tables.
- * @property {() => string} toString the meter as written, for example "3/4".
+ * @property {() => string} toString the meter as written, for example "3/4" (inherited, so a
+ *   structured clone, as the worker receives it, holds only the data fields).
  */
 
 /**
@@ -62,6 +63,14 @@ const STRUCTURE = [
 /** @type {Readonly<Record<string, [number, number]>>} */
 const SYMBOLS = Object.freeze({ C: [4, 4], "C|": [2, 2] });
 
+/** Shared behavior of the meter objects: `String(meter)` gives the meter as written. */
+const METER_PROTOTYPE = Object.freeze({
+  /** @this {{numerator: number, denominator: number}} */
+  toString() {
+    return `${this.numerator}/${this.denominator}`;
+  },
+});
+
 /**
  * The nine supported meters, in the order 2/2, 2/4, 3/4, 4/4, 6/8, 9/8, 12/8, 5/4, 7/8.
  * @type {readonly Meter[]}
@@ -70,17 +79,21 @@ const SYMBOLS = Object.freeze({ C: [4, 4], "C|": [2, 2] });
  */
 export const SUPPORTED_METERS = Object.freeze(
   STRUCTURE.map(([numerator, denominator, beats, strong]) => {
-    const text = `${numerator}/${denominator}`;
     const barBeats = (numerator * 4) / denominator;
-    return Object.freeze({
-      numerator,
-      denominator,
-      barBeats,
-      beats: Object.freeze([...beats]),
-      strong: Object.freeze([...strong]),
-      steps: Math.round(4 * barBeats),
-      toString: () => text,
-    });
+    // toString lives on the prototype: the page posts lead sheets to the worker, and a
+    // structured clone cannot copy a function held by the object itself.
+    return /** @type {Meter} */ (
+      Object.freeze(
+        Object.assign(Object.create(METER_PROTOTYPE), {
+          numerator,
+          denominator,
+          barBeats,
+          beats: Object.freeze([...beats]),
+          strong: Object.freeze([...strong]),
+          steps: Math.round(4 * barBeats),
+        }),
+      )
+    );
   }),
 );
 

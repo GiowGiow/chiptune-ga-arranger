@@ -61,7 +61,8 @@ function fakeWorld({ tick = 0.02, onPost = () => {} } = {}) {
 
 /** @param {string} runId @param {string} pace @param {Record<string, unknown>} [settings] */
 function runMessage(runId, pace, settings = smallSettings()) {
-  return { type: "run", runId, leadSheet: KOROBEINIKI, settings, pace };
+  // The page posts the lead sheet to the worker, which receives a structured clone of it.
+  return { type: "run", runId, leadSheet: structuredClone(KOROBEINIKI), settings, pace };
 }
 
 /** @param {{message: any}[]} posted @param {string} [runId] */
@@ -364,4 +365,15 @@ test("the worker adapter hands self.onmessage to the runner and answers with sel
   assert.equal(posted[0].type, "started");
   assert.equal(posted.at(-1).type, "done");
   assert.equal(posted.at(-1).generations, 20);
+});
+
+test("a waltz posted to the worker runs in its own meter", async () => {
+  const waltz = leadSheetFromJson(readFixture("leadsheets/waltz.json"));
+  const { runner, posted } = fakeWorld();
+
+  await runner.handle({ type: "run", runId: "waltz-s1-test", leadSheet: structuredClone(waltz), settings: smallSettings(), pace: "full" });
+
+  const done = messagesOf(posted).find((message) => message.type === "done");
+  assert.ok(done, "the run ends with a done message");
+  assert.equal(done.bestPlan.length, 16 * 4);
 });

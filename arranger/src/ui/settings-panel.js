@@ -151,6 +151,26 @@ export function settingLabel(key) {
 }
 
 /**
+ * A setting's value as the Run card and the run list show it: an allowed list by the values it
+ * leaves out (a short list, and the point of changing it), any other setting as its JSON.
+ *
+ * @param {string} key dotted key
+ * @param {unknown} value
+ * @returns {string}
+ * @example
+ * settingValueText("allowed.p2", ["hold", "arp16", "echo", "third"]) // "without fast arpeggio (32nd notes)"
+ * settingValueText("max_generations", 500) // "500"
+ */
+export function settingValueText(key, value) {
+  const group = ALLOWED_GROUPS.find(({ gene }) => key === `allowed.${gene}`);
+  if (group && Array.isArray(value)) {
+    const left = group.values.filter(([option]) => !value.includes(option)).map(([, label]) => label);
+    return left.length ? `without ${left.join(", ")}` : "all allowed";
+  }
+  return JSON.stringify(value);
+}
+
+/**
  * The note under a changed setting that names its default value.
  *
  * @param {string} key dotted key

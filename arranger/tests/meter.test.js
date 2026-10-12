@@ -149,3 +149,13 @@ test("a piece without bars has no bar starts and lasts zero beats", () => {
   assert.deepEqual(barStarts([]), []);
   assert.equal(totalBeats([]), 0);
 });
+
+test("a meter survives a structured clone, so a lead sheet can be posted to the worker", () => {
+  const clone = structuredClone(makeMeter(3, 4));
+
+  assert.deepEqual(
+    [clone.numerator, clone.denominator, clone.barBeats, [...clone.beats], [...clone.strong], clone.steps],
+    [3, 4, 3, [1, 1, 1], [0], 12],
+  );
+  assert.equal(meterText(clone), "3/4");
+});
