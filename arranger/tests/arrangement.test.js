@@ -1,9 +1,10 @@
 // @ts-check
 // Tests for core/arrangement.js: assembling a plan into the four NES channels (port of
 // src/arrangement/assemble.py) and checking the NES rules before export (port of
-// src/arrangement/validation.py). Every committed sample's best plan must assemble to the notes
-// the Python code wrote to fixtures/plans/, and pass the rules. The synthetic cases port
-// tests/test_validation.py: each starts from a valid arrangement and breaks one rule.
+// src/arrangement/validation.py). Every committed sample's best plan, and the fixed plan of every
+// meter test tune, must assemble to the notes the Python code wrote to fixtures/plans/, and pass
+// the rules. The synthetic cases port tests/test_validation.py and tests/test_assemble.py: each
+// starts from a valid arrangement and breaks one rule, in 4/4 bars and in bars of other meters.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -11,8 +12,9 @@ import { readdirSync } from "node:fs";
 import { join } from "node:path";
 
 import { assemble, findViolations } from "../src/core/arrangement.js";
-import { P2_TEXTURES } from "../src/core/genome.js";
+import { GENE_SIZES, P2_TEXTURES } from "../src/core/genome.js";
 import { leadSheetFromJson } from "../src/core/leadsheet.js";
+import { FOUR_FOUR, barStarts, parseMeter } from "../src/core/meter.js";
 import { CHANNELS, KICK, SNARE } from "../src/core/textures.js";
 import { assertClose, fixturesDir, readFixture } from "./helpers.js";
 
@@ -38,11 +40,10 @@ const LEAD_SHEET = {
   title: "Test tune",
   key: "C major",
   tempoBpm: 120,
-  beatsPerBar: 4,
   sourceGrid: null,
   bars: [
-    { index: 0, melody: [], chords: [C], label: "A", role: "verse", phrase: 0, phraseEnd: false },
-    { index: 1, melody: [], chords: [F, AM], label: "A", role: "verse", phrase: 0, phraseEnd: true },
+    { index: 0, melody: [], chords: [C], label: "A", role: "verse", phrase: 0, phraseEnd: false, meter: FOUR_FOUR },
+    { index: 1, melody: [], chords: [F, AM], label: "A", role: "verse", phrase: 0, phraseEnd: true, meter: FOUR_FOUR },
   ],
 };
 
@@ -84,11 +85,12 @@ for (const file of planFiles) {
   const leadSheet = leadSheetFromJson(readFixture(`leadsheets/${sample.leadsheet}.json`));
   const plan = Uint8Array.from(sample.best_plan.flat());
 
-  test(`the best plan of ${file.replace(".json", "")} assembles to the Python notes, note for note`, () => {
+  test(`the plan of ${file.replace(".json", "")} assembles to the Python notes, note for note`, () => {
     const arrangement = assemble(leadSheet, plan);
     assert.equal(arrangement.title, leadSheet.title);
     assert.equal(arrangement.tempoBpm, leadSheet.tempoBpm);
     assert.deepEqual([...arrangement.plan], [...plan]);
+    assert.deepEqual(arrangement.meters, leadSheet.bars.map((bar) => bar.meter));
     assert.deepEqual(Object.keys(arrangement.channels), [...CHANNELS]);
     for (const channel of CHANNELS) {
       assertClose(asRows(arrangement.channels[channel]), sample.arrangement[channel]);
@@ -118,8 +120,8 @@ test("assemble shifts each bar's notes by 4 beats per bar and keeps its own copy
 
 test("two C bars with hold and half time: P2 holds 48 at beats 0 and 4, drums hit every beat", () => {
   /** @type {import("../src/core/leadsheet.js").Bar} */
-  const bar = { index: 0, melody: [], chords: [C], label: "A", role: "verse", phrase: 0, phraseEnd: true };
-  const sheet = { title: "Two bars", key: "", tempoBpm: 120, beatsPerBar: 4, sourceGrid: null, bars: [bar, { ...bar, index: 1 }] };
+  const bar = { index: 0, melody: [], chords: [C], label: "A", role: "verse", phrase: 0, phraseEnd: true, meter: FOUR_FOUR };
+  const sheet = { title: "Two bars", key: "", tempoBpm: 120, sourceGrid: null, bars: [bar, { ...bar, index: 1 }] };
   const arrangement = assemble(sheet, Uint8Array.of(0, 0, 1, 0, 0, 0, 1, 0));
   assert.deepEqual(
     arrangement.channels.P2.map((note) => [note.pitch, note.onset]),
@@ -132,7 +134,51 @@ test("two C bars with hold and half time: P2 holds 48 at beats 0 and 4, drums hi
     arrangement.channels.NO.map((note) => note.onset),
     [0, 1, 2, 3, 4, 5, 6, 7],
   );
+  assert.deepEqual(arrangement.meters.map(String), ["4/4", "4/4"]);
 });
+
+test("bars of different meters follow each other without gaps, and the arrangement keeps their meters", () => {
+  /** @param {number} index @param {string} meterText */
+  const bar = (index, meterText) => {
+    const meter = parseMeter(meterText);
+    return {
+      index,
+      melody: [{ pitch: 72, onset: 0, duration: meter.barBeats }],
+      chords: [chord("C", 0, [0, 4, 7], 0, meter.barBeats)],
+      label: "A",
+      role: /** @type {const} */ ("verse"),
+      phrase: 0,
+      phraseEnd: index === 2,
+      meter,
+    };
+  };
+  const sheet = { title: "Mixed", key: "", tempoBpm: 120, sourceGrid: null, bars: [bar(0, "4/4"), bar(1, "2/4"), bar(2, "3/4")] };
+  const arrangement = assemble(sheet, new Uint8Array(12));
+  assert.deepEqual(
+    arrangement.channels.P1.map((note) => note.onset),
+    [0, 4, 6],
+  );
+  assert.deepEqual(arrangement.meters.map(String), ["4/4", "2/4", "3/4"]);
+  assert.equal(arrangement.meters[2], parseMeter("3/4"));
+  assert.deepEqual(findViolations(arrangement, sheet), []);
+});
+
+test("the tune with meter changes starts its bars at the running sum of their lengths", () => {
+  const sheet = leadSheetFromJson(readFixture("leadsheets/changes.json"));
+  assert.deepEqual(barStarts(sheet.bars), [0, 4, 8, 10, 12, 15, 18, 22]);
+});
+
+for (const id of ["waltz", "polka", "jig", "slow_twelve", "five", "seven", "changes"]) {
+  test(`every texture obeys the NES rules in every bar of the ${id} tune`, () => {
+    const sheet = leadSheetFromJson(readFixture(`leadsheets/${id}.json`));
+    for (let value = 0; value < Math.max(...GENE_SIZES); value++) {
+      // The same gene value on every bar, capped at each gene's last value, as in Python.
+      const genes = GENE_SIZES.map((size) => Math.min(value, size - 1));
+      const plan = Uint8Array.from(sheet.bars.flatMap(() => genes));
+      assert.deepEqual(findViolations(assemble(sheet, plan), sheet), [], `gene value ${value}`);
+    }
+  });
+}
 
 test("assemble refuses a plan whose length is not 4 genes per bar of the lead sheet", () => {
   assert.throws(() => assemble(LEAD_SHEET, Uint8Array.of(0, 0, 0, 0)), RangeError);
@@ -243,6 +289,60 @@ test("every broken rule gets its own message, in rule order", () => {
 test("notes are checked in time order even when a channel lists them out of order", () => {
   const melody = notes([65, 4, 2], [60, 0, 2], [69, 6, 2], [64, 2, 2]);
   assert.deepEqual(findViolations(makeArrangement({ P1: melody }), LEAD_SHEET), []);
+});
+
+// Bars in other meters (spec 003, FR-008)
+
+const WALTZ = parseMeter("3/4");
+const TWO_FOUR = parseMeter("2/4");
+const C_WALTZ = chord("C", 0, [0, 4, 7], 0, 3);
+const G_TWO = chord("G", 7, [7, 11, 2], 0, 2);
+
+// Bars of 4/4, 2/4 and 3/4: they start on beats 0, 4 and 6 and the piece lasts 9 beats.
+/** @type {import("../src/core/leadsheet.js").LeadSheet} */
+const MIXED = {
+  title: "Mixed",
+  key: "C major",
+  tempoBpm: 120,
+  sourceGrid: null,
+  bars: [
+    { index: 0, melody: [], chords: [C], label: "A", role: "verse", phrase: 0, phraseEnd: false, meter: FOUR_FOUR },
+    { index: 1, melody: [], chords: [G_TWO], label: "A", role: "verse", phrase: 0, phraseEnd: false, meter: TWO_FOUR },
+    { index: 2, melody: [], chords: [C_WALTZ], label: "A", role: "verse", phrase: 0, phraseEnd: true, meter: WALTZ },
+  ],
+};
+
+/**
+ * A three-bar arrangement of MIXED with hold on P2 and the given bass notes only.
+ * @param {...[number, number, number]} bass
+ */
+function mixed(...bass) {
+  return { plan: Uint8Array.from([0, 1, 2].flatMap(() => [HOLD, 0, 0, 0])), channels: { TR: notes(...bass) } };
+}
+
+test("a waltz bar checks chord tones only on its first beat", () => {
+  // Bar 3 (3/4) starts on beat 6: D on its beat 2 or 3 is a passing note, on beat 1 it is not.
+  const passing = mixed([36, 0, 4], [31, 4, 2], [36, 6, 1], [38, 7, 1], [38, 8, 1]);
+  const wrong = mixed([36, 0, 4], [31, 4, 2], [38, 6, 3]);
+  assert.deepEqual(findViolations(passing, MIXED), []);
+  assert.deepEqual(findViolations(wrong, MIXED), ["TR bar 3: pitch 38 at beat 1 is not a chord tone of C"]);
+});
+
+test("a 2/4 bar has no strong beat but its first", () => {
+  // Bar 2 (2/4) on beats 4-6 holds G: A on its beat 2 passes, while 4/4 would check beat 3.
+  assert.deepEqual(findViolations(mixed([36, 0, 4], [31, 4, 1], [33, 5, 1], [36, 6, 3]), MIXED), []);
+});
+
+test("a note that crosses the end of a short bar is reported", () => {
+  assert.deepEqual(findViolations(mixed([36, 0, 4], [31, 4, 3], [36, 7, 2]), MIXED), [
+    "TR bar 2: the note at beat 1 crosses the bar end",
+  ]);
+});
+
+test("a note after the last bar is reported as crossing it", () => {
+  assert.deepEqual(findViolations(mixed([36, 0, 4], [31, 4, 2], [36, 6, 3], [36, 9, 1]), MIXED), [
+    "TR bar 3: the note at beat 4 crosses the bar end",
+  ]);
 });
 
 test("beat labels print like Python's :g format", () => {

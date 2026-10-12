@@ -421,3 +421,30 @@ def test_a_tune_with_fewer_than_two_plain_bar_lines_is_rejected():
 def test_a_phrase_length_below_one_is_rejected():
     with pytest.raises(ValueError, match="phrase_length"):
         read_lead_sheet_text(abc('"C"CDEF|'), phrase_length=0)
+
+
+def test_a_jig_has_sixteen_bars_of_three_quarter_notes():
+    jig = read_lead_sheet(METER_TUNES / "jig.abc")
+
+    assert len(jig.bars) == 16
+    assert {str(bar.meter) for bar in jig.bars} == {"6/8"}
+    assert {bar.meter.bar_beats for bar in jig.bars} == {3.0}
+    # "G"B2 d "A7"c2 e: the chord changes on the second dotted-quarter beat.
+    assert [(s.symbol, s.onset) for s in jig.bars[5].chords] == [("G", 0.0), ("A7", 1.5)]
+
+
+def test_a_twelve_eight_tune_has_six_beat_bars():
+    slow = read_lead_sheet(METER_TUNES / "slow_twelve.abc")
+
+    assert len(slow.bars) == 8
+    assert {bar.meter.bar_beats for bar in slow.bars} == {6.0}
+    assert [(s.symbol, s.onset) for s in slow.bars[0].chords] == [("C", 0.0), ("F", 3.0)]
+
+
+def test_five_four_and_seven_eight_tunes_read_with_their_bar_lengths():
+    five = read_lead_sheet(METER_TUNES / "five.abc")
+    seven = read_lead_sheet(METER_TUNES / "seven.abc")
+
+    assert {bar.meter.bar_beats for bar in five.bars} == {5.0}
+    assert [(s.symbol, s.onset) for s in five.bars[0].chords] == [("Am", 0.0), ("Dm", 3.0)]
+    assert {bar.meter.bar_beats for bar in seven.bars} == {3.5}

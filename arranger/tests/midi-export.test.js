@@ -1,8 +1,9 @@
 // @ts-check
 // Tests for core/midi-export.js, which writes an arrangement as the .mid download
 // (contracts/files.md): format 1 at 480 ticks per quarter note, a tempo track, and the tracks P1,
-// P2, TR and NO on channels 0, 1, 2 and 9 with General MIDI programs 80, 80, 38 and 0. They port
-// the doctest of src/export/midi.py and read the bytes back with core/midi-file.js.
+// P2, TR and NO on channels 0, 1, 2 and 9 with General MIDI programs 80, 80, 38 and 0, and track 0
+// declares the first bar's meter and each change of meter (spec 003, research R11). They port the
+// doctest and tests of src/export/midi.py and read the bytes back with core/midi-file.js.
 //
 // With WRITE_WEB_FIXTURES set, the last test also writes fixtures/web/korobeiniki-s1.mid, which
 // tests/test_web_midi.py reads with pretty_midi (the CLI's reader).
@@ -12,6 +13,8 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
+import { leadSheetFromJson } from "../src/core/leadsheet.js";
+import { FOUR_FOUR, parseMeter } from "../src/core/meter.js";
 import { CHANNEL_PROGRAMS, MIDI_CHANNELS, arrangementToMidi } from "../src/core/midi-export.js";
 import { readMidiFile } from "../src/core/midi-file.js";
 import { assertClose, fixturesDir, readFixture } from "./helpers.js";
@@ -37,6 +40,21 @@ function fixtureArrangement(sample, tempoBpm) {
     }));
   }
   return { title: sample, tempoBpm, plan: plan.best_plan, channels };
+}
+
+/**
+ * A one-note arrangement in the given meters, one per bar, at 120 BPM (a beat lasts 0.5 s).
+ * @param {import("../src/core/meter.js").Meter[]} meters
+ * @returns {Arrangement}
+ */
+function metered(meters) {
+  return {
+    title: "meters",
+    tempoBpm: 120,
+    plan: meters.map(() => [0, 0, 0, 0]),
+    channels: { P1: [{ pitch: 72, onset: 0, duration: 1, velocity: 100 }], P2: [], TR: [], NO: [] },
+    meters,
+  };
 }
 
 test("the JSDoc example holds: a P1 note on beat 1 at 120 BPM starts at 0.5 s", () => {
@@ -66,6 +84,38 @@ test("the file is format 1 at 480 ticks per quarter note, with the tempo and a 4
   assert.equal(midi.resolution, 480);
   assert.deepEqual(midi.tempoChanges, [{ tick: 0, time: 0, bpm: 150 }]);
   assert.deepEqual(midi.timeSignatures, [{ numerator: 4, denominator: 4, time: 0 }]);
+});
+
+test("a 3/4 arrangement declares 3/4 at the start", () => {
+  const waltz = parseMeter("3/4");
+  const midi = readMidiFile(arrangementToMidi(metered([waltz, waltz, waltz])));
+  assert.deepEqual(midi.timeSignatures, [{ numerator: 3, denominator: 4, time: 0 }]);
+});
+
+test("a time signature is written at each bar whose meter differs from the bar before it", () => {
+  const sheet = leadSheetFromJson(readFixture("leadsheets/changes.json"));
+  // Bars 4/4, 4/4, 2/4, 2/4, 3/4, 3/4, 4/4, 4/4 start on beats 0, 4, 8, 10, 12, 15, 18, 22.
+  const midi = readMidiFile(arrangementToMidi(metered(sheet.bars.map((bar) => bar.meter))));
+  assert.deepEqual(midi.timeSignatures, [
+    { numerator: 4, denominator: 4, time: 0 },
+    { numerator: 2, denominator: 4, time: 4 },
+    { numerator: 3, denominator: 4, time: 6 },
+    { numerator: 4, denominator: 4, time: 9 },
+  ]);
+  // A compound meter keeps its eighth-note denominator, and the notes are untouched.
+  const jig = readMidiFile(arrangementToMidi(metered([parseMeter("6/8"), parseMeter("12/8")])));
+  assert.deepEqual(jig.timeSignatures, [
+    { numerator: 6, denominator: 8, time: 0 },
+    { numerator: 12, denominator: 8, time: 1.5 },
+  ]);
+  assert.deepEqual(jig.instruments[0].notes.map((n) => [n.pitch, n.start, n.end]), [[72, 0, 0.5]]);
+});
+
+test("an all-4/4 arrangement, or one without meters, writes the same bytes as before meters", () => {
+  const plain = arrangementToMidi({ ...metered([]), meters: undefined });
+  assert.deepEqual(arrangementToMidi(metered([])), plain);
+  assert.deepEqual(arrangementToMidi(metered([FOUR_FOUR, FOUR_FOUR, FOUR_FOUR])), plain);
+  assert.deepEqual(readMidiFile(plain).timeSignatures, [{ numerator: 4, denominator: 4, time: 0 }]);
 });
 
 test("the tracks are P1, P2, TR and NO on channels 0, 1, 2 and 9 with programs 80, 80, 38 and 0", () => {

@@ -8,6 +8,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import { leadSheetFromJson } from "../src/core/leadsheet.js";
 import { readMidiFile, writeMidiFile } from "../src/core/midi-file.js";
@@ -172,13 +173,13 @@ test("a MIDI excerpt is read on the lead sheet's grid, shifted to its first bar 
   assertClose(estimated.melody[1], { pitch: 74, onset: (2 - 0.3) * (100 / 60), duration: 0.5 * (100 / 60) }, 9);
 });
 
-test("the original of a song with a count-in starts on its first 4/4 downbeat, as its lead sheet does", () => {
-  // 3/4 for 3 s (6 beats), then 4/4: the lead sheet's bar 0 starts at 3 s.
+test("the original of a song with a count-in counts bars on the file's time-signature map", () => {
+  // Two 3/4 bars (3 s, 6 beats), then 4/4: bar 2 is the first 4/4 bar and starts at 3 s.
   const midi = readMidiFile(countInSongBytes());
-  assert.equal(beatClock(midi, [120, 0])(3), 0);
-  assert.equal(beatClock(midi, [120, 0])(5), 4);
-  const voices = midiExcerptVoices(midi, { melodyTrack: 0, sourceGrid: [120, 0], bars: [0, 1] });
-  // The pickup G4 at 2.5 s is before the excerpt.
+  assert.equal(beatClock(midi, [120, 0])(3), 6);
+  assert.equal(beatClock(midi, [120, 0])(5), 10);
+  const voices = midiExcerptVoices(midi, { melodyTrack: 0, sourceGrid: [120, 0], bars: [2, 3] });
+  // The pickup G4 at 2.5 s is in bar 1, before the excerpt.
   assert.deepEqual(voices.melody, [{ pitch: 72, onset: 0, duration: 2 }]);
   assert.deepEqual(voices.drums.map((hit) => hit.onset), [0, 1, 2, 3]);
   // An estimated grid has its own downbeat: the count-in does not move it.
@@ -241,4 +242,26 @@ test("the documented examples hold", () => {
   const excerpt = { melodyTrack: trackIndex(midi, "melody"), sourceGrid: /** @type {[number, number]} */ ([120, 0]), bars: /** @type {[number, number]} */ ([1, 2]) };
   assert.equal(midiExcerptVoices(midi, excerpt).melody[0].pitch, 74);
   assert.equal(renderMidiExcerpt(midi, excerpt, 120, 44100).length, 88200);
+});
+
+test("a waltz lead sheet plays its bars of three beats one after the other", () => {
+  const waltz = leadSheetFromJson(readFixture("leadsheets/waltz.json"));
+
+  const voices = leadSheetVoices(waltz);
+
+  // Bar 2 (index 1) starts on beat 3: its first melody note, E5, sounds there.
+  assert.deepEqual(voices.melody.find((note) => note.onset >= 3), { pitch: 76, onset: 3, duration: 2 });
+  // 16 bars × 3 beats at 150 BPM last 19.2 s.
+  assert.equal(renderLeadSheet(waltz, 1000).length, 19200);
+});
+
+test("the original of a waltz excerpt lasts its bars of three beats", () => {
+  const midi = readMidiFile(new Uint8Array(readFileSync(new URL("./fixtures/midi-songs/synthetic-waltz.mid", import.meta.url))));
+  const excerpt = { melodyTrack: 0, sourceGrid: /** @type {[number, number]} */ ([120, 0]), bars: /** @type {[number, number]} */ ([1, 3]) };
+
+  const voices = midiExcerptVoices(midi, excerpt);
+
+  // Bar 1 starts on beat 3 (1.5 s): its three melody notes fall on beats 0, 1 and 2 of the excerpt.
+  assert.deepEqual(voices.melody.slice(0, 3).map((note) => note.onset), [0, 1, 2]);
+  assert.equal(renderMidiExcerpt(midi, excerpt, 120, 1000).length, 3000); // 6 beats at 120 BPM
 });

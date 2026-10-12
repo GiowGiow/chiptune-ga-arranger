@@ -15,6 +15,7 @@
 
 import { assemble, findViolations } from "../core/arrangement.js";
 import { writeLeadSheetAbc } from "../core/abc-writer.js";
+import { totalBeats } from "../core/meter.js";
 import { arrangementToMidi } from "../core/midi-export.js";
 import { configRecord, defaultSettings, runId, validateSettings } from "../core/settings.js";
 import { renderChip } from "../audio/chip-synth.js";
@@ -290,7 +291,7 @@ async function finishRun(message) {
   }
   state.phase = "realized";
   const context = player.ensureContext();
-  const durationBeats = leadSheet.bars.length * 4;
+  const durationBeats = totalBeats(leadSheet.bars);
   const voices = originalVoices(input, leadSheet);
   const matched = matchLoudness(
     renderChip(arrangement, context.sampleRate),
@@ -460,7 +461,7 @@ function previewTrack(index) {
     sourceGrid: /** @type {[number, number]} */ (loaded.leadSheet.sourceGrid),
     bars: /** @type {[number, number]} */ (bars),
   });
-  const beats = Math.min(32, (bars[1] - bars[0]) * 4);
+  const beats = Math.min(32, totalBeats(loaded.leadSheet.bars));
   const rendered = renderVoices(
     { melody: voices.melody, others: [], drums: [] },
     loaded.leadSheet.tempoBpm,

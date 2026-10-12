@@ -4,9 +4,15 @@
 // ABC is a plain-text music notation: a header of `field:value` lines (T: title, M: meter, Q:
 // tempo, K: key) followed by the tune body, where letters are notes, `|` are bar lines and quoted
 // strings such as "Am" are chord symbols. A `P:` line in the body marks where a part (verse,
-// chorus) starts. The arranger works bar by bar in 4/4, in the order the bars are played, so the
-// reader turns a tune into that list of bars: the melody notes of each bar, the chord in effect
-// at every moment, and the part each bar belongs to.
+// chorus) starts. The arranger works bar by bar, in the order the bars are played, so the reader
+// turns a tune into that list of bars: the meter of each bar, its melody notes, the chord in
+// effect at every moment, and the part each bar belongs to.
+//
+// The meter (time signature) says how long a bar is and where its strong beats fall. The header's
+// `M:` field gives the first bar's meter; an inline field such as `[M:3/4]`, or an `M:` line in
+// the body, changes it from the bar where it is written, so a tune may move from 4/4 to 2/4 and
+// back. The reader takes the nine meters of core/meter.js (2/2, 2/4, 3/4, 4/4, 6/8, 9/8, 12/8,
+// 5/4, 7/8) and checks that every bar lasts as long as its own meter says.
 //
 // This module ports src/leadsheet/abc_reader.py. The Python reader leaves the parsing to music21;
 // here the abcjs parser (vendored in arranger/vendor/abcjs/) reads the notation, and this module
@@ -26,14 +32,18 @@
 //    neither do spacers `y`; an invisible rest `x` is a rest.
 // 7. Play out repeats and endings, with the rules abcjs uses when it plays the tune.
 // 8. Read a decimal Q: tempo from the text, because abcjs truncates it to an integer.
-// 9. Pad a short first bar (a pickup) with a leading rest, and join 2/4 bars in pairs (R11).
+// 9. Give each bar the meter in effect when its bar line closes it: abcjs reports the header
+//    meter on the first line, an `M:` line in the body on the line that follows it, and an inline
+//    `[M:x]` as an element of the voice (spec 003, research R7).
+// 10. Pad a short first bar (a pickup) with a leading rest, up to its own meter's length.
 //
-// The Python reader refuses repeat signs, pickups and 2/4; on the tunes it accepts, both readers
-// give the same lead sheet (tests/abc-reader.test.js checks the committed lead sheets).
+// The Python reader refuses repeat signs and pickups; on the tunes it accepts, both readers give
+// the same lead sheet (tests/abc-reader.test.js checks the committed lead sheets and the meter
+// test tunes).
 //
 // Known limits:
-// - Only 4/4 (or C) and 2/4 are read; another meter, or a change of meter, is refused. Only the
-//   first bar may be short (a pickup), so a tune whose last bar completes the pickup is refused.
+// - Only the first bar may be short (a pickup), so a tune whose last bar completes the pickup is
+//   refused.
 // - A key change inside a repeated section keeps the pitches of its last pass (abcjs behavior).
 // - Chord symbols on spacer rests are read from the parse, not from abcjs's audio sequence.
 // - Repeats follow abcjs, quirks included (an ending that closes with `:|` plays the common bars
@@ -44,7 +54,10 @@
 //   K:Cion as minor and major, and the locrian mode and bagpipe keys give no key, as in music21.
 
 import { chordTones } from "./chords.js";
-import { BEATS_PER_BAR, chordSegments, phraseMarks, sectionRole } from "./leadsheet.js";
+import { chordSegments, phraseMarks, sectionRole } from "./leadsheet.js";
+import { parseMeter } from "./meter.js";
+
+/** @typedef {import("./meter.js").Meter} Meter */
 
 /** Ticks per quarter-note beat: the time grid of the reader, as in a MIDI file. */
 const TICKS_PER_BEAT = 480;
@@ -100,6 +113,7 @@ const MODE_NAMES = {
  * A bar as written in the tune, before repeats are played out.
  * @typedef {object} WrittenBar
  * @property {number} number position in the text, counted from 1 as musicians do (for messages).
+ * @property {Meter} meter the meter in effect when the bar line closes the bar.
  * @property {number} ticks length of the bar.
  * @property {TickNote[]} notes
  * @property {Array<[number, string]>} chordChanges `[onset in ticks, symbol]` of each chord
@@ -138,13 +152,17 @@ export function listTunes(ABCJS, text) {
  * @param {any} ABCJS the abcjs library object (`globalThis.ABCJS` in the page).
  * @param {string} text the ABC file.
  * @param {ReadOptions} [options]
- * @returns {import("./leadsheet.js").LeadSheet} the lead sheet, with one 4/4 bar per bar played.
- * @throws {Error} for a meter other than 4/4 or 2/4, an incomplete bar other than a pickup, a
- *   tune without chord symbols or with an unknown one. The message names the bar when it can.
+ * @returns {import("./leadsheet.js").LeadSheet} the lead sheet, with one bar per bar played, each
+ *   in its own meter.
+ * @throws {Error} for a missing or unsupported meter, a bar whose length differs from its meter
+ *   (other than a pickup), a tune without chord symbols or with an unknown one. The message names
+ *   the bar when it can.
  * @example
  * const sheet = readLeadSheetAbc(ABCJS, 'X:1\nT:Scale\nM:4/4\nL:1/4\nK:C\n"C"CDEF|"G7"GABc|');
  * [sheet.bars.map((bar) => bar.chords[0].symbol), sheet.bars[1].melody[0].pitch];
  * // [["C", "G7"], 67]
+ * readLeadSheetAbc(ABCJS, 'X:1\nM:3/4\nL:1/4\nK:C\n"C"CDE|[M:2/4]FG|').bars.map((bar) => String(bar.meter));
+ * // ["3/4", "2/4"]
  */
 export function readLeadSheetAbc(ABCJS, text, options = {}) {
   const { tuneIndex = 0, phraseLength = 4, roleMap = null, tempoOverride = null } = options;
@@ -164,21 +182,21 @@ export function readLeadSheetAbc(ABCJS, text, options = {}) {
   }
   tune.setUpAudio({ chordsOff: true });
 
-  const meter = meterOf(lines[0].staff[0].meter);
-  const { bars, markers } = readWrittenBars(lines, meter);
+  const headerMeter = lines[0].staff[0].meter;
+  if (headerMeter === undefined) {
+    throw new Error("the tune has no M: (meter) field; write one, for example M:4/4");
+  }
+  const { bars, markers } = readWrittenBars(lines, parseMeter(abcjsMeterText(headerMeter), 1));
   if (bars.length === 0) {
     throw new Error("the tune has no notes");
   }
-  checkBarLengths(bars, meter.barTicks);
+  checkBarLengths(bars);
 
-  let played = playedBars(bars, playOrder(markers, bars.length));
-  if (meter.barTicks !== BEATS_PER_BAR * TICKS_PER_BEAT) {
-    played = joinPairs(played, meter.barTicks);
-  }
-
+  const played = playedBars(bars, playOrder(markers, bars.length));
   const chordsPerBar = chordSegments(
     played.map((bar) => bar.chordChanges.map(([onset, symbol]) => [onset / TICKS_PER_BEAT, symbol])),
     chordTones,
+    played.map((bar) => bar.meter.barBeats),
   );
   const marks = phraseMarks(
     played.map((bar) => bar.sectionKey),
@@ -196,8 +214,8 @@ export function readLeadSheetAbc(ABCJS, text, options = {}) {
       role: sectionRole(bar.label, roleMap),
       phrase: marks[index][0],
       phraseEnd: marks[index][1],
+      meter: bar.meter,
     })),
-    beatsPerBar: BEATS_PER_BAR,
     sourceGrid: null,
   };
 }
@@ -230,31 +248,18 @@ function firstVoice(tune) {
 }
 
 /**
- * @typedef {object} Meter
- * @property {string} text the meter as written, for example "4/4" or "C".
- * @property {number} barTicks length of one written bar.
+ * @param {Meter} meter
+ * @returns {number} the length of one bar of `meter` in ticks.
  */
-
-/**
- * Accept 4/4 (or C) and 2/4; refuse any other meter with its name.
- * @param {any} meter abcjs meter of the first staff line (undefined when the tune has none).
- * @returns {Meter}
- */
-function meterOf(meter) {
-  if (meter === undefined) {
-    throw new Error("the tune declares no meter (M: field); only 4/4 and 2/4 are supported");
-  }
-  const text = meterText(meter);
-  if (text === "4/4" || text === "C") return { text, barTicks: 4 * TICKS_PER_BEAT };
-  if (text === "2/4") return { text, barTicks: 2 * TICKS_PER_BEAT };
-  throw new Error(`only 4/4 and 2/4 meters are supported, not ${text}`);
+function barTicks(meter) {
+  return Math.round(meter.barBeats * TICKS_PER_BEAT);
 }
 
 /**
  * @param {any} meter an abcjs meter.
- * @returns {string} the meter as ABC writes it.
+ * @returns {string} the meter as ABC writes it ("3/4", "C", "C|"), for `parseMeter`.
  */
-function meterText(meter) {
+function abcjsMeterText(meter) {
   if (meter.type === "common_time") return "C";
   if (meter.type === "cut_time") return "C|";
   if (meter.type === "specified") {
@@ -267,16 +272,17 @@ function meterText(meter) {
  * Walk the first voice and cut it into written bars, collecting the repeat signs on the way.
  *
  * @param {any[]} lines abcjs lines that hold a staff.
- * @param {Meter} meter the tune's meter.
+ * @param {Meter} headerMeter the meter of the M: field, in effect until the tune changes it.
  * @returns {{bars: WrittenBar[], markers: RepeatMarker[]}}
  */
-function readWrittenBars(lines, meter) {
+function readWrittenBars(lines, headerMeter) {
   /** @type {WrittenBar[]} */
   const bars = [];
   /** @type {RepeatMarker[]} */
   const markers = [];
   /** @type {WrittenBar | null} */
   let bar = null;
+  let meter = headerMeter;
   let label = "";
   let section = 0;
   /** @type {number | null} */
@@ -288,13 +294,15 @@ function readWrittenBars(lines, meter) {
 
   const openBar = () => {
     if (bar === null) {
-      bar = { number: bars.length + 1, ticks: 0, notes: [], chordChanges: carriedChords, label, section };
+      bar = { number: bars.length + 1, meter, ticks: 0, notes: [], chordChanges: carriedChords, label, section };
       carriedChords = [];
     }
     return bar;
   };
   const closeBar = () => {
     if (bar !== null && bar.ticks > 0) {
+      // As in the Python reader's text scan, a bar is in the meter in effect at its bar line.
+      bar.meter = meter;
       bars.push(bar);
     } else if (bar !== null) {
       // A bar without time (two bar lines in a row) keeps its chords for the next bar.
@@ -325,14 +333,15 @@ function readWrittenBars(lines, meter) {
   };
 
   lines.forEach((line, lineIndex) => {
+    // abcjs puts an M: line of the body on the staff of the line that follows it.
     const lineMeter = line.staff[0].meter;
-    if (lineIndex > 0 && lineMeter !== undefined) checkSameMeter(lineMeter, meter, bars.length + 1);
+    if (lineIndex > 0 && lineMeter !== undefined) meter = parseMeter(abcjsMeterText(lineMeter), bars.length + 1);
     for (const element of line.staff[0].voices?.[0] ?? []) {
       if (element.el_type === "part") {
         label = String(element.title ?? "").trim();
         section += 1;
       } else if (element.el_type === "meter") {
-        checkSameMeter(element, meter, bars.length + 1);
+        meter = parseMeter(abcjsMeterText(element), bars.length + 1);
       } else if (element.el_type === "bar") {
         closeBar();
         addBarLineMarkers(markers, element, bars.length);
@@ -347,7 +356,7 @@ function readWrittenBars(lines, meter) {
           const count = Number(element.rest.text) || 1;
           for (let index = 0; index < count; index += 1) {
             if (index > 0) closeBar();
-            openBar().ticks += meter.barTicks;
+            openBar().ticks += barTicks(meter);
           }
           continue;
         }
@@ -385,21 +394,6 @@ function readWrittenBars(lines, meter) {
   });
   closeBar();
   return { bars, markers };
-}
-
-/**
- * Throw, naming the bar, when an inline or line meter differs from the tune's meter.
- * @param {any} meter abcjs meter met inside the tune.
- * @param {Meter} tuneMeter
- * @param {number} barNumber the bar being read, counted from 1.
- */
-function checkSameMeter(meter, tuneMeter, barNumber) {
-  const text = meterText(meter);
-  /** @param {string} written */
-  const asFraction = (written) => (written === "C" ? "4/4" : written);
-  if (asFraction(text) !== asFraction(tuneMeter.text)) {
-    throw new Error(`bar ${barNumber}: the meter changes to ${text}; a lead sheet keeps one meter`);
-  }
 }
 
 /**
@@ -445,24 +439,26 @@ function endingNumbers(ending) {
 }
 
 /**
- * Pad a short first bar (a pickup) with a leading rest, and refuse any other incomplete bar.
+ * Pad a short first bar (a pickup) with a leading rest, and refuse any other bar whose length
+ * differs from its meter's.
  * @param {WrittenBar[]} bars
- * @param {number} barTicks
  */
-function checkBarLengths(bars, barTicks) {
+function checkBarLengths(bars) {
   const pickup = bars[0];
-  if (pickup.ticks < barTicks) {
-    const rest = barTicks - pickup.ticks;
+  const pickupTicks = barTicks(pickup.meter);
+  if (pickup.ticks < pickupTicks) {
+    // The rest goes before the notes: a pickup leads into the downbeat of the next bar.
+    const rest = pickupTicks - pickup.ticks;
     pickup.notes = pickup.notes.map((note) => ({ ...note, onset: note.onset + rest }));
     // A chord on the pickup's first note is in effect from the start of the padded bar.
     pickup.chordChanges = pickup.chordChanges.map(([onset, symbol]) => [onset > 0 ? onset + rest : 0, symbol]);
-    pickup.ticks = barTicks;
+    pickup.ticks = pickupTicks;
   }
   for (const bar of bars) {
-    if (bar.ticks !== barTicks) {
+    if (bar.ticks !== barTicks(bar.meter)) {
       throw new Error(
         `bar ${bar.number} lasts ${bar.ticks / TICKS_PER_BEAT} beats instead of ` +
-          `${barTicks / TICKS_PER_BEAT}; only the first bar (a pickup) may be shorter`,
+          `${bar.meter.barBeats} (${bar.meter}); only the first bar (a pickup) may be shorter`,
       );
     }
   }
@@ -563,6 +559,7 @@ function playOrder(markers, barCount) {
 /**
  * A bar in the order played, with the section it counts in for phrases.
  * @typedef {object} PlayedBar
+ * @property {Meter} meter
  * @property {number} ticks
  * @property {TickNote[]} notes
  * @property {Array<[number, string]>} chordChanges
@@ -585,35 +582,9 @@ function playedBars(bars, order) {
       const previous = order[position - 1];
       if (bar.section !== bars[previous].section || barIndex <= previous) sectionKey += 1;
     }
-    const { ticks, notes, chordChanges, label } = bar;
-    return { ticks, notes, chordChanges, label, sectionKey };
+    const { meter, ticks, notes, chordChanges, label } = bar;
+    return { meter, ticks, notes, chordChanges, label, sectionKey };
   });
-}
-
-/**
- * Join 2/4 bars in pairs to make 4/4 bars; an odd last bar is padded with a rest.
- * @param {PlayedBar[]} bars
- * @param {number} halfTicks length of a 2/4 bar.
- * @returns {PlayedBar[]}
- */
-function joinPairs(bars, halfTicks) {
-  /** @type {PlayedBar[]} */
-  const joined = [];
-  for (let index = 0; index < bars.length; index += 2) {
-    const first = bars[index];
-    const secondNotes = bars[index + 1]?.notes ?? [];
-    const secondChords = bars[index + 1]?.chordChanges ?? [];
-    joined.push({
-      ...first,
-      ticks: 2 * halfTicks,
-      notes: [...first.notes, ...secondNotes.map((note) => ({ ...note, onset: note.onset + halfTicks }))],
-      chordChanges: [
-        ...first.chordChanges,
-        ...secondChords.map(([onset, symbol]) => /** @type {[number, string]} */ ([onset + halfTicks, symbol])),
-      ],
-    });
-  }
-  return joined;
 }
 
 /**

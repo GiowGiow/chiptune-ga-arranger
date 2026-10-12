@@ -4,6 +4,8 @@
 //
 // The Python writer (src/leadsheet/abc_writer.py) wrote fixtures/abc/<id>.abc from the lead
 // sheets in fixtures/leadsheets/; the JavaScript writer must give the same text, byte for byte.
+// That holds for the meter test tunes too (spec 003): `M:` gives the first bar's meter and an
+// inline `[M:x]` starts each bar whose meter changes.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -13,6 +15,7 @@ import { test } from "node:test";
 import { readLeadSheetAbc } from "../src/core/abc-reader.js";
 import { writeLeadSheetAbc } from "../src/core/abc-writer.js";
 import { leadSheetFromJson } from "../src/core/leadsheet.js";
+import { FOUR_FOUR, parseMeter } from "../src/core/meter.js";
 import { assertClose, fixturesDir, loadAbcjs, readFixture } from "./helpers.js";
 
 /** The MIDI songs whose lead sheets the Python code wrote as ABC (all with K:none). */
@@ -25,8 +28,14 @@ const WRITTEN_LEAD_SHEETS = [
   "voa_voa",
 ];
 
-/** Every lead sheet fixture, including the two ABC tunes with a key (Ievan Polkka, Korobeiniki). */
-const ALL_LEAD_SHEETS = [...WRITTEN_LEAD_SHEETS, "ievan_polkka", "korobeiniki"];
+/** The meter test tunes of tests/data/meters/, read and written back by the Python code. */
+const METER_TUNES = ["waltz", "polka", "jig", "slow_twelve", "five", "seven", "changes"];
+
+/**
+ * Every lead sheet fixture, including the two ABC tunes with a key (Ievan Polkka, Korobeiniki)
+ * and the meter test tunes.
+ */
+const ALL_LEAD_SHEETS = [...WRITTEN_LEAD_SHEETS, "ievan_polkka", "korobeiniki", ...METER_TUNES];
 
 /**
  * @param {string} id
@@ -61,9 +70,9 @@ function demoLeadSheet(changes = {}) {
         role: "verse",
         phrase: 0,
         phraseEnd: true,
+        meter: FOUR_FOUR,
       },
     ],
-    beatsPerBar: 4,
     sourceGrid: null,
     ...changes,
   };
@@ -81,6 +90,13 @@ function errorMatching(pattern) {
 
 for (const id of WRITTEN_LEAD_SHEETS) {
   test(`the lead sheet of ${id} is written exactly as the Python writer wrote it`, () => {
+    const expected = readFileSync(join(fixturesDir, "abc", `${id}.abc`), "utf8");
+    assert.equal(writeLeadSheetAbc(fixtureLeadSheet(id), { phraseLength: 4 }), expected);
+  });
+}
+
+for (const id of METER_TUNES) {
+  test(`the meter tune ${id} is written exactly as the Python writer wrote it`, () => {
     const expected = readFileSync(join(fixturesDir, "abc", `${id}.abc`), "utf8");
     assert.equal(writeLeadSheetAbc(fixtureLeadSheet(id), { phraseLength: 4 }), expected);
   });
@@ -164,8 +180,34 @@ test("a key with an unknown mode cannot be written", () => {
   assert.throws(() => writeLeadSheetAbc(demoLeadSheet({ key: "C xyz" })), errorMatching("C xyz"));
 });
 
-test("a meter other than 4/4 cannot be written", () => {
-  assert.throws(() => writeLeadSheetAbc(demoLeadSheet({ beatsPerBar: 3 })), errorMatching("4/4"));
+test("M: is the first bar's meter, and [M:x] starts each bar whose meter differs from the last", () => {
+  const bar = demoLeadSheet().bars[0];
+  const waltz = parseMeter("3/4");
+  const c = { symbol: "C", root: 0, tones: [0, 4, 7], onset: 0, duration: 3 };
+  const waltzBar = { ...bar, melody: [{ pitch: 67, onset: 0, duration: 3 }], chords: [c], meter: waltz };
+  const bars = [
+    { ...waltzBar, index: 0, phraseEnd: false },
+    { ...waltzBar, index: 1, phraseEnd: false },
+    { ...bar, index: 2, phraseEnd: false },
+    { ...waltzBar, index: 3, phraseEnd: true },
+  ];
+  const text = writeLeadSheetAbc(demoLeadSheet({ bars }));
+  assert.ok(text.includes("\nM:3/4\nL:1/16\n"), text);
+  assert.ok(text.endsWith('\n"C"G12 | "C"G12 | [M:4/4]"C"C4 ^F4- "G"^F8 | [M:3/4]"C"G12 |\n'), text);
+});
+
+test("the meter is written as a fraction: a 2/2 bar gives M:2/2, never M:C|", () => {
+  const bar = { ...demoLeadSheet().bars[0], meter: parseMeter("C|") };
+  assert.ok(writeLeadSheetAbc(demoLeadSheet({ bars: [bar] })).includes("\nM:2/2\n"));
+});
+
+test("a 3/4 bar holds 12 sixteenths: a note past beat 3 is refused, naming the bar", () => {
+  const bar = demoLeadSheet().bars[0];
+  const c = { symbol: "C", root: 0, tones: [0, 4, 7], onset: 0, duration: 3 };
+  const late = { ...bar, meter: parseMeter("3/4"), chords: [c], melody: [{ pitch: 60, onset: 2, duration: 2 }] };
+  assert.throws(() => writeLeadSheetAbc(demoLeadSheet({ bars: [late] })), errorMatching(/bar 1: melody notes overlap or leave the bar/));
+  const short = { ...bar, meter: parseMeter("3/4"), melody: [] };
+  assert.throws(() => writeLeadSheetAbc(demoLeadSheet({ bars: [short] })), errorMatching(/bar 1: the chord segments/));
 });
 
 test("a note off the sixteenth-note grid is refused, naming the bar", () => {

@@ -21,7 +21,8 @@
 // (`renderVoices`). It is pure and deterministic: the drum noise comes from the seeded generator
 // of `core/random.js`, and the result does not depend on Web Audio.
 
-import { meterOffsetBeats } from "../core/midi-song.js";
+import { barStarts, totalBeats } from "../core/meter.js";
+import { excerptBars } from "../core/midi-song.js";
 import { createRandom } from "../core/random.js";
 import { PEAK_LEVEL, SAMPLE_RATE } from "./chip-synth.js";
 
@@ -61,7 +62,6 @@ import { PEAK_LEVEL, SAMPLE_RATE } from "./chip-synth.js";
 /** Lowest pitch of the chord pad, C3: each pad tone is this plus its pitch class (C3 to B3). */
 export const PAD_LOWEST_PITCH = 48;
 
-const BEATS_PER_BAR = 4;
 
 // Loudness of each kind of voice before the mix is scaled to its peak: the melody leads, each
 // accompanying voice stays well under it.
@@ -134,8 +134,9 @@ export function leadSheetVoices(leadSheet) {
   const melody = [];
   /** @type {VoiceNote[][]} */
   const pad = [[], [], []];
-  for (const bar of leadSheet.bars) {
-    const barStart = bar.index * leadSheet.beatsPerBar;
+  const starts = barStarts(leadSheet.bars);
+  leadSheet.bars.forEach((bar, index) => {
+    const barStart = starts[index];
     for (const note of bar.melody) {
       melody.push({ pitch: note.pitch, onset: barStart + note.onset, duration: note.duration });
     }
@@ -144,7 +145,7 @@ export function leadSheetVoices(leadSheet) {
         pad[voice].push({ pitch: PAD_LOWEST_PITCH + tone, onset: barStart + segment.onset, duration: segment.duration });
       });
     }
-  }
+  });
   return { melody, others: pad, drums: [] };
 }
 
@@ -152,24 +153,33 @@ export function leadSheetVoices(leadSheet) {
  * The function that turns a time of a MIDI file, in seconds, into beats on a lead sheet's grid.
  *
  * Like `excerpt_seconds` in `src/export/input_preview.py`: a grid of [the file's first tempo, 0]
- * is the file's own tick grid (it follows the file's tempo changes), whose beat 0 is the first
- * 4/4 or 2/4 bar, after any count-in in another meter (`meterOffsetBeats`); any other grid is the
- * steady one that the reduction estimated, starting at its first downbeat.
+ * is the file's own tick grid (it follows the file's tempo changes), whose beat 0 is the file's
+ * first beat, where its time-signature map starts; any other grid is the steady one that the
+ * reduction estimated, starting at its first downbeat.
  * @param {import("../core/midi-file.js").MidiSong} midi
  * @param {[number, number]} sourceGrid [tempo BPM, first downbeat in seconds]
  * @returns {(seconds: number) => number} beats of a time
  * @example
  * beatClock(midi120, [120, 0])(2.25); // 4.5: ticks / resolution
  * beatClock(midi120, [100, 0.3])(1.5); // 2: (1.5 − 0.3) × 100 / 60
- * beatClock(countInSong, [120, 0])(3); // 0: 4/4 starts at 3 s, after two 3/4 bars
+ * beatClock(countInSong, [120, 0])(3); // 6: two 3/4 bars of count-in before 3 s
  */
 export function beatClock(midi, sourceGrid) {
   const [bpm, downbeat] = sourceGrid;
-  if (downbeat === 0 && bpm === midi.tempoChanges[0].bpm) {
-    const meterOffset = meterOffsetBeats(midi);
-    return (seconds) => midi.timeToTick(seconds) / midi.resolution - meterOffset;
+  if (onFileGrid(midi, sourceGrid)) {
+    return (seconds) => midi.timeToTick(seconds) / midi.resolution;
   }
   return (seconds) => ((seconds - downbeat) * bpm) / 60;
+}
+
+/**
+ * Whether a lead sheet's grid is the file's own tick grid: [the file's first tempo, 0].
+ * @param {import("../core/midi-file.js").MidiSong} midi
+ * @param {[number, number]} sourceGrid
+ * @returns {boolean}
+ */
+function onFileGrid(midi, sourceGrid) {
+  return sourceGrid[1] === 0 && sourceGrid[0] === midi.tempoChanges[0].bpm;
 }
 
 /**
@@ -188,9 +198,7 @@ export function beatClock(midi, sourceGrid) {
  */
 export function midiExcerptVoices(midi, excerpt) {
   const beatsOf = beatClock(midi, excerpt.sourceGrid);
-  const [firstBar, endBar] = excerpt.bars;
-  const offset = firstBar * BEATS_PER_BAR;
-  const length = (endBar - firstBar) * BEATS_PER_BAR;
+  const [offset, length] = excerptSpan(midi, excerpt);
   const melodyTracks = new Set(Array.isArray(excerpt.melodyTrack) ? excerpt.melodyTrack : [excerpt.melodyTrack]);
 
   /** @type {VoiceNote[]} */
@@ -384,12 +392,12 @@ export function renderVoices(voices, tempoBpm, sampleRate, durationBeats) {
  * over all its bars.
  * @param {import("../core/leadsheet.js").LeadSheet} leadSheet
  * @param {number} [sampleRate] samples per second (default 44,100)
- * @returns {Float32Array} bars × 4 beats of samples
+ * @returns {Float32Array} the samples of every bar, each as long as its meter says
  * @example
- * renderLeadSheet(oneBarSheet, 44100).length; // 88200: one bar at 120 BPM
+ * renderLeadSheet(oneBarSheet, 44100).length; // 88200: one 4/4 bar at 120 BPM
  */
 export function renderLeadSheet(leadSheet, sampleRate = SAMPLE_RATE) {
-  const durationBeats = leadSheet.bars.length * leadSheet.beatsPerBar;
+  const durationBeats = totalBeats(leadSheet.bars);
   return renderVoices(leadSheetVoices(leadSheet), leadSheet.tempoBpm, sampleRate, durationBeats);
 }
 
@@ -399,12 +407,26 @@ export function renderLeadSheet(leadSheet, sampleRate = SAMPLE_RATE) {
  * @param {MidiExcerpt} excerpt the melody track, the grid and the bars of the lead sheet
  * @param {number} tempoBpm the run's tempo, so that beat b sounds when it does in the arrangement
  * @param {number} [sampleRate] samples per second (default 44,100)
- * @returns {Float32Array} (end − first) × 4 beats of samples
+ * @returns {Float32Array} the excerpt's beats (its bars, each as long as its meter) of samples
  * @example
  * renderMidiExcerpt(midi120, { melodyTrack: 0, sourceGrid: [120, 0], bars: [1, 2] }, 120, 44100).length;
  * // 88200: one bar at 120 BPM
  */
 export function renderMidiExcerpt(midi, excerpt, tempoBpm, sampleRate = SAMPLE_RATE) {
-  const durationBeats = (excerpt.bars[1] - excerpt.bars[0]) * BEATS_PER_BAR;
+  const durationBeats = excerptSpan(midi, excerpt)[1];
   return renderVoices(midiExcerptVoices(midi, excerpt), tempoBpm, sampleRate, durationBeats);
+}
+
+/**
+ * Where an excerpt starts and how long it lasts, in beats of the lead sheet's grid: its bars on
+ * the file's time-signature map, or bars of the song's main meter on an estimated grid.
+ * @param {import("../core/midi-file.js").MidiSong} midi
+ * @param {MidiExcerpt} excerpt
+ * @returns {[number, number]} [first beat, length in beats]
+ */
+function excerptSpan(midi, excerpt) {
+  const grid = onFileGrid(midi, excerpt.sourceGrid) ? "file" : excerpt.sourceGrid;
+  const { map, first, end } = excerptBars(midi, excerpt.bars, grid);
+  const last = map[end - 1];
+  return [map[first].start, last.start + last.length - map[first].start];
 }

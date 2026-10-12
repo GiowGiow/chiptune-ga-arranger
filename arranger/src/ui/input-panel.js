@@ -20,9 +20,9 @@ import { listTunes, readLeadSheetAbc } from "../core/abc-reader.js";
 import { readMidiFile } from "../core/midi-file.js";
 import {
   MAX_BARS,
-  countBars,
+  defaultExcerpt,
   describeTracks,
-  meterOffsetBeats,
+  excerptBars,
   readLeadSheetMidi,
   suggestMelodyTrack,
 } from "../core/midi-song.js";
@@ -124,6 +124,20 @@ export function excerptTempos(midi, startBeat, endBeat) {
     max: /** @type {[number, number]} */ (sorted.at(-1))[0],
     median,
   };
+}
+
+/**
+ * The meters of a lead sheet for its summary: one meter, or each meter in the order it first
+ * appears when the song changes meter.
+ *
+ * @param {Array<{meter: import("../core/meter.js").Meter}>} bars
+ * @returns {string}
+ * @example
+ * meterSummary(waltzBars) // "3/4"
+ * meterSummary(changingBars) // "4/4, 2/4, 3/4"
+ */
+export function meterSummary(bars) {
+  return [...new Set(bars.map((bar) => String(bar.meter)))].join(", ");
 }
 
 /**
@@ -433,18 +447,22 @@ export function createInputPanel(targets, options) {
         options.previewTrack?.(Number(/** @type {HTMLElement} */ (button).dataset.preview)),
       ),
     );
-    const barCount = countBars(midi, "auto");
+    // Bars count from the file's first bar (its time-signature map); by default the excerpt
+    // starts on the first bar with a pitched note, so a drum-only count-in is left out.
+    const [firstWithNotes, barCount] = defaultExcerpt(midi, "auto");
     if (barCount === 0) throw new Error("the file has no pitched notes to arrange");
     const first = /** @type {HTMLInputElement} */ ($("[data-first]"));
     const end = /** @type {HTMLInputElement} */ ($("[data-end]"));
-    first.value = "0";
-    end.value = String(Math.min(barCount, MAX_BARS));
+    first.value = String(firstWithNotes);
+    end.value = String(Math.min(barCount, firstWithNotes + MAX_BARS));
     first.max = String(barCount - 1);
     end.max = String(barCount);
+    const music = barCount - firstWithNotes;
+    const skipped = firstWithNotes > 0 ? ` from bar ${firstWithNotes} (the bars before hold no pitched note)` : "";
     $("[data-bar-count]").textContent =
-      barCount > MAX_BARS
-        ? `${barCount} bars; the first ${MAX_BARS} are selected (the most the arranger takes).`
-        : `${barCount} bars, all selected.`;
+      music > MAX_BARS
+        ? `${barCount} bars; ${MAX_BARS}${skipped} are selected (the most the arranger takes).`
+        : `${barCount} bars; ${music} selected${skipped}.`;
     /** @type {HTMLTextAreaElement} */ ($("[data-sections]")).value = "0 Verse";
     $("[data-midi]").hidden = false;
   }
@@ -524,6 +542,7 @@ export function createInputPanel(targets, options) {
         <div><dt>Title</dt><dd data-title></dd></div>
         <div><dt>Tempo</dt><dd class="mono">${round(leadSheet.tempoBpm, 2)} BPM</dd></div>
         <div><dt>Bars</dt><dd class="mono">${leadSheet.bars.length}</dd></div>
+        <div><dt>Meter</dt><dd class="mono">${meterSummary(leadSheet.bars)}</dd></div>
         <div><dt>Melody</dt><dd class="mono">${melody.length ? `${Math.min(...melody)}–${Math.max(...melody)}` : "none"}</dd></div>
         <div class="span"><dt>Parts</dt><dd data-parts></dd></div>
       </dl>
@@ -558,8 +577,9 @@ export function createInputPanel(targets, options) {
     const grid = leadSheet.sourceGrid;
     const fileGrid = grid && grid[1] === 0 && grid[0] === midi.tempoChanges[0].bpm;
     if (!fileGrid || tempoOverride !== null || !bars) return;
-    const start = meterOffsetBeats(midi) + bars[0] * 4;
-    const tempos = excerptTempos(midi, start, start + (bars[1] - bars[0]) * 4);
+    const { map, first, end } = excerptBars(midi, bars, "file");
+    const last = map[end - 1];
+    const tempos = excerptTempos(midi, map[first].start, last.start + last.length);
     if (tempos.max - tempos.min < 2) return;
     const hint = document.createElement("p");
     hint.className = "tempo-hint";

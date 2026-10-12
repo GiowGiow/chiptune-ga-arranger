@@ -63,3 +63,12 @@ test("the range bars of the tracks share one pitch axis, and drums and empty tra
   ]);
   assert.deepEqual(trackRangeBars([{ isDrum: false, noteCount: 1, lowest: 60, highest: 60 }]), [{ left: 0, width: 0 }]);
 });
+
+test("the summary names the meter, or each meter in order when it changes", async () => {
+  const { meterSummary } = await import("../src/ui/input-panel.js");
+  const { parseMeter } = await import("../src/core/meter.js");
+  const bars = (/** @type {string[]} */ ...texts) => texts.map((text) => ({ meter: parseMeter(text) }));
+
+  assert.equal(meterSummary(bars("3/4", "3/4")), "3/4");
+  assert.equal(meterSummary(bars("4/4", "2/4", "2/4", "3/4", "4/4")), "4/4, 2/4, 3/4");
+});

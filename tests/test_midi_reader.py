@@ -393,3 +393,47 @@ def test_the_tempo_is_the_one_in_effect_where_the_excerpt_starts_not_the_count_i
     assert round(lead_sheet.tempo_bpm, 3) == 98.0
     # The grid itself still reads the file's own ticks: the first tempo names it.
     assert round(lead_sheet.source_grid[0], 3) == 127.0
+
+
+def test_a_song_whose_meter_changes_has_bars_of_each_meter(tmp_path):
+    from export.fixtures import synthetic_song
+
+    path = tmp_path / "changes.mid"
+    synthetic_song([(4, 4, 2, True), (2, 4, 2, True), (4, 4, 2, True)]).write(str(path))
+
+    lead_sheet = read_lead_sheet_midi(path, melody_track=0)
+
+    assert [bar.meter.bar_beats for bar in lead_sheet.bars] == [4.0, 4.0, 2.0, 2.0, 4.0, 4.0]
+    assert [len(bar.melody) for bar in lead_sheet.bars] == [4, 4, 2, 2, 4, 4]
+
+
+def test_a_twelve_eight_song_decides_chords_on_half_bars(tmp_path):
+    from export.fixtures import synthetic_song
+
+    path = tmp_path / "twelve.mid"
+    synthetic_song([(12, 8, 2, True)]).write(str(path))
+
+    lead_sheet = read_lead_sheet_midi(path, melody_track=0)
+
+    assert [bar.meter.bar_beats for bar in lead_sheet.bars] == [6.0, 6.0]
+    assert [[(c.symbol, c.onset) for c in bar.chords] for bar in lead_sheet.bars] == [
+        [("C", 0.0), ("F", 3.0)],
+        [("G7", 0.0), ("C", 3.0)],
+    ]
+
+
+def test_an_estimated_grid_cannot_read_a_seven_eight_song(tmp_path):
+    from export.fixtures import synthetic_song
+
+    song = synthetic_song([(7, 8, 4, True)])
+    drums = song.instruments[-1]
+    # Drums off the file's sixteenth grid make the reader estimate the grid.
+    for index, note in enumerate(drums.notes):
+        note.start += 0.03 * (index % 3)
+        note.end = note.start + 0.1
+    path = tmp_path / "seven.mid"
+    song.write(str(path))
+
+    with pytest.raises(ValueError, match=r"7/8 song needs the file's own beat grid"):
+        read_lead_sheet_midi(path, melody_track=0)
+    assert len(read_lead_sheet_midi(path, melody_track=0, grid="file").bars) == 4

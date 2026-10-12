@@ -7,8 +7,11 @@
 // before the GA starts. The fitness of a plan then only looks values up in these tables, which
 // keeps the thousands of fitness evaluations of a run fast and keeps the notes out of the GA loop.
 //
-// Activity measures how busy a channel is in a bar: min(1, onsets / 16), so one onset on every
-// sixteenth note (or more) counts as fully active, and silence as 0.
+// Activity measures how busy a channel is in a bar: min(1, onsets / steps), where steps is the
+// number of sixteenth notes in the bar (16 in 4/4, 12 in 3/4), so one onset on every sixteenth
+// note (or more) counts as fully active, and silence as 0. Measuring each bar on its own grid
+// keeps a 3/4 bar as busy as a 4/4 bar with the same rhythm. For the same reason the drum
+// activity is a row per bar: a drum pattern has fewer hits in a shorter bar.
 //
 // The bass is measured as a *line*: the notes a listener follows as the bass melody. For most TR
 // textures that is every note. For the octave pump it is only the roots on the beats: the upper
@@ -25,7 +28,7 @@
 // | actP1          | Float64Array | (n, 3)     | [3b + octave]                                 |
 // | actP2          | Float64Array | (n, 5)     | [5b + p2]                                     |
 // | actTr          | Float64Array | (n, 4)     | [4b + tr]                                     |
-// | actNo          | Float64Array | (5)        | [no] (the same in every bar)                  |
+// | actNo          | Float64Array | (n, 5)     | [5b + no] (it depends on the bar's meter)     |
 // | regBoth        | Int32Array   | (n, 3, 5)  | [15b + 5·octave + p2]                         |
 // | regOk          | Int32Array   | (n, 3, 5)  | [15b + 5·octave + p2]                         |
 // | bassInner      | Float64Array | (n, 4)     | [4b + tr]; NaN when the line has one note     |
@@ -47,9 +50,10 @@ import { realizeNo, realizeP1, realizeP2, realizeTr } from "./textures.js";
  * @property {Float64Array} actP1 (n, 3) melody activity for each octave gene.
  * @property {Float64Array} actP2 (n, 5) P2 activity for each P2 texture.
  * @property {Float64Array} actTr (n, 4) TR activity for each TR texture.
- * @property {Float64Array} actNo (5) NO activity for each drum pattern.
- * @property {Int32Array} regBoth (n, 3, 5) sixteenth steps where P1 (octave gene) and P2
- *   (texture) both sound.
+ * @property {Float64Array} actNo (n, 5) NO activity for each drum pattern (it depends on the
+ *   bar's meter).
+ * @property {Int32Array} regBoth (n, 3, 5) sixteenth steps of the bar where P1 (octave gene) and
+ *   P2 (texture) both sound.
  * @property {Int32Array} regOk (n, 3, 5) sixteenth steps where both sound and P2 is lower.
  * @property {Float64Array} bassInner (n, 4) mean leap score over consecutive notes of the bass
  *   line inside the bar for each TR texture; NaN when the line has a single note in the bar.
@@ -90,8 +94,7 @@ export const TABLE_FIELDS = Object.freeze(
   ]),
 );
 
-// Sixteenth-note steps of a 4/4 bar: the grid on which register overlaps are counted.
-const STEPS_PER_BAR = 16;
+// A sixteenth note, the step of the grid on which activity and register overlaps are counted.
 const STEP = 0.25;
 
 const OCTAVE_PUMP = TR_TEXTURES.indexOf("octave_pump");
@@ -104,9 +107,9 @@ const OCTAVE_PUMP = TR_TEXTURES.indexOf("octave_pump");
  * @example
  * const c = { symbol: "C", root: 0, tones: [0, 4, 7], onset: 0, duration: 4 };
  * const bar = { index: 0, melody: [{ pitch: 72, onset: 0, duration: 4 }], chords: [c],
- *   label: "A", role: "verse", phrase: 0, phraseEnd: true };
+ *   label: "A", role: "verse", phrase: 0, phraseEnd: true, meter: FOUR_FOUR };
  * const tables = buildTables({ title: "one bar", key: "c major", tempoBpm: 120, bars: [bar],
- *   beatsPerBar: 4, sourceGrid: null });
+ *   sourceGrid: null });
  * [tables.actP2[1], tables.shape.bassAcross]; // [1, [0, 4, 4]]
  * [...tables.bassInnerLeaps]; // [0, 3, 3, 3]: root, octave_pump, root_fifth, walking
  */
@@ -122,6 +125,7 @@ export function buildTables(leadSheet) {
   const actP1 = new Float64Array(n * nOctaves);
   const actP2 = new Float64Array(n * nP2);
   const actTr = new Float64Array(n * nTr);
+  const actNo = new Float64Array(n * nNo);
   const regBoth = new Int32Array(n * nOctaves * nP2);
   const regOk = new Int32Array(n * nOctaves * nP2);
   const bassInner = new Float64Array(n * nTr).fill(Number.NaN);
@@ -132,20 +136,21 @@ export function buildTables(leadSheet) {
   for (let b = 0; b < n; b++) {
     const bar = bars[b];
     const nextBar = b + 1 < n ? bars[b + 1] : null;
+    const steps = bar.meter.steps;
     const melodyGrids = [];
     for (let octave = 0; octave < nOctaves; octave++) {
       const notes = realizeP1(bar, octave);
-      actP1[b * nOctaves + octave] = activity(notes);
-      melodyGrids.push(soundingGrid(notes));
+      actP1[b * nOctaves + octave] = activity(notes, steps);
+      melodyGrids.push(soundingGrid(notes, steps));
     }
     for (let texture = 0; texture < nP2; texture++) {
       const notes = realizeP2(bar, texture);
-      actP2[b * nP2 + texture] = activity(notes);
-      const harmony = soundingGrid(notes);
+      actP2[b * nP2 + texture] = activity(notes, steps);
+      const harmony = soundingGrid(notes, steps);
       melodyGrids.forEach((melody, octave) => {
         let both = 0;
         let p2Below = 0;
-        for (let step = 0; step < STEPS_PER_BAR; step++) {
+        for (let step = 0; step < steps; step++) {
           if (melody[step] >= 0 && harmony[step] >= 0) {
             both++;
             if (harmony[step] < melody[step]) p2Below++;
@@ -158,7 +163,7 @@ export function buildTables(leadSheet) {
     for (let texture = 0; texture < nTr; texture++) {
       const notes = realizeTr(bar, texture, nextBar);
       const cell = b * nTr + texture;
-      actTr[cell] = activity(notes);
+      actTr[cell] = activity(notes, steps);
       const line = bassLine(
         texture,
         notes.map((note) => note.pitch),
@@ -172,10 +177,10 @@ export function buildTables(leadSheet) {
         bassInner[cell] = scoreSum / (line.length - 1);
       }
     }
+    for (let pattern = 0; pattern < nNo; pattern++) {
+      actNo[b * nNo + pattern] = activity(realizeNo(pattern, bar.meter), steps);
+    }
   }
-
-  const actNo = new Float64Array(nNo);
-  for (let pattern = 0; pattern < nNo; pattern++) actNo[pattern] = activity(realizeNo(pattern));
 
   // Leap from the line's last note in bar b (texture i) to its first in bar b + 1 (texture j).
   const bassAcross = new Float64Array(nAcross * nTr * nTr);
@@ -207,7 +212,7 @@ export function buildTables(leadSheet) {
       actP1: [n, nOctaves],
       actP2: [n, nP2],
       actTr: [n, nTr],
-      actNo: [nNo],
+      actNo: [n, nNo],
       regBoth: [n, nOctaves, nP2],
       regOk: [n, nOctaves, nP2],
       bassInner: [n, nTr],
@@ -240,19 +245,21 @@ export function bassLine(trTexture, pitches) {
 /**
  * How busy a channel is in a bar: one onset per sixteenth note or more is fully active.
  * @param {readonly unknown[]} notes
+ * @param {number} steps sixteenth steps in the bar (`meter.steps`).
  */
-function activity(notes) {
-  return Math.min(1, notes.length / STEPS_PER_BAR);
+function activity(notes, steps) {
+  return Math.min(1, notes.length / steps);
 }
 
 /**
- * Pitch sounding at the start of each sixteenth step, or −1 when the channel rests.
+ * Pitch sounding at the start of each sixteenth step of the bar, or −1 when the channel rests.
  * @param {import("./textures.js").ChannelNote[]} notes
+ * @param {number} steps sixteenth steps in the bar (`meter.steps`).
  */
-function soundingGrid(notes) {
-  const grid = new Int32Array(STEPS_PER_BAR).fill(-1);
+function soundingGrid(notes, steps) {
+  const grid = new Int32Array(steps).fill(-1);
   for (const note of notes) {
-    for (let step = 0; step < STEPS_PER_BAR; step++) {
+    for (let step = 0; step < steps; step++) {
       const time = step * STEP + 1e-9;
       if (note.onset <= time && time < note.onset + note.duration) grid[step] = note.pitch;
     }

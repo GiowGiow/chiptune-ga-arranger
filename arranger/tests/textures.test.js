@@ -1,14 +1,18 @@
 // @ts-check
 // Tests for core/textures.js, the realizers that turn one gene value into the notes of one
-// channel in one bar. They port the doctests of src/arrangement/textures.py and compare every
-// gene value of every bar of two songs with the notes the Python realizers wrote to
-// fixtures/realizations/ (src/export/fixtures.py).
+// channel in one bar. They port the doctests and the meter cases of src/arrangement/textures.py
+// (tests/test_textures.py), and compare every gene value of every bar of every song in
+// fixtures/realizations/ (two 4/4 songs and the meter test tunes) with the notes the Python
+// realizers wrote (src/export/fixtures.py).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readdirSync } from "node:fs";
+import { join } from "node:path";
 
 import { NO_PATTERNS, P2_TEXTURES, TR_TEXTURES } from "../src/core/genome.js";
 import { leadSheetFromJson } from "../src/core/leadsheet.js";
+import { FOUR_FOUR, parseMeter } from "../src/core/meter.js";
 import {
   CHANNELS,
   DRUM_PRIORITY,
@@ -23,12 +27,13 @@ import {
   VELOCITY_P1,
   VELOCITY_P2,
   VELOCITY_TR,
+  drumSteps,
   realizeNo,
   realizeP1,
   realizeP2,
   realizeTr,
 } from "../src/core/textures.js";
-import { readFixture } from "./helpers.js";
+import { fixturesDir, readFixture } from "./helpers.js";
 
 /**
  * Notes as the fixtures store them: [pitch, onset, duration, velocity].
@@ -48,13 +53,52 @@ const G_SECOND_HALF = { symbol: "G", root: 7, tones: [7, 11, 2], onset: 2, durat
 const G_WHOLE_BAR = { symbol: "G", root: 7, tones: [7, 11, 2], onset: 0, duration: 4 };
 
 /**
- * A verse bar with the given melody and chords.
+ * A verse bar with the given melody and chords, in 4/4 unless a meter is given.
  * @param {import("../src/core/leadsheet.js").MelodyNote[]} melody
  * @param {import("../src/core/leadsheet.js").ChordSegment[]} chords
+ * @param {number} [index]
+ * @param {import("../src/core/meter.js").Meter} [meter]
  * @returns {import("../src/core/leadsheet.js").Bar}
  */
-function makeBar(melody, chords, index = 0) {
-  return { index, melody, chords, label: "A", role: "verse", phrase: 0, phraseEnd: false };
+function makeBar(melody, chords, index = 0, meter = FOUR_FOUR) {
+  return { index, melody, chords, label: "A", role: "verse", phrase: 0, phraseEnd: false, meter };
+}
+
+/**
+ * A verse bar in `meter` with one chord over the whole bar, and no melody.
+ * @param {string} meterText
+ * @param {string} symbol
+ * @param {number} root
+ * @param {number[]} tones
+ */
+function wholeBarChord(meterText, symbol, root, tones) {
+  const meter = parseMeter(meterText);
+  return makeBar([], [{ symbol, root, tones, onset: 0, duration: meter.barBeats }], 0, meter);
+}
+
+/**
+ * [onset, drum] of every noise hit, the way a drummer reads a pattern.
+ * @param {import("../src/core/textures.js").ChannelNote[]} notes
+ */
+function hits(notes) {
+  return notes.map((note) => [note.onset, note.pitch]);
+}
+
+/**
+ * Onsets of the hits of one drum.
+ * @param {import("../src/core/textures.js").ChannelNote[]} notes
+ * @param {number} drum
+ */
+function onsetsOf(notes, drum) {
+  return notes.filter((note) => note.pitch === drum).map((note) => note.onset);
+}
+
+/**
+ * The steps of each drum of a pattern, sorted, as the Python doctest prints them.
+ * @param {Record<number, Set<number>>} steps
+ */
+function sortedSteps(steps) {
+  return Object.fromEntries(Object.entries(steps).map(([drum, set]) => [drum, [...set].sort((a, b) => a - b)]));
 }
 
 // Chip constants (src/arrangement/model.py)
@@ -123,6 +167,26 @@ test("TR walking from C to G plays 36, 40, 43 and the approach 30", () => {
   );
 });
 
+test("the 4/4 eighth beat kicks on steps 0 and 8, snares on 4 and 12, hi-hats every eighth", () => {
+  assert.deepEqual(sortedSteps(drumSteps("eighth_beat")), {
+    36: [0, 8],
+    38: [4, 12],
+    42: [0, 2, 4, 6, 8, 10, 12, 14],
+  });
+});
+
+test("the 6/8 eighth beat kicks on eighth 1 and snares on eighth 4", () => {
+  assert.deepEqual(sortedSteps(drumSteps("eighth_beat", parseMeter("6/8"))), {
+    36: [0],
+    38: [6],
+    42: [0, 2, 4, 6, 8, 10],
+  });
+});
+
+test("the pattern none has no drum steps", () => {
+  assert.deepEqual(drumSteps("none", parseMeter("3/4")), {});
+});
+
 test("NO half_time plays kick, hi-hat, snare, hi-hat on the four beats", () => {
   assert.deepEqual(
     realizeNo(NO_PATTERNS.indexOf("half_time")).map((note) => [note.onset, note.pitch]),
@@ -174,6 +238,223 @@ test("an arpeggio shortens its last note to end with the chord", () => {
   assert.ok(Math.abs(notes[1].duration - 0.05) < 1e-12);
 });
 
+// Bars in other meters (tests/test_textures.py, spec 003)
+
+const WALTZ = parseMeter("3/4");
+const C_WALTZ_BAR = { symbol: "C", root: 0, tones: [0, 4, 7], onset: 0, duration: 3 };
+
+test("in 3/4 root_fifth plays oom-pah-pah: root, fifth, fifth", () => {
+  const notes = realizeTr(makeBar([], [C_WALTZ_BAR], 0, WALTZ), TR_TEXTURES.indexOf("root_fifth"), null);
+  assert.deepEqual(
+    notes.map((n) => [n.pitch, n.onset, n.duration]),
+    [
+      [36, 0, 1],
+      [43, 1, 1],
+      [43, 2, 1],
+    ],
+  );
+});
+
+test("in 3/4 the walking bass plays root, third and the approach", () => {
+  const gBar = wholeBarChord("3/4", "G", 7, [7, 11, 2]);
+  const notes = realizeTr(makeBar([], [C_WALTZ_BAR], 0, WALTZ), TR_TEXTURES.indexOf("walking"), gBar);
+  assert.deepEqual(
+    notes.map((n) => [n.pitch, n.onset, n.duration]),
+    [
+      [36, 0, 1],
+      [40, 1, 1],
+      [30, 2, 1],
+    ],
+  );
+});
+
+test("in 3/4 the octave pump plays six eighths", () => {
+  const notes = realizeTr(makeBar([], [C_WALTZ_BAR], 0, WALTZ), TR_TEXTURES.indexOf("octave_pump"), null);
+  assert.deepEqual(
+    notes.map((n) => [n.pitch, n.onset]),
+    [
+      [36, 0],
+      [48, 0.5],
+      [36, 1],
+      [48, 1.5],
+      [36, 2],
+      [48, 2.5],
+    ],
+  );
+});
+
+test("in 3/4 the eighth beat is a waltz: kick on 1, snare on 2 and 3", () => {
+  assert.deepEqual(hits(realizeNo(NO_PATTERNS.indexOf("eighth_beat"), WALTZ)), [
+    [0, KICK],
+    [0.5, HIHAT],
+    [1, SNARE],
+    [1.5, HIHAT],
+    [2, SNARE],
+    [2.5, HIHAT],
+  ]);
+});
+
+test("in 3/4 the fill rolls the snare on the last beat", () => {
+  assert.deepEqual(hits(realizeNo(NO_PATTERNS.indexOf("fill"), WALTZ)), [
+    [0, KICK],
+    [0.5, HIHAT],
+    [1, SNARE],
+    [1.5, HIHAT],
+    [2, SNARE],
+    [2.25, SNARE],
+    [2.5, SNARE],
+    [2.75, SNARE],
+  ]);
+});
+
+test("in 3/4 half time has no snare, and the sixteenth beat adds a pickup kick", () => {
+  const half = realizeNo(NO_PATTERNS.indexOf("half_time"), WALTZ);
+  const sixteenth = realizeNo(NO_PATTERNS.indexOf("sixteenth_beat"), WALTZ);
+  assert.deepEqual(hits(half), [
+    [0, KICK],
+    [1, HIHAT],
+    [2, HIHAT],
+  ]);
+  assert.deepEqual(onsetsOf(sixteenth, KICK), [0, 0.75]);
+  assert.deepEqual(onsetsOf(sixteenth, SNARE), [1, 2]);
+  assert.equal(sixteenth.length, 12); // a hit on every sixteenth step
+});
+
+test("every drum hit keeps its velocity and lasts one sixteenth in any meter", () => {
+  for (let gene = 0; gene < NO_PATTERNS.length; gene++) {
+    for (const note of realizeNo(gene, WALTZ)) {
+      assert.equal(note.velocity, DRUM_VELOCITY[note.pitch]);
+      assert.equal(note.duration, 0.25);
+    }
+  }
+});
+
+test("in 3/4 the echo is cut at the bar end", () => {
+  const melody = [
+    { pitch: 72, onset: 0, duration: 2 },
+    { pitch: 74, onset: 2, duration: 1 },
+  ];
+  const notes = realizeP2(makeBar(melody, [C_WALTZ_BAR], 0, WALTZ), P2_TEXTURES.indexOf("echo"));
+  assert.deepEqual(asRows(notes), [
+    [72, 0.5, 2, VELOCITY_ECHO],
+    [74, 2.5, 0.5, VELOCITY_ECHO],
+  ]);
+});
+
+test("in 2/4 the eighth beat kicks on 1 and snares on 2", () => {
+  assert.deepEqual(hits(realizeNo(NO_PATTERNS.indexOf("eighth_beat"), parseMeter("2/4"))), [
+    [0, KICK],
+    [0.5, HIHAT],
+    [1, SNARE],
+    [1.5, HIHAT],
+  ]);
+});
+
+test("in cut time half time is a kick and a hi-hat on the half notes", () => {
+  assert.deepEqual(hits(realizeNo(NO_PATTERNS.indexOf("half_time"), parseMeter("2/2"))), [
+    [0, KICK],
+    [2, HIHAT],
+  ]);
+});
+
+test("in cut time root_fifth plays half notes", () => {
+  const notes = realizeTr(wholeBarChord("2/2", "C", 0, [0, 4, 7]), TR_TEXTURES.indexOf("root_fifth"), null);
+  assert.deepEqual(asRows(notes), [
+    [36, 0, 2, VELOCITY_TR],
+    [43, 2, 2, VELOCITY_TR],
+  ]);
+});
+
+test("in 6/8 root_fifth plays two dotted quarters", () => {
+  const notes = realizeTr(wholeBarChord("6/8", "C", 0, [0, 4, 7]), TR_TEXTURES.indexOf("root_fifth"), null);
+  assert.deepEqual(
+    notes.map((n) => [n.pitch, n.onset, n.duration]),
+    [
+      [36, 0, 1.5],
+      [43, 1.5, 1.5],
+    ],
+  );
+});
+
+test("in 6/8 the eighth beat kicks on eighth 1 and snares on eighth 4", () => {
+  assert.deepEqual(hits(realizeNo(NO_PATTERNS.indexOf("eighth_beat"), parseMeter("6/8"))), [
+    [0, KICK],
+    [0.5, HIHAT],
+    [1, HIHAT],
+    [1.5, SNARE],
+    [2, HIHAT],
+    [2.5, HIHAT],
+  ]);
+});
+
+test("in 6/8 the walking bass plays the root and the approach", () => {
+  const gBar = wholeBarChord("6/8", "G", 7, [7, 11, 2]);
+  const notes = realizeTr(wholeBarChord("6/8", "C", 0, [0, 4, 7]), TR_TEXTURES.indexOf("walking"), gBar);
+  assert.deepEqual(
+    notes.map((n) => [n.pitch, n.onset, n.duration]),
+    [
+      [36, 0, 1.5],
+      [30, 1.5, 1.5],
+    ],
+  );
+});
+
+test("in 12/8 the octave pump plays twelve eighths", () => {
+  const notes = realizeTr(wholeBarChord("12/8", "C", 0, [0, 4, 7]), TR_TEXTURES.indexOf("octave_pump"), null);
+  assert.equal(notes.length, 12);
+  assert.deepEqual(
+    notes.slice(0, 4).map((n) => n.pitch),
+    [36, 48, 36, 48],
+  );
+});
+
+test("in 9/8 the fill rolls on the last dotted quarter", () => {
+  const notes = realizeNo(NO_PATTERNS.indexOf("fill"), parseMeter("9/8"));
+  assert.deepEqual(onsetsOf(notes, SNARE), [1.5, 3, 3.25, 3.5, 3.75, 4, 4.25]);
+  assert.deepEqual(onsetsOf(notes, KICK), [0]);
+});
+
+test("arpeggios keep their sixteenth subdivision in compound meters", () => {
+  const notes = realizeP2(wholeBarChord("6/8", "C", 0, [0, 4, 7]), P2_TEXTURES.indexOf("arp16"));
+  assert.equal(notes.length, 12);
+  assert.ok(notes.every((n) => n.duration === 0.25));
+});
+
+test("in 5/4 the kick marks the 3 + 2 grouping", () => {
+  const five = parseMeter("5/4");
+  const eighth = realizeNo(NO_PATTERNS.indexOf("eighth_beat"), five);
+  const half = realizeNo(NO_PATTERNS.indexOf("half_time"), five);
+  assert.deepEqual(onsetsOf(eighth, KICK), [0, 3]);
+  assert.deepEqual(onsetsOf(eighth, SNARE), [1, 2, 4]);
+  assert.deepEqual(onsetsOf(half, SNARE), [3]);
+});
+
+test("in 7/8 the bass moves on each group of 2, 2 and 3 eighths", () => {
+  const bar = wholeBarChord("7/8", "D", 2, [2, 6, 9]);
+  const rootFifth = realizeTr(bar, TR_TEXTURES.indexOf("root_fifth"), null);
+  const walking = realizeTr(bar, TR_TEXTURES.indexOf("walking"), null);
+  assert.deepEqual(
+    rootFifth.map((n) => [n.pitch, n.onset, n.duration]),
+    [
+      [38, 0, 1],
+      [45, 1, 1],
+      [45, 2, 1.5],
+    ],
+  );
+  assert.deepEqual(
+    walking.map((n) => [n.onset, n.duration]),
+    [
+      [0, 1],
+      [1, 1],
+      [2, 1.5],
+    ],
+  );
+  assert.deepEqual(
+    walking.map((n) => n.pitch),
+    [38, 42, 45], // root, third, and the fifth to end the piece
+  );
+});
+
 test("an invalid gene value is refused", () => {
   const bar = makeBar([], [C_WHOLE_BAR]);
   assert.throws(() => realizeP1(bar, 3), RangeError);
@@ -182,9 +463,27 @@ test("an invalid gene value is refused", () => {
   assert.throws(() => realizeNo(5), RangeError);
 });
 
-// Parity with the Python realizers
+// Parity with the Python realizers: two 4/4 songs and the meter test tunes
 
-for (const songId of ["korobeiniki", "mulher_de_fases"]) {
+const realizationIds = readdirSync(join(fixturesDir, "realizations"))
+  .filter((name) => name.endsWith(".json"))
+  .map((name) => name.replace(".json", ""));
+
+test("the realization fixtures cover two 4/4 songs and the seven meter tunes", () => {
+  assert.deepEqual(realizationIds.sort(), [
+    "changes",
+    "five",
+    "jig",
+    "korobeiniki",
+    "mulher_de_fases",
+    "polka",
+    "seven",
+    "slow_twelve",
+    "waltz",
+  ]);
+});
+
+for (const songId of realizationIds) {
   const leadSheet = leadSheetFromJson(readFixture(`leadsheets/${songId}.json`));
   const realizations = readFixture(`realizations/${songId}.json`);
 
@@ -205,9 +504,11 @@ for (const songId of ["korobeiniki", "mulher_de_fases"]) {
     });
   });
 
-  test(`every drum pattern of ${songId} realizes the Python notes`, () => {
-    realizations.no.forEach((/** @type {unknown} */ notes, /** @type {number} */ gene) => {
-      assert.deepEqual(asRows(realizeNo(gene)), notes, `NO gene ${gene}`);
+  test(`every drum pattern of every bar of ${songId} realizes the Python notes in the bar's meter`, () => {
+    leadSheet.bars.forEach((bar, b) => {
+      realizations.bars[b].no.forEach((/** @type {unknown} */ notes, /** @type {number} */ gene) => {
+        assert.deepEqual(asRows(realizeNo(gene, bar.meter)), notes, `bar ${b} (${bar.meter}) NO gene ${gene}`);
+      });
     });
   });
 }

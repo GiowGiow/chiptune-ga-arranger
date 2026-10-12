@@ -312,6 +312,9 @@ Survey of the site (2026-10-12):
 - **Without part labels**: one section "A". Contrast then shows "not applicable" (NaN in
   Python, `null` in JSON).
 
+*Superseded by spec 003 research R7 and R8 (2026-10-12): 2/4 bars are no longer joined in pairs,
+and MIDI bar lines follow the time-signature map.*
+
 ## R12. Settings hash and the CLI's run record
 
 - **Decision**:

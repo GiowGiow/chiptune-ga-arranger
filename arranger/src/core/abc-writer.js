@@ -9,7 +9,11 @@
 //
 // - Lengths: the unit note length is a sixteenth (`L:1/16`), so "C4" is a quarter note and every
 //   onset and duration on the sixteenth-note grid is a whole number of units. Rests (`z`) fill
-//   the silence between notes.
+//   the silence between notes, so a bar holds 4 units per quarter note of its meter: 16 in 4/4,
+//   12 in 3/4 and 6/8, 14 in 7/8.
+// - Meter: `M:` gives the first bar's meter, as a fraction (`M:4/4`, never `M:C`), and a bar
+//   whose meter differs from the bar before it starts with an inline field such as `[M:3/4]`,
+//   which both readers follow. A 4/4 lead sheet is written exactly as before meters existed.
 // - Chords: a chord symbol is written just before the note or rest that starts with the chord.
 //   When the chord changes while a note sounds, the note is written as two tied pieces
 //   (`G4- "G"G4`), which the reader joins back into one note.
@@ -28,10 +32,10 @@
 // fifths, which gives the same signature for the major and minor keys and the church modes that
 // the writer accepts (keys past 7 sharps or flats get double accidentals, as in music21).
 
-import { BEATS_PER_BAR, phraseMarks } from "./leadsheet.js";
+import { phraseMarks } from "./leadsheet.js";
+import { FOUR_FOUR, meterText } from "./meter.js";
 
-const UNITS_PER_BEAT = 4; // L:1/16: a sixteenth note is the unit, four to a beat
-const UNITS_PER_BAR = BEATS_PER_BAR * UNITS_PER_BEAT;
+const UNITS_PER_BEAT = 4; // L:1/16: a sixteenth note is the unit, four to a quarter-note beat
 const TEMPO_DECIMALS = 6;
 
 /** Pitch class of each natural note letter, in the order C D E F G A B. */
@@ -95,30 +99,29 @@ const FLAT_ORDER = "BEADGCF";
  * called with the same `phraseLength` and role map; the tempo comes back rounded to 6 decimals and
  * `sourceGrid` comes back as null.
  *
- * @param {import("./leadsheet.js").LeadSheet} leadSheet the lead sheet to write (4/4, melody and
- *   chords on the sixteenth-note grid).
+ * @param {import("./leadsheet.js").LeadSheet} leadSheet the lead sheet to write (melody and chords
+ *   on the sixteenth-note grid, each bar in its own meter).
  * @param {WriteOptions} [options]
  * @returns {string} the ABC text, ending with a newline.
- * @throws {Error} for a lead sheet ABC cannot hold: a meter other than 4/4, a note off the
- *   sixteenth-note grid, overlapping melody notes, chords that leave a gap, or phrases that
- *   `phraseLength` cannot reproduce. The message names the bar when it can.
+ * @throws {Error} for a lead sheet ABC cannot hold: a note off the sixteenth-note grid,
+ *   overlapping melody notes, chords that leave a gap, or phrases that `phraseLength` cannot
+ *   reproduce. The message names the bar when it can.
  * @example
  * const c = { symbol: "C", root: 0, tones: [0, 4, 7], onset: 0, duration: 2 };
  * const g = { symbol: "G", root: 7, tones: [7, 11, 2], onset: 2, duration: 2 };
  * const melody = [{ pitch: 60, onset: 0, duration: 1 }, { pitch: 66, onset: 1, duration: 3 }];
- * const bar = { index: 0, melody, chords: [c, g], label: "A", role: "verse", phrase: 0, phraseEnd: true };
- * writeLeadSheetAbc({ title: "Demo", key: "C major", tempoBpm: 120, bars: [bar], beatsPerBar: 4,
- *   sourceGrid: null });
+ * const bar = { index: 0, melody, chords: [c, g], label: "A", role: "verse", phrase: 0,
+ *   phraseEnd: true, meter: FOUR_FOUR };
+ * writeLeadSheetAbc({ title: "Demo", key: "C major", tempoBpm: 120, bars: [bar], sourceGrid: null });
  * // "%abc-2.1\nX:1\nT:Demo\nM:4/4\nL:1/16\nQ:1/4=120\nK:C\nP:A\n\"C\"C4 ^F4- \"G\"^F8 |\n"
  */
 export function writeLeadSheetAbc(leadSheet, options = {}) {
   const { phraseLength = 4, comments = [] } = options;
-  if (leadSheet.beatsPerBar !== BEATS_PER_BAR) {
-    throw new Error(`only 4/4 can be written, not ${leadSheet.beatsPerBar} beats per bar`);
-  }
   const { field, signature, sharps } = keySignature(leadSheet.key);
+  const bars = leadSheet.bars;
+  const firstMeter = bars.length > 0 ? bars[0].meter : FOUR_FOUR;
   const lines = ["%abc-2.1", ...comments.map((line) => `% ${line}`.trimEnd())];
-  lines.push("X:1", `T:${leadSheet.title}`, "M:4/4", "L:1/16");
+  lines.push("X:1", `T:${leadSheet.title}`, `M:${meterText(firstMeter)}`, "L:1/16");
   lines.push(`Q:1/4=${tempoText(leadSheet.tempoBpm)}`);
   if (Number(leadSheet.tempoBpm.toFixed(TEMPO_DECIMALS)) !== leadSheet.tempoBpm) {
     lines.push(
@@ -127,7 +130,6 @@ export function writeLeadSheetAbc(leadSheet, options = {}) {
   }
   lines.push(`K:${field}`);
 
-  const bars = leadSheet.bars;
   /** @type {string[]} */
   let phraseLine = [];
   partStarts(bars, phraseLength).forEach((startsPart, index) => {
@@ -140,7 +142,10 @@ export function writeLeadSheetAbc(leadSheet, options = {}) {
     if (startsPart && (index > 0 || bars[index].label)) {
       lines.push(`P:${bars[index].label}`);
     }
-    phraseLine.push(barText(bars[index], signature, sharps));
+    const meter = meterText(bars[index].meter);
+    const meterChange = index > 0 && meter !== meterText(bars[index - 1].meter);
+    const inlineMeter = meterChange ? `[M:${meter}]` : "";
+    phraseLine.push(inlineMeter + barText(bars[index], signature, sharps));
   });
   if (phraseLine.length > 0) {
     lines.push(`${phraseLine.join(" | ")} |`);
@@ -261,6 +266,7 @@ function units(beats, bar, what) {
  */
 function barText(bar, signature, sharps) {
   const chordStarts = chordStartsOf(bar);
+  const barUnits = Math.round(bar.meter.barBeats * UNITS_PER_BEAT);
   // Pieces of time in sixteenth units: [start, end, MIDI pitch or null for a rest].
   /** @type {Array<[number, number, number | null]>} */
   const pieces = [];
@@ -268,7 +274,7 @@ function barText(bar, signature, sharps) {
   for (const note of bar.melody) {
     const start = units(note.onset, bar, "onset");
     const end = units(note.onset + note.duration, bar, "note end");
-    if (start < position || end <= start || end > UNITS_PER_BAR) {
+    if (start < position || end <= start || end > barUnits) {
       throw new Error(
         `bar ${bar.index + 1}: melody notes overlap or leave the bar; an ABC lead sheet holds one ` +
           "note at a time, inside its bar",
@@ -278,7 +284,7 @@ function barText(bar, signature, sharps) {
     pieces.push([start, end, note.pitch]);
     position = end;
   }
-  if (position < UNITS_PER_BAR) pieces.push([position, UNITS_PER_BAR, null]);
+  if (position < barUnits) pieces.push([position, barUnits, null]);
 
   /** @type {string[]} */
   const tokens = [];
@@ -321,10 +327,10 @@ function chordStartsOf(bar) {
     starts.set(start, segment.symbol);
     position = units(segment.onset + segment.duration, bar, "chord end");
   }
-  if (position !== UNITS_PER_BAR || starts.size !== bar.chords.length) {
+  if (position !== Math.round(bar.meter.barBeats * UNITS_PER_BEAT) || starts.size !== bar.chords.length) {
     throw new Error(
-      `bar ${bar.index + 1}: the chord segments must cover the bar from beat 0 to beat 4 without ` +
-        "gaps or overlaps",
+      `bar ${bar.index + 1}: the chord segments must cover the bar from its start to its end ` +
+        "without gaps or overlaps",
     );
   }
   return starts;

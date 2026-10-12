@@ -1,26 +1,23 @@
 // @ts-check
 // Tests for core/tables.js, the score tables that measure every (bar, gene value) choice once
-// before the GA starts. They port the doctests of src/ga/tables.py and compare every table of
-// the 8 committed lead sheets with fixtures/tables/<id>.json, written by the Python code.
+// before the GA starts. They port the doctests and the meter cases of src/ga/tables.py
+// (tests/test_tables.py) and compare every table of the 8 committed lead sheets and the 7 meter
+// test tunes with fixtures/tables/<id>.json, written by the Python code.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readdirSync } from "node:fs";
+import { join } from "node:path";
 
-import { TR_TEXTURES } from "../src/core/genome.js";
+import { NO_PATTERNS, P2_TEXTURES, TR_TEXTURES } from "../src/core/genome.js";
 import { leadSheetFromJson } from "../src/core/leadsheet.js";
+import { FOUR_FOUR, parseMeter } from "../src/core/meter.js";
 import { TABLE_FIELDS, bassLine, buildTables } from "../src/core/tables.js";
-import { assertClose, readFixture } from "./helpers.js";
+import { assertClose, fixturesDir, readFixture } from "./helpers.js";
 
-const LEAD_SHEET_IDS = [
-  "amor_i_love_you",
-  "aquarela",
-  "fico_assim_sem_voce",
-  "ievan_polkka",
-  "korobeiniki",
-  "mulher_de_fases",
-  "por_voce",
-  "voa_voa",
-];
+const LEAD_SHEET_IDS = readdirSync(join(fixturesDir, "tables"))
+  .filter((name) => name.endsWith(".json"))
+  .map((name) => name.replace(".json", ""));
 
 // Python field name of each JavaScript table.
 const PYTHON_NAMES = {
@@ -76,6 +73,26 @@ function oneBarSheet(id) {
   });
 }
 
+test("the table fixtures cover the 8 committed lead sheets and the 7 meter tunes", () => {
+  assert.deepEqual([...LEAD_SHEET_IDS].sort(), [
+    "amor_i_love_you",
+    "aquarela",
+    "changes",
+    "fico_assim_sem_voce",
+    "five",
+    "ievan_polkka",
+    "jig",
+    "korobeiniki",
+    "mulher_de_fases",
+    "polka",
+    "por_voce",
+    "seven",
+    "slow_twelve",
+    "voa_voa",
+    "waltz",
+  ]);
+});
+
 test("the tables are the 13 fields of the Python ScoreTables", () => {
   assert.deepEqual([...TABLE_FIELDS], Object.keys(PYTHON_NAMES));
 });
@@ -97,7 +114,7 @@ test("each table has the typed array and the length its shape says", () => {
     actP1: [n, 3],
     actP2: [n, 5],
     actTr: [n, 4],
-    actNo: [5],
+    actNo: [n, 5],
     regBoth: [n, 3, 5],
     regOk: [n, 3, 5],
     bassInner: [n, 4],
@@ -119,6 +136,35 @@ test("each table has the typed array and the length its shape says", () => {
     assert.ok(tables[field] instanceof Int32Array, field);
   }
   for (const field of BOOLEAN_FIELDS) assert.ok(tables[field] instanceof Uint8Array, field);
+});
+
+test("a 3/4 bar is measured on its twelve sixteenth steps", () => {
+  const waltz = parseMeter("3/4");
+  const c = { symbol: "C", root: 0, tones: [0, 4, 7], onset: 0, duration: 3 };
+  const quarters = [0, 1, 2].map((beat) => ({ pitch: 72, onset: beat, duration: 1 }));
+  const bar = { index: 0, melody: quarters, chords: [c], label: "A", role: /** @type {const} */ ("verse"),
+    phrase: 0, phraseEnd: true, meter: waltz };
+  const tables = buildTables({ title: "waltz", key: "c major", tempoBpm: 120, bars: [bar], sourceGrid: null });
+  assert.equal(tables.actP1[0], 3 / 12);
+  assert.equal(tables.actTr[TR_TEXTURES.indexOf("octave_pump")], 6 / 12);
+  assert.equal(tables.actNo[NO_PATTERNS.indexOf("eighth_beat")], 6 / 12);
+  assert.equal(tables.actNo[NO_PATTERNS.indexOf("sixteenth_beat")], 1);
+  // P2 holds C3 under the melody C5 on all 12 steps.
+  const hold = P2_TEXTURES.indexOf("hold");
+  assert.equal(tables.regBoth[hold], 12);
+  assert.equal(tables.regOk[hold], 12);
+});
+
+test("the drum activity of a bar follows its meter: one row of 5 patterns per bar", () => {
+  const c = { symbol: "C", root: 0, tones: [0, 4, 7], onset: 0, duration: 4 };
+  const four = { index: 0, melody: [], chords: [c], label: "A", role: /** @type {const} */ ("verse"),
+    phrase: 0, phraseEnd: false, meter: FOUR_FOUR };
+  const three = { ...four, index: 1, chords: [{ ...c, duration: 3 }], phraseEnd: true, meter: parseMeter("3/4") };
+  const tables = buildTables({ title: "mixed", key: "", tempoBpm: 120, bars: [four, three], sourceGrid: null });
+  const fill = NO_PATTERNS.indexOf("fill");
+  assert.equal(tables.actNo.length, 2 * 5);
+  assert.equal(tables.actNo[0 * 5 + fill], 10 / 16); // 6 hits before beat 4, then 4 snare sixteenths
+  assert.equal(tables.actNo[1 * 5 + fill], 8 / 12); // 4 hits before beat 3, then 4 snare sixteenths
 });
 
 test("the octave pump's bass line is its roots on the beats", () => {

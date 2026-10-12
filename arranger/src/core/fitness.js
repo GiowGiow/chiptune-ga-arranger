@@ -50,6 +50,7 @@ const WRITTEN_OCTAVE = P1_OCTAVES.indexOf(0);
 const N_OCTAVES = P1_OCTAVES.length;
 const N_P2 = P2_TEXTURES.length;
 const N_TR = TR_TEXTURES.length;
+const N_NO = NO_PATTERNS.length;
 
 // Positions of the criteria in a score vector, as in CRITERIA.
 const COMPLEMENTARITY = 0;
@@ -159,7 +160,8 @@ function scorePlan(tables, population, start, nBars, facts, scores) {
       if (sameTextures && drumsFit) coherentPairs++;
     }
 
-    const density = (harmony + actTr[b * N_TR + tr] + actNo[no]) / 3;
+    // The drums are read from the bar's own row, since a pattern's activity depends on its meter.
+    const density = (harmony + actTr[b * N_TR + tr] + actNo[b * N_NO + no]) / 3;
     if (isChorus[b]) chorusDensity += density;
     else verseDensity += density;
 

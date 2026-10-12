@@ -488,3 +488,88 @@ def test_in_cut_time_root_fifth_plays_half_notes():
         (36, 0.0, 2.0, VELOCITY_TR),
         (43, 2.0, 2.0, VELOCITY_TR),
     ]
+
+
+# --- compound meters (spec 003, US2) --------------------------------------------------------
+
+JIG = parse_meter("6/8")
+C_JIG_BAR = ChordSegment("C", 0, (0, 4, 7), 0.0, 3.0)
+
+
+def test_in_six_eight_root_fifth_plays_two_dotted_quarters():
+    notes = realize_tr(meter_bar(JIG, [C_JIG_BAR]), TR_TEXTURES.index("root_fifth"), None)
+
+    assert [(n.pitch, n.onset, n.duration) for n in notes] == [(36, 0.0, 1.5), (43, 1.5, 1.5)]
+
+
+def test_in_six_eight_the_eighth_beat_kicks_on_eighth_one_and_snares_on_eighth_four():
+    notes = realize_no(NO_PATTERNS.index("eighth_beat"), JIG)
+
+    assert hits(notes) == [
+        (0.0, KICK),
+        (0.5, HIHAT),
+        (1.0, HIHAT),
+        (1.5, SNARE),
+        (2.0, HIHAT),
+        (2.5, HIHAT),
+    ]
+
+
+def test_in_six_eight_the_walking_bass_plays_the_root_and_the_approach():
+    g_bar = meter_bar(JIG, [ChordSegment("G", 7, (7, 11, 2), 0.0, 3.0)])
+
+    notes = realize_tr(meter_bar(JIG, [C_JIG_BAR]), TR_TEXTURES.index("walking"), g_bar)
+
+    assert [(n.pitch, n.onset, n.duration) for n in notes] == [(36, 0.0, 1.5), (30, 1.5, 1.5)]
+
+
+def test_in_twelve_eight_the_octave_pump_plays_twelve_eighths():
+    bar = meter_bar(parse_meter("12/8"), [ChordSegment("C", 0, (0, 4, 7), 0.0, 6.0)])
+
+    notes = realize_tr(bar, TR_TEXTURES.index("octave_pump"), None)
+
+    assert len(notes) == 12
+    assert [n.pitch for n in notes[:4]] == [36, 48, 36, 48]
+
+
+def test_in_nine_eight_the_fill_rolls_on_the_last_dotted_quarter():
+    notes = realize_no(NO_PATTERNS.index("fill"), parse_meter("9/8"))
+
+    assert [n.onset for n in notes if n.pitch == SNARE] == [1.5, 3.0, 3.25, 3.5, 3.75, 4.0, 4.25]
+    assert [n.onset for n in notes if n.pitch == KICK] == [0.0]
+
+
+def test_arpeggios_keep_their_subdivisions_in_compound_meters():
+    notes = realize_p2(meter_bar(JIG, [C_JIG_BAR]), P2_TEXTURES.index("arp16"))
+
+    assert len(notes) == 12 and all(n.duration == 0.25 for n in notes)
+
+
+# --- irregular meters (spec 003, US4) -------------------------------------------------------
+
+FIVE = parse_meter("5/4")
+SEVEN = parse_meter("7/8")
+
+
+def test_in_five_four_the_kick_marks_the_three_plus_two_grouping():
+    eighth = realize_no(NO_PATTERNS.index("eighth_beat"), FIVE)
+    half = realize_no(NO_PATTERNS.index("half_time"), FIVE)
+
+    assert [n.onset for n in eighth if n.pitch == KICK] == [0.0, 3.0]
+    assert [n.onset for n in eighth if n.pitch == SNARE] == [1.0, 2.0, 4.0]
+    assert [n.onset for n in half if n.pitch == SNARE] == [3.0]
+
+
+def test_in_seven_eight_the_bass_moves_on_each_group_of_two_two_and_three_eighths():
+    bar = meter_bar(SEVEN, [ChordSegment("D", 2, (2, 6, 9), 0.0, 3.5)])
+
+    root_fifth = realize_tr(bar, TR_TEXTURES.index("root_fifth"), None)
+    walking = realize_tr(bar, TR_TEXTURES.index("walking"), None)
+
+    assert [(n.pitch, n.onset, n.duration) for n in root_fifth] == [
+        (38, 0.0, 1.0),
+        (45, 1.0, 1.0),
+        (45, 2.0, 1.5),
+    ]
+    assert [(n.onset, n.duration) for n in walking] == [(0.0, 1.0), (1.0, 1.0), (2.0, 1.5)]
+    assert [n.pitch for n in walking] == [38, 42, 45]  # root, third, the fifth to end the piece

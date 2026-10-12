@@ -1,8 +1,9 @@
 // @ts-check
 // Tests for core/fitness.js, the weighted mean of seven music-theory criteria. They port the
 // one-bar doctests of src/ga/fitness.py and check SC-010: for the best plan of every committed
-// sample, the criterion scores and the fitness match the Python values to 6 decimal places, with
-// NaN (null in the fixtures) where a criterion does not apply.
+// sample, and for the fixed plan of every meter test tune, the criterion scores and the fitness
+// match the Python values to 12 decimal places, with NaN (null in the fixtures) where a criterion
+// does not apply.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -39,7 +40,7 @@ function oneBarTables() {
       actP1: [1, 3],
       actP2: [1, 5],
       actTr: [1, 4],
-      actNo: [5],
+      actNo: [1, 5],
       regBoth: [1, 3, 5],
       regOk: [1, 3, 5],
       bassInner: [1, 4],
@@ -109,12 +110,38 @@ test("a population that is not whole plans is refused", () => {
 
 const planFiles = readdirSync(join(fixturesDir, "plans")).filter((name) => name.endsWith(".json"));
 
-test("there are 10 plan fixtures", () => {
-  assert.equal(planFiles.length, 10);
+test("there are 17 plan fixtures: 10 samples and the fixed plans of 7 meter tunes", () => {
+  assert.equal(planFiles.length, 17);
+  assert.equal(planFiles.filter((name) => name.startsWith("meters-")).length, 7);
+});
+
+test("contrast measures the drums of each bar with that bar's own row of drum activity", () => {
+  // The same pattern is half as busy in the verse bar as in the chorus bar (as a bar in another
+  // meter can be), so the chorus is denser by (1 - 0.5) / 3 and contrast is 0.5 + 1/6.
+  const tables = {
+    ...oneBarTables(),
+    nBars: 2,
+    actP1: new Float64Array(6),
+    actP2: new Float64Array(10),
+    actTr: new Float64Array(8),
+    actNo: Float64Array.of(0, 0.5, 0.5, 0.5, 0.5, 0, 1, 1, 1, 1),
+    regBoth: new Int32Array(30),
+    regOk: new Int32Array(30),
+    bassInner: new Float64Array(8).fill(Number.NaN),
+    bassInnerLeaps: new Int32Array(8),
+    bassAcross: new Float64Array(16).fill(1),
+    singleChord: new Uint8Array(2),
+    phraseEnd: new Uint8Array(2),
+    phrase: Int32Array.of(0, 1),
+    isChorus: Uint8Array.of(0, 1),
+  };
+  const halfTime = [0, 0, 1, 0];
+  const scores = criterionScores(tables, Uint8Array.of(...halfTime, ...halfTime), 2);
+  assertClose(scores.contrast[0], 0.5 + 1 / 6, 12);
 });
 
 for (const file of planFiles) {
-  test(`SC-010: the best plan of ${file.replace(".json", "")} gets the Python scores and fitness`, () => {
+  test(`SC-010: the plan of ${file.replace(".json", "")} gets the Python scores and fitness`, () => {
     const sample = readFixture(`plans/${file}`);
     const leadSheet = leadSheetFromJson(readFixture(`leadsheets/${sample.leadsheet}.json`));
     const tables = buildTables(leadSheet);
@@ -124,8 +151,8 @@ for (const file of planFiles) {
 
     const scores = criterionScores(tables, population, nBars);
     const firstPlanScores = Object.fromEntries(CRITERIA.map((name) => [name, scores[name][0]]));
-    assertClose(firstPlanScores, sample.scores);
-    assertClose(fitness(tables, population, nBars, sample.settings.weights)[0], sample.fitness);
+    assertClose(firstPlanScores, sample.scores, 12);
+    assertClose(fitness(tables, population, nBars, sample.settings.weights)[0], sample.fitness, 12);
   });
 }
 

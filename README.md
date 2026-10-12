@@ -35,7 +35,30 @@ Because each channel is monophonic, chords become arpeggios, and a bass line and
 be invented. That is why an 8-bit cover is a re-composition and not a copy. Every arrangement is
 checked against these rules before export: one note at a time per channel, the channel pitch
 ranges (pulse MIDI 33–108, triangle 21–108), chord tones on strong beats for P2 and TR, and
-complete 4/4 bars.
+complete bars of each bar's meter.
+
+**Meters.** The submitted samples are all in 4/4. Since spec 003
+([specs/003-meters-and-textures/](specs/003-meters-and-textures/)), the arranger also reads and
+arranges 2/2, 2/4, 3/4, 6/8, 9/8, 12/8, 5/4 and 7/8, and songs whose meter changes. Each bar
+carries its meter, and the textures follow its beats and strong beats:
+
+- TR root–fifth plays the root on the strong beats and the fifth on the weak ones: root, fifth,
+  root, fifth in 4/4, and "oom-pah-pah" in a waltz. The walking line plays one note per beat.
+- NO puts the kick on strong beats and the snare on weak beats: kick on 1 and 3 and snare on 2
+  and 4 in 4/4; kick on 1 and snare on 2 and 3 in 3/4; kick on the first eighth and snare on the
+  fourth in 6/8. A fill rolls the snare on the bar's last beat.
+- The fitness measures each bar on its own grid of sixteenth notes (12 in 3/4, 16 in 4/4).
+- A MIDI song's chords are detected once per group of beats: half bars in 4/4 and 12/8, 3 + 2
+  beats in 5/4, and the whole bar in 3/4 or 6/8.
+
+In 4/4 every rule gives exactly the notes of the submitted version, so the samples do not
+change.
+
+**Allowed textures.** The setting `allowed` lists, for each gene, the values the GA may use. For
+example, `--set 'allowed.p2=["hold","arp16","echo","third"]'` keeps the 32nd-note arpeggio out.
+The 16th and 32nd arpeggios score the same on every criterion, so without this setting the GA
+picks between them almost at random. The first population and mutation draw only allowed values.
+With every value allowed (the default), they draw the same random numbers as before.
 
 **Genetic algorithm.**
 
@@ -80,6 +103,7 @@ All hyperparameters are in [configs/default.json](configs/default.json) and can 
 | `midi.bars` | whole file | MIDI songs only: the excerpt, first and last bar. | each MIDI song |
 | `midi.sections` | one part | MIDI songs only: part labels by bar; a label with "Chorus" (or "B") gets the chorus role, which the contrast criterion uses. | each MIDI song |
 | `midi.grid` | `auto` | MIDI songs only: use the file's beat grid, or re-estimate it from the drums when the file's tempo does not fit them. | none (Voa Voa is re-estimated automatically) |
+| `allowed.<gene>` | every value | The values the GA may draw for each gene (`p2`, `tr`, `no`, `p1_octave`), for example P2 without the 32nd-note arpeggio. Added after the submission (spec 003). | none |
 
 ```mermaid
 flowchart LR
@@ -152,8 +176,11 @@ uv run src/main.py arrange data/leadsheets/korobeiniki.abc --seed 1
 Arrange a multi-track MIDI song. The song is first reduced to a lead sheet:
 
 - the melody comes from the chosen track or tracks;
-- one chord is detected per half bar from the other tracks;
-- `midi.bars` picks an excerpt, and `midi.sections` marks where each part starts.
+- one chord is detected per half bar in 4/4 (per group of beats in other meters) from the other
+  tracks;
+- bar lines follow the file's time signatures, counting from its first bar;
+- `midi.bars` picks an excerpt (by default, from the first to the last bar with a pitched note),
+  and `midi.sections` marks where each part starts.
 
 ```bash
 uv run src/main.py arrange data/raw/chiclete/voa_voa.mid --seed 1 \
@@ -443,8 +470,11 @@ The [arranger page](https://giowgiow.github.io/chiptune-ga-arranger/arranger/) (
 
 1. Drop an ABC lead sheet or a multi-track MIDI file, or pick one of the 8 committed lead sheets.
    For a MIDI song, choose the melody track (the likeliest one is preselected), the bars to
-   arrange and where each part starts. The page shows the lead sheet it read before any run.
+   arrange and where each part starts. The page shows the lead sheet it read before any run,
+   with its meter. Songs in 2/2, 2/4, 3/4, 4/4, 6/8, 9/8, 12/8, 5/4 and 7/8 are arranged.
 2. Change any setting of `configs/default.json`; each one says what it changes in the music.
+   "Allowed textures" keeps any texture out of the arrangement, for example the fast 32nd-note
+   arpeggio.
 3. Press Arrange. The GA runs in a background thread (a Web Worker) and the page draws its
    evolution live: the best and mean fitness, the generation and stagnation counters, and the
    best plan of four genes per bar. The "watch" pace runs about 400 generations per second so the
@@ -497,6 +527,19 @@ Terms used here: a *seeded generator* gives the same random numbers for the same
 Worker* runs code beside the page so the page stays responsive; the *skyline* of a MIDI track is
 its highest note at each moment, which turns chords into a melody line; the *beat grid* places
 the beats of a MIDI recording; *A/B* is switching between two versions at the same position.
+
+Meter terms (spec 003):
+- A *meter* (time signature) gives the length of a bar and its beats: 3/4 has three
+  quarter-note beats.
+- A *simple meter* (2/2, 2/4, 3/4, 4/4) counts beats of the denominator note.
+- A *compound meter* (6/8, 9/8, 12/8) groups eighths in threes, so its beat is a dotted quarter:
+  6/8 has two beats.
+- An *irregular meter* groups unequal beats: 5/4 is felt 3 + 2, and 7/8 as eighths grouped
+  2 + 2 + 3.
+- The *beat grouping* is how the beats gather; its first beats are the *strong beats* (1 and 3
+  in 4/4, only 1 in 3/4 or 6/8, 1 and 4 in 5/4).
+- A MIDI file's *time-signature map* lists where each meter starts.
+- *Allowed values* are the gene values (textures, drum patterns, octaves) that the GA may draw.
 
 ## Inputs, sources and licenses
 

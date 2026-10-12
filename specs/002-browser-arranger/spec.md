@@ -214,6 +214,8 @@ Raimundos), load it, choose the melody track recorded in `data/sources.json`, an
   For a MIDI file read on its own grid, a lead-in in another meter before the first 4/4 (or 2/4)
   bar (a count-in) is skipped and bars count from that bar, as the command-line reader does; a
   meter change inside the music is refused.
+  *Replaced in part by spec 003 FR-003 and FR-004 (2026-10-12): 2/4 is read natively, other
+  meters are supported, and bar lines follow the time-signature map from the file's first bar.*
 - **FR-005**: For a MIDI file, the app MUST list the tracks, preselect a melody track, and let the
   visitor change the melody track, the bar range and the part labels before arranging.
 - **FR-006**: The app MUST show the lead sheet it will arrange (bars, chords, parts, melody range)

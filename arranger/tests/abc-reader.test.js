@@ -1,10 +1,11 @@
 // @ts-check
 // Tests for core/abc-reader.js: an ABC tune read into a lead sheet with the abcjs parser.
 //
-// The committed lead sheets must come out exactly as the Python reader (src/leadsheet/
-// abc_reader.py) reads them, stored in fixtures/leadsheets/. The reader also accepts what the
-// Python one refuses (research R3): repeats and endings, a pickup bar and 2/4 meter. Repeats are
-// checked against the order in which abcjs itself plays the tune.
+// The committed lead sheets, and the meter test tunes of tests/data/meters/ (spec 003), must come
+// out exactly as the Python reader (src/leadsheet/abc_reader.py) reads them, stored in
+// fixtures/leadsheets/. The reader also accepts what the Python one refuses (research R3): repeats
+// and endings, and a pickup bar. Repeats are checked against the order in which abcjs itself plays
+// the tune.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -13,6 +14,7 @@ import { test } from "node:test";
 
 import { listTunes, readLeadSheetAbc } from "../src/core/abc-reader.js";
 import { leadSheetFromJson } from "../src/core/leadsheet.js";
+import { SUPPORTED_METERS, meterText } from "../src/core/meter.js";
 import { assertClose, loadAbcjs, readFixture, repoRoot } from "./helpers.js";
 
 const ABCJS = loadAbcjs();
@@ -27,6 +29,12 @@ const COMMITTED_LEAD_SHEETS = [
   "por_voce",
   "voa_voa",
 ];
+
+/** The project's meter test tunes (tests/data/meters/<id>.abc), one per supported family. */
+const METER_TUNES = ["waltz", "polka", "jig", "slow_twelve", "five", "seven", "changes"];
+
+/** The message for an unsupported meter, shared with core/meter.js and the Python reader. */
+const SUPPORTED_LIST = SUPPORTED_METERS.map(meterText).join(", ");
 
 /**
  * A one-tune ABC text with the usual header and the given body lines.
@@ -77,6 +85,17 @@ for (const id of COMMITTED_LEAD_SHEETS) {
   });
 }
 
+for (const id of METER_TUNES) {
+  test(`the meter tune ${id}.abc reads as the Python reader reads it, meter by meter`, () => {
+    const text = readFileSync(join(repoRoot, "tests", "data", "meters", `${id}.abc`), "utf8");
+    const expected = leadSheetFromJson(readFixture(`leadsheets/${id}.json`));
+    const sheet = readLeadSheetAbc(ABCJS, text, { phraseLength: 4 });
+    assert.equal(sheet.bars.length, expected.bars.length);
+    assert.deepEqual(sheet.bars.map((bar) => String(bar.meter)), expected.bars.map((bar) => String(bar.meter)));
+    assertClose(sheet, expected);
+  });
+}
+
 test("the docstring example: a two-bar scale with C and G7", () => {
   const sheet = readLeadSheetAbc(ABCJS, 'X:1\nT:Scale\nM:4/4\nL:1/4\nK:C\n"C"CDEF|"G7"GABc|');
   assert.deepEqual(
@@ -87,8 +106,14 @@ test("the docstring example: a two-bar scale with C and G7", () => {
   assert.equal(sheet.title, "Scale");
   assert.equal(sheet.key, "C major");
   assert.equal(sheet.tempoBpm, 140);
-  assert.equal(sheet.beatsPerBar, 4);
+  assert.deepEqual(sheet.bars.map((bar) => String(bar.meter)), ["4/4", "4/4"]);
   assert.equal(sheet.sourceGrid, null);
+  assert.equal("beatsPerBar" in sheet, false);
+  const changing = readLeadSheetAbc(ABCJS, 'X:1\nM:3/4\nL:1/4\nK:C\n"C"CDE|[M:2/4]FG|');
+  assert.deepEqual(
+    changing.bars.map((bar) => String(bar.meter)),
+    ["3/4", "2/4"],
+  );
 });
 
 test("listTunes lists every tune of a file by its title", () => {
@@ -173,70 +198,99 @@ test("a one-quarter pickup gives a first bar with a 3-beat leading rest", () => 
   assert.deepEqual(sheet.bars[1].melody[0], { pitch: 72, onset: 0, duration: 2 });
 });
 
-test("an M:2/4 tune of 8 bars gives 4 bars of 4/4", () => {
+test("a 3/4 pickup is padded with a leading rest to a whole 3/4 bar", () => {
+  const sheet = readLeadSheetAbc(ABCJS, tune('"C"G2|c2 e2 g2|"G"d6|', { meter: "3/4" }));
+  assert.equal(sheet.bars.length, 3);
+  assert.deepEqual(sheet.bars[0].melody, [{ pitch: 67, onset: 2, duration: 1 }]);
+  assert.deepEqual(
+    sheet.bars[0].chords.map((segment) => [segment.symbol, segment.onset, segment.duration]),
+    [["C", 0, 3]],
+  );
+  assert.deepEqual(sheet.bars.map((bar) => String(bar.meter)), ["3/4", "3/4", "3/4"]);
+});
+
+test("an M:2/4 tune of 8 bars gives 8 bars of 2/4, with one chord segment per bar", () => {
   const body = '"C"CDEF|GABc|"F"cBAG|FEDC|"G"DEFG|ABcd|"C"cBAG|FEDC|';
   const sheet = readLeadSheetAbc(ABCJS, tune(body, { meter: "2/4" }));
-  assert.equal(sheet.bars.length, 4);
+  assert.equal(sheet.bars.length, 8);
+  assert.ok(sheet.bars.every((bar) => String(bar.meter) === "2/4"));
   assert.deepEqual(
-    sheet.bars[0].melody.map((note) => [note.pitch, note.onset]),
+    sheet.bars[1].melody.map((note) => [note.pitch, note.onset]),
     [
-      [60, 0],
-      [62, 0.5],
-      [64, 1],
-      [65, 1.5],
-      [67, 2],
-      [69, 2.5],
-      [71, 3],
-      [72, 3.5],
+      [67, 0],
+      [69, 0.5],
+      [71, 1],
+      [72, 1.5],
     ],
   );
   assert.deepEqual(
-    sheet.bars.map((bar) => bar.chords.map((segment) => segment.symbol)),
-    [["C"], ["F"], ["G"], ["C"]],
+    sheet.bars.map((bar) => bar.chords.map((segment) => [segment.symbol, segment.duration])),
+    [[["C", 2]], [["C", 2]], [["F", 2]], [["F", 2]], [["G", 2]], [["G", 2]], [["C", 2]], [["C", 2]]],
   );
 });
 
-test("in 2/4 a pickup counts in the pair and an odd last bar is padded with a rest", () => {
-  const sheet = readLeadSheetAbc(ABCJS, tune('"C"G|c2 e2|"G"g4|', { meter: "2/4" }));
-  assert.equal(sheet.bars.length, 2);
-  assert.deepEqual(sheet.bars[0].melody, [
-    { pitch: 67, onset: 1.5, duration: 0.5 },
-    { pitch: 72, onset: 2, duration: 1 },
-    { pitch: 76, onset: 3, duration: 1 },
-  ]);
-  assert.deepEqual(sheet.bars[1].melody, [{ pitch: 79, onset: 0, duration: 2 }]);
-  assert.deepEqual(
-    sheet.bars[1].chords.map((segment) => [segment.symbol, segment.onset, segment.duration]),
-    [["G", 0, 4]],
+test("M:C reads as 4/4 and M:C| as 2/2", () => {
+  assert.equal(String(readLeadSheetAbc(ABCJS, tune('"C"C8|', { meter: "C" })).bars[0].meter), "4/4");
+  assert.equal(String(readLeadSheetAbc(ABCJS, tune('"C"C4D4|', { meter: "C|" })).bars[0].meter), "2/2");
+});
+
+test("every supported meter reads, with bars of its own length", () => {
+  /** @type {Record<string, string>} */
+  const oneBar = {
+    "3/4": "C6",
+    "6/8": "C3D3",
+    "9/8": "C3D3E3",
+    "12/8": "C6D6",
+    "5/4": "C6D4",
+    "7/8": "C2D2E3",
+  };
+  for (const [meter, body] of Object.entries(oneBar)) {
+    const sheet = readLeadSheetAbc(ABCJS, tune(`"C"${body}|${body}|`, { meter }));
+    assert.deepEqual(sheet.bars.map((bar) => String(bar.meter)), [meter, meter], meter);
+    assert.equal(sheet.bars[1].chords[0].duration, sheet.bars[1].meter.barBeats, meter);
+  }
+});
+
+test("an unsupported meter is refused with the shared message, naming the bar", () => {
+  assert.throws(
+    () => readLeadSheetAbc(ABCJS, tune('"C"C8|', { meter: "11/16" })),
+    errorMatching(`bar 1: the meter 11/16 is not supported; supported meters: ${SUPPORTED_LIST}`),
   );
-});
-
-test("M:C reads as 4/4", () => {
-  const sheet = readLeadSheetAbc(ABCJS, tune('"C"C8|', { meter: "C" }));
-  assert.equal(sheet.bars.length, 1);
-});
-
-test("a meter other than 4/4 or 2/4 is refused with its name", () => {
-  assert.throws(() => readLeadSheetAbc(ABCJS, tune('"C"C2D2E2|', { meter: "3/4" })), errorMatching("3/4"));
-  assert.throws(() => readLeadSheetAbc(ABCJS, tune('"C"C3D3|', { meter: "6/8" })), errorMatching("6/8"));
-  assert.throws(() => readLeadSheetAbc(ABCJS, tune('"C"C4D4|', { meter: "C|" })), errorMatching("C|"));
+  assert.throws(
+    () => readLeadSheetAbc(ABCJS, tune('"C"C8|D8|[M:5/8]E5|')),
+    errorMatching(`bar 3: the meter 5/8 is not supported; supported meters: ${SUPPORTED_LIST}`),
+  );
+  assert.throws(() => readLeadSheetAbc(ABCJS, tune('"C"C8|D8|\nM:13/8\nE13|')), errorMatching(/^bar 3: the meter 13\/8/));
 });
 
 test("a tune without an M: field is refused", () => {
-  assert.throws(() => readLeadSheetAbc(ABCJS, 'X:1\nT:Free\nL:1/8\nK:C\n"C"C8|\n'), errorMatching("M:"));
+  assert.throws(
+    () => readLeadSheetAbc(ABCJS, 'X:1\nT:Free\nL:1/8\nK:C\n"C"C8|\n'),
+    errorMatching("the tune has no M: (meter) field; write one, for example M:4/4"),
+  );
 });
 
-test("a meter change inside the tune is refused, naming the bar", () => {
-  assert.throws(
-    () => readLeadSheetAbc(ABCJS, tune('"C"C8|D8|[M:3/4]E6|')),
-    errorMatching(/bar 3.*3\/4/),
+test("an inline meter change [M:3/4] starts the bar it is written in", () => {
+  const sheet = readLeadSheetAbc(ABCJS, tune('"C"C8|D8|[M:3/4]"G"E6|F6|[M:2/4]G4|'));
+  assert.deepEqual(sheet.bars.map((bar) => String(bar.meter)), ["4/4", "4/4", "3/4", "3/4", "2/4"]);
+  assert.deepEqual(
+    sheet.bars.map((bar) => bar.chords.map((segment) => [segment.symbol, segment.onset, segment.duration])),
+    [[["C", 0, 4]], [["C", 0, 4]], [["G", 0, 3]], [["G", 0, 3]], [["G", 0, 2]]],
   );
-  assert.throws(() => readLeadSheetAbc(ABCJS, tune('"C"C8|D8|\nM:3/4\nE6|')), errorMatching(/bar 3.*3\/4/));
+});
+
+test("an M: line in the body changes the meter from the next bar on", () => {
+  const sheet = readLeadSheetAbc(ABCJS, tune('"C"C8|D8|\nM:6/8\nE3F3|G6|'));
+  assert.deepEqual(sheet.bars.map((bar) => String(bar.meter)), ["4/4", "4/4", "6/8", "6/8"]);
+  assert.deepEqual(sheet.bars[2].melody, [
+    { pitch: 64, onset: 0, duration: 1.5 },
+    { pitch: 65, onset: 1.5, duration: 1.5 },
+  ]);
 });
 
 test("restating the meter inside the tune is not a change, and C is the same meter as 4/4", () => {
   const sheet = readLeadSheetAbc(ABCJS, tune('"C"C8|[M:4/4]D8|\nM:C\nE8|', { meter: "C" }));
-  assert.equal(sheet.bars.length, 3);
+  assert.deepEqual(sheet.bars.map((bar) => String(bar.meter)), ["4/4", "4/4", "4/4"]);
 });
 
 test("a tune without chord symbols is refused", () => {
@@ -250,9 +304,16 @@ test("an unknown chord symbol is refused, naming the bar and the symbol", () => 
   );
 });
 
-test("an incomplete bar after the first is refused, naming the bar", () => {
-  assert.throws(() => readLeadSheetAbc(ABCJS, tune('"C"C8|D6|E8|')), errorMatching(/bar 2 lasts 3 beats/));
+test("an incomplete bar after the first is refused, naming the bar and its meter", () => {
+  assert.throws(
+    () => readLeadSheetAbc(ABCJS, tune('"C"C8|D6|E8|')),
+    errorMatching("bar 2 lasts 3 beats instead of 4 (4/4); only the first bar (a pickup) may be shorter"),
+  );
   assert.throws(() => readLeadSheetAbc(ABCJS, tune('"C"C8|D8 E2|')), errorMatching(/bar 2 lasts 5 beats/));
+  assert.throws(
+    () => readLeadSheetAbc(ABCJS, tune('"C"C6|D6|[M:6/8]E4|', { meter: "3/4" })),
+    errorMatching("bar 3 lasts 2 beats instead of 3 (6/8)"),
+  );
 });
 
 test("a tie inside a bar gives one merged note", () => {

@@ -47,7 +47,7 @@ which may be committed (research R13).
   - `changes.abc`: M:4/4 with inline `[M:2/4]`, `[M:3/4]` and back to `[M:4/4]`, 8 bars.
 
   Add a header comment `% Written for the chiptune-ga-arranger tests (spec 003).`
-- [ ] T002 [P] Add the meter terms to the README (the repository has no `docs/` folder; spec 002 defined
+- [X] T002 [P] Add the meter terms to the README (the repository has no `docs/` folder; spec 002 defined
   its terms in a "Terms used here" paragraph of the README, so this follows it): meter, simple meter, compound meter,
   irregular meter, beat grouping, strong beat, time-signature map and allowed values. Each needs
   a one-sentence definition and a 3/4 or 6/8 example.
@@ -317,18 +317,18 @@ exported in their own meter. 4/4 stays byte-identical.
 
 ### JavaScript port
 
-- [ ] T035 [US1] Write the failing tests in `arranger/tests/leadsheet.test.js` and
+- [X] T035 [US1] Write the failing tests in `arranger/tests/leadsheet.test.js` and
   `arranger/tests/textures.test.js`:
   - `leadSheetFromJson` reads `meter` (4/4 when absent);
   - `chordSegments` takes bar lengths;
   - every realization in `fixtures/realizations/*.json`, including the meter tunes, matches.
-- [ ] T036 [US1] Port the model and the realizers:
+- [X] T036 [US1] Port the model and the realizers:
   - in `core/leadsheet.js`: `Bar.meter`, no `beatsPerBar`, `chordSegments(changes, chordTones,
     barBeats)`, and `leadSheetFromJson` with `parseMeter`;
   - in `core/textures.js`: the realizers read `bar.meter`, and `realizeNo(pattern, meter)`.
 
   T035 must pass.
-- [ ] T037 [US1] Write the failing tests in `arranger/tests/tables.test.js`,
+- [X] T037 [US1] Write the failing tests in `arranger/tests/tables.test.js`,
   `arranger/tests/fitness.test.js` and `arranger/tests/arrangement.test.js`:
   - the tables match `fixtures/tables/*.json`, with `actNo` as n × 5;
   - the fitness matches every `fixtures/plans/*.json`, including `meters-*`, to 1e-12;
@@ -337,7 +337,7 @@ exported in their own meter. 4/4 stays byte-identical.
   Then port `core/tables.js`, `core/fitness.js` and `core/arrangement.js` (`assemble` fills
   `meters`, and `findViolations` works per bar). Update the hand-built tables in
   `fitness.test.js` and `evolution.test.js` (`actNo` of n × 5).
-- [ ] T038 [US1] Write the failing tests in `arranger/tests/abc-reader.test.js` and
+- [X] T038 [US1] Write the failing tests in `arranger/tests/abc-reader.test.js` and
   `arranger/tests/abc-writer.test.js`:
   - `waltz` and `polka` read as in the Python fixtures (2/4 is native, not paired);
   - an inline change is read;
@@ -347,7 +347,7 @@ exported in their own meter. 4/4 stays byte-identical.
 
   Then implement them in `core/abc-reader.js` (remove `joinPairs` and `checkSameMeter`; each bar
   gets a meter from abcjs meter elements) and `core/abc-writer.js`.
-- [ ] T039 [US1] Write the failing tests in `arranger/tests/midi-song.test.js`:
+- [X] T039 [US1] Write the failing tests in `arranger/tests/midi-song.test.js`:
   - `barMap`;
   - the default excerpt;
   - a 3/4 and a 2/4 synthetic song (build them with `core/midi-file.js` in the test);
@@ -356,10 +356,10 @@ exported in their own meter. 4/4 stays byte-identical.
 
   Then port the map, the excerpt, the chord groups and the estimated-grid meter into
   `core/midi-song.js` (`meterOffsetBeats` removed).
-- [ ] T040 [US1] Write the failing test in `arranger/tests/midi-export.test.js` (3/4 time
+- [X] T040 [US1] Write the failing test in `arranger/tests/midi-export.test.js` (3/4 time
   signature, 4/4 unchanged; `determinism.test.js` SHA pin unchanged). Then write the time
   signatures in `core/midi-export.js`.
-- [ ] T041 [US1] Update the app edges and add tests in `arranger/tests/plain-synth.test.js` and
+- [X] T041 [US1] Update the app edges and add tests in `arranger/tests/plain-synth.test.js` and
   `arranger/tests/input-panel.test.js`:
   - `arranger/src/audio/plain-synth.js`: `leadSheetVoices` uses `barStarts`; `beatClock` and
     `midiExcerptVoices` use `barMap`; the duration uses `totalBeats`;
@@ -383,7 +383,7 @@ exported in their own meter. 4/4 stays byte-identical.
 **Independent test**: `jig.abc` arranges with the kick on eighth 1 and the snare on eighth 4, and
 the walking bass plays two dotted quarters.
 
-- [ ] T042 [P] [US2] Write the tests in `tests/test_textures.py`:
+- [X] T042 [P] [US2] Write the tests in `tests/test_textures.py`:
   - 6/8 root_fifth gives root at 0 and fifth at 1.5;
   - 6/8 eighth_beat gives kick at step 0, snare at step 6, and hi-hats at 2, 4, 8 and 10;
   - 6/8 walking gives two notes of 1.5;
@@ -391,7 +391,7 @@ the walking bass plays two dotted quarters.
   - the 9/8 fill rolls on steps 12–17.
 
   Fix any rule in `src/arrangement/textures.py` that fails.
-- [ ] T043 [P] [US2] Write the tests in `tests/test_abc_reader.py` and `tests/test_midi_reader.py`:
+- [X] T043 [P] [US2] Write the tests in `tests/test_abc_reader.py` and `tests/test_midi_reader.py`:
   - `jig.abc` reads 16 bars of 6/8, each 3 quarters;
   - `slow_twelve.abc` reads 8 bars of 12/8;
   - a synthetic 12/8 MIDI song has 6-beat bars and chords on half bars (US2 scenario 3).
@@ -399,7 +399,7 @@ the walking bass plays two dotted quarters.
   `src/export/fixtures.py`. Build them with pretty_midi from fixed note lists, write them to
   `arranger/tests/fixtures/midi-songs/` (`.mid` and the reduction `.json`), and rerun
   `uv run src/main.py fixtures`.
-- [ ] T045 [US2] Write the JS parity tests in `arranger/tests/midi-song.test.js`: the
+- [X] T045 [US2] Write the JS parity tests in `arranger/tests/midi-song.test.js`: the
   synthetic-waltz and synthetic-twelve-eight reductions match the Python JSON. Then fix
   `core/midi-song.js` until they pass. The jig and slow_twelve tables and plan fitness
   already run in T037's loop; confirm that they pass.
@@ -415,13 +415,13 @@ the walking bass plays two dotted quarters.
 **Independent test**: `five.abc`, `seven.abc` and `changes.abc`, and a 4/4 → 2/4 → 4/4 MIDI song,
 arrange bar by bar with no violation.
 
-- [ ] T046 [P] [US4] Write the tests in `tests/test_textures.py` and `tests/test_validation.py`:
+- [X] T046 [P] [US4] Write the tests in `tests/test_textures.py` and `tests/test_validation.py`:
   - 5/4 eighth_beat gives kick at beats 1 and 4, and snare at 2, 3 and 5;
   - 5/4 half_time gives a snare on beat 4;
   - 7/8 root_fifth gives root, fifth, fifth with durations 1, 1 and 1.5;
   - 7/8 walking changes on each group;
   - the arrangement of `changes.abc` validates with bar starts 0, 4, 6, 9 …
-- [ ] T047 [P] [US4] Write the tests in `tests/test_midi_reader.py`:
+- [X] T047 [P] [US4] Write the tests in `tests/test_midi_reader.py`:
   - a file with 4/4 → 2/4 → 4/4 gives bars of 4, 2, 4 beats;
   - a time signature in mid-bar leaves a short bar, which fails inside the excerpt, naming the
     bar;
@@ -430,7 +430,7 @@ arrange bar by bar with no violation.
   Implement any missing case in `src/leadsheet/midi_reader.py`.
 - [X] T048 [US4] Add `synthetic-changes` (4/4 → 2/4 → 4/4) and `synthetic-count-in` (drum-only
   3/4 count-in, then 4/4) to `src/export/fixtures.py`. Then run `uv run src/main.py fixtures`.
-- [ ] T049 [US4] Write the JS tests in `arranger/tests/midi-song.test.js`,
+- [X] T049 [US4] Write the JS tests in `arranger/tests/midi-song.test.js`,
   `arranger/tests/abc-reader.test.js` and `arranger/tests/arrangement.test.js`:
   - the synthetic-changes and synthetic-count-in reductions match;
   - `five`, `seven` and `changes` read as in Python;
@@ -444,20 +444,20 @@ arrange bar by bar with no violation.
 
 ## Phase 7: Polish and cross-cutting concerns
 
-- [ ] T050 [P] Update the README's "Method" section (there is no `docs/explanation.md`): a part "Meters" (beats, strong beats, how each
+- [X] T050 [P] Update the README's "Method" section (there is no `docs/explanation.md`): a part "Meters" (beats, strong beats, how each
   texture adapts, chord spans) and "Allowed textures" (why arp16 and arp32 tie, and how the GA
   draws only allowed values).
-- [ ] T051 [P] Update `README.md`:
+- [X] T051 [P] Update `README.md`:
   - the app section names the supported meters and the "Allowed textures" setting;
   - the configuration section documents `allowed` with the `--set` example of
     contracts/config.md.
-- [ ] T052 [P] Add a short note to `specs/002-browser-arranger/spec.md` under FR-004: "Replaced by
+- [X] T052 [P] Add a short note to `specs/002-browser-arranger/spec.md` under FR-004: "Replaced by
   spec 003 FR-004: 2/4 is read natively." Add a note in its research R11 too.
 - [X] T053 Run a semantic fixture check: a script in the scratchpad loads every
   `arranger/tests/fixtures/**/*.json` at the commit before T034 and now, and compares every
   shared value. The only allowed differences are `meter` (added), `beats_per_bar` (removed) and
   `act_no` (a 1D vector becomes n equal rows). Report the result in the commit message.
-- [ ] T054 Rerun `samples/korobeiniki-s1` and `samples/por-voce-s1` from their `config.json`
+- [X] T054 Rerun `samples/korobeiniki-s1` and `samples/por-voce-s1` from their `config.json`
   with `--no-audio`, and `cmp` their `piece.mid` with the committed ones (quickstart §2). Both
   must be identical.
 - [ ] T055 Run quickstart §3 (every meter tune from the command line, no violation) and §4

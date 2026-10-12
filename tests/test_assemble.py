@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from arrangement.assemble import assemble
 from arrangement.model import CHANNELS
@@ -47,3 +48,23 @@ def test_bars_of_different_meters_follow_each_other_without_gaps():
     assert [note.onset for note in arrangement.channels["P1"]] == [0.0, 4.0, 6.0]
     assert [str(meter) for meter in arrangement.meters] == ["4/4", "2/4", "3/4"]
     assert find_violations(arrangement, lead_sheet) == []
+
+
+def test_every_plan_on_a_tune_with_meter_changes_obeys_the_nes_rules():
+    from leadsheet.meter import bar_starts
+
+    lead_sheet = read_lead_sheet("tests/data/meters/changes.abc")
+    assert bar_starts(lead_sheet.bars) == [0.0, 4.0, 8.0, 10.0, 12.0, 15.0, 18.0, 22.0]
+    for genome in random_population(np.random.default_rng(1), 30, len(lead_sheet.bars)):
+        assert find_violations(assemble(lead_sheet, genome), lead_sheet) == []
+
+
+@pytest.mark.parametrize("name", ["waltz", "polka", "jig", "slow_twelve", "five", "seven"])
+def test_every_texture_obeys_the_nes_rules_in_every_meter(name):
+    lead_sheet = read_lead_sheet(f"tests/data/meters/{name}.abc")
+    for value in range(max(GENE_SIZES)):
+        constant = np.minimum(value, np.array(GENE_SIZES) - 1)
+        genome = np.tile(constant, (len(lead_sheet.bars), 1))
+        assert find_violations(assemble(lead_sheet, genome), lead_sheet) == [], value
+    for genome in random_population(np.random.default_rng(2), 20, len(lead_sheet.bars)):
+        assert find_violations(assemble(lead_sheet, genome), lead_sheet) == []
