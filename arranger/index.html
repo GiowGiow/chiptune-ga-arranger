@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NES Arranger</title>
+<meta name="description" content="Arrange your own ABC or MIDI song for the NES sound chip with a genetic algorithm that runs in your browser. Your file never leaves your device.">
+<meta name="theme-color" content="#0B0E17">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script type="module" src="src/ui/main.js"></script>
+</head>
+<body>
+<div class="backdrop" aria-hidden="true"></div>
+<main>
+  <header class="hero">
+    <span class="eyebrow"><span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span>Chiptune GA Arranger · runs in your browser</span>
+    <h1>NES <span class="gradient">Arranger</span></h1>
+    <p class="lead">Give it a lead sheet or a MIDI song. A genetic algorithm evolves an arrangement for
+    the four channels of the NES sound chip, and you hear it next to the original. Your file stays on
+    this device.</p>
+    <div class="legend" aria-label="Channel colors">
+      <span class="chip"><span class="dot" style="--c: var(--p1)"></span>P1 pulse · melody</span>
+      <span class="chip"><span class="dot" style="--c: var(--p2)"></span>P2 pulse · harmony</span>
+      <span class="chip"><span class="dot" style="--c: var(--tr)"></span>TR triangle · bass</span>
+      <span class="chip"><span class="dot" style="--c: var(--no)"></span>NO noise · drums</span>
+    </div>
+    <nav class="steps" aria-label="Sections">
+      <a href="#input"><span class="step-num">1</span>Input</a>
+      <a href="#settings"><span class="step-num">2</span>Settings</a>
+      <a href="#evolution"><span class="step-num">3</span>Evolution</a>
+      <a href="#result"><span class="step-num">4</span>Result</a>
+      <a href="#catalog">Catalog</a>
+      <a href="#about">About</a>
+    </nav>
+  </header>
+
+  <noscript><p class="card notice">The arranger runs in JavaScript. Turn it on to arrange a song.</p></noscript>
+
+  <div class="panels">
+    <section id="input" class="card" aria-labelledby="input-title">
+      <h2 id="input-title"><span class="step-num">1</span>Input</h2>
+      <p class="placeholder">Drop an ABC or MIDI file here, or pick one of the examples.</p>
+    </section>
+
+    <section id="settings" class="card" aria-labelledby="settings-title">
+      <h2 id="settings-title"><span class="step-num">2</span>Settings</h2>
+      <p class="placeholder">The seed, the size of the run and the fitness weights. The defaults are the command line's.</p>
+    </section>
+
+    <section id="evolution" class="card wide" aria-labelledby="evolution-title">
+      <h2 id="evolution-title"><span class="step-num">3</span>Evolution</h2>
+      <p class="placeholder">The fitness curve and the plan of every bar appear here while the run evolves.</p>
+    </section>
+
+    <section id="result" class="card wide" aria-labelledby="result-title">
+      <h2 id="result-title"><span class="step-num">4</span>Result</h2>
+      <p class="placeholder">Play the arrangement on the NES chip, compare it with the original, and download the MIDI, the settings and the lead sheet.</p>
+    </section>
+
+    <section id="catalog" class="card wide" aria-labelledby="catalog-title">
+      <h2 id="catalog-title">MPB MIDI catalog</h2>
+      <p class="placeholder">Search a catalog of Brazilian popular music by title, composer or performer, download a song from its site and drop it in above.</p>
+    </section>
+
+    <section id="about" class="card wide" aria-labelledby="about-title">
+      <h2 id="about-title">About</h2>
+      <p class="placeholder">How the arranger works: a plan of four genes per bar, scored by seven criteria, evolved by the same genetic algorithm as the project's command line.</p>
+    </section>
+  </div>
+
+  <footer>
+    <span>Version <span id="app-version" class="mono">dev</span></span>
+    <span class="sep" aria-hidden="true">·</span>
+    <a href="../listen/">Listening page</a>
+    <span class="sep" aria-hidden="true">·</span>
+    <a href="https://github.com/GiowGiow/chiptune-ga-arranger">Code and method</a>
+  </footer>
+</main>
+</body>
+</html>

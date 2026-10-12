@@ -50,20 +50,20 @@ Every JavaScript task follows these rules (constitution IV and "Web App Constrai
 
 **Purpose**: the `arranger/` skeleton, the vendored parser, CI and the pre-push hook.
 
-- [ ] T001 Create the `arranger/` skeleton.
+- [X] T001 Create the `arranger/` skeleton.
   - Write `arranger/package.json` with exactly this content:
     `{"name": "chiptune-ga-arranger-web", "private": true, "type": "module", "scripts": {"test": "node --test"}}`.
     It has no dependencies.
   - Write `arranger/version.json` as `{"commit": "dev", "date": null}`.
   - Create empty folders, each holding a `.gitkeep`: `arranger/src/core/`,
     `arranger/src/audio/`, `arranger/src/ui/`, `arranger/tests/fixtures/`, `arranger/data/`.
-- [ ] T002 [P] Vendor abcjs 6.7.1 into `arranger/vendor/abcjs/`.
+- [X] T002 [P] Vendor abcjs 6.7.1 into `arranger/vendor/abcjs/`.
   - Run `npm pack abcjs@6.7.1` in the scratchpad.
   - Copy `package/dist/abcjs-basic-min.js` and `package/LICENSE.md` into the folder.
   - Write `arranger/vendor/abcjs/README.md` with the version, the npm tarball URL, the file's
     SHA-256 and the note "MIT; used only for ABC parsing (research R3)".
   - Check that the file passes the 5 MB `check-added-large-files` hook.
-- [ ] T003 [P] Create `arranger/tests/helpers.js`, exporting:
+- [X] T003 [P] Create `arranger/tests/helpers.js`, exporting:
   - `repoRoot`, the absolute path of the repository;
   - `readFixture(relativePath)`, which parses JSON from `arranger/tests/fixtures/` and turns
     `null` back into `NaN` where a caller asks for it;
@@ -72,7 +72,7 @@ Every JavaScript task follows these rules (constitution IV and "Web App Constrai
     `createRequire(import.meta.url)`;
   - `rawMidiPath(relative)`, which returns `null` when `data/raw/<relative>` is missing, so a
     test can call `t.skip("run uv run src/main.py fetch")`.
-- [ ] T004 [P] Create the page shell `arranger/index.html` and `arranger/style.css`.
+- [X] T004 [P] Create the page shell `arranger/index.html` and `arranger/style.css`.
   - Copy the `:root` tokens of `listen/index.html`: `--bg #0B0E17`, `--glass`, `--line`,
     `--text`, `--muted`, `--p1 #5F9ED1`, `--p2 #FF800E`, `--tr #CFCFCF`, `--no #FFBC79`,
     `--mono`.
@@ -81,7 +81,7 @@ Every JavaScript task follows these rules (constitution IV and "Web App Constrai
   - Load `<script type="module" src="src/ui/main.js">`.
   - Footer: the commit from `version.json`, plus links to `../listen/` and the repository.
   - No horizontal scroll at 375 px.
-- [ ] T005 [P] Create `.github/workflows/pages.yml` (research R9).
+- [X] T005 [P] Create `.github/workflows/pages.yml` (research R9).
   - Job `test`: runs on push and pull_request; `actions/checkout@v4`,
     `actions/setup-node@v4` with node 22, then `cd arranger && node --test`.
   - Job `deploy`: runs only on `main`, needs `test`, has `permissions: pages: write,
@@ -89,7 +89,7 @@ Every JavaScript task follows these rules (constitution IV and "Web App Constrai
     `{"commit": "${{ github.sha }}", "date": "<UTC ISO time>"}`, then runs
     `actions/upload-pages-artifact@v3` with `path: .` and `actions/deploy-pages@v4`.
   - Add a comment at the top: Pages source must be "GitHub Actions" (quickstart step 7).
-- [ ] T006 [P] Add a local pre-push hook in `.pre-commit-config.yaml` (constitution workflow).
+- [X] T006 [P] Add a local pre-push hook in `.pre-commit-config.yaml` (constitution workflow).
   - Fields: `id: node-test`, `name: node --test (arranger)`,
     `entry: bash -c 'cd arranger && node --test'`, `language: system`,
     `pass_filenames: false`, `always_run: true`, `stages: [pre-push]`.
@@ -105,7 +105,7 @@ modules (random, genome, chords, lead sheet) that every story uses.
 
 ### Python: run records and parity fixtures
 
-- [ ] T007 [P] Write failing tests in `tests/test_config.py`.
+- [X] T007 [P] Write failing tests in `tests/test_config.py`.
   - `test_load_config_accepts_a_run_record_and_ignores_its_run_keys`: load
     `samples/korobeiniki-s1/config.json` with `load_config`, and check that the result has no
     `seed` key and that `weights` equals the record's.
@@ -115,11 +115,11 @@ modules (random, genome, chords, lead sheet) that every story uses.
     `ValueError`.
   - The run keys are: `seed`, `input_path`, `input_sha256`, `git_commit`, `git_dirty`,
     `created`, `run_id`, `best_fitness`, `stop_reason`, `generations`, `audio`, `app`.
-- [ ] T008 Implement `RUN_RECORD_KEYS` in `src/config.py`.
+- [X] T008 Implement `RUN_RECORD_KEYS` in `src/config.py`.
   - `load_config` drops these keys at the top level of the loaded file before `_merge`.
   - Update the module docstring and the `load_config` docstring.
   - Make T007 pass (contracts/cli.md).
-- [ ] T009 [P] Write failing tests in `tests/test_fixtures.py` for
+- [X] T009 [P] Write failing tests in `tests/test_fixtures.py` for
   `export.fixtures.write_fixtures(out, samples_dir, sources_path, leadsheets_dir)`. Use a
   `tmp_path` and only 1 sample (`korobeiniki-s1`) and 1 lead sheet, to keep the test fast.
   - `chords.json` maps `"Am"` to `[9, [9, 0, 4]]` and `"Bbm7"` to `[10, [10, 1, 5, 8]]`.
@@ -132,7 +132,7 @@ modules (random, genome, chords, lead sheet) that every story uses.
     `fitness` equal to the sample's `best_fitness` within 1e-9, and `arrangement` notes per
     channel.
   - A missing raw MIDI prints a notice and writes no `midi-songs/<id>.json`.
-- [ ] T010 Implement `src/export/fixtures.py` and the `fixtures` command in `src/main.py`.
+- [X] T010 Implement `src/export/fixtures.py` and the `fixtures` command in `src/main.py`.
   - Defaults: `--out arranger/tests/fixtures`, `--samples samples`,
     `--sources data/sources.json`.
   - Write every file of contracts/files.md "Parity fixtures".
@@ -146,13 +146,13 @@ modules (random, genome, chords, lead sheet) that every story uses.
     lead sheet, using the `midi` settings in `data/sources.json`.
   - `abc/<id>.abc` is the `abc_writer` output for each MIDI song.
   - Module docstring and doctests as in the constitution. Make T009 pass.
-- [ ] T011 Run `uv run src/main.py fetch`, then `uv run src/main.py fixtures`.
+- [X] T011 Run `uv run src/main.py fetch`, then `uv run src/main.py fixtures`.
   - Check that `du -sh arranger/tests/fixtures` stays under 3 MB.
   - Commit the fixtures. No render may be running (memory: no commit during renders).
 
 ### JavaScript: shared core
 
-- [ ] T012 [P] Write a failing test, `arranger/tests/random.test.js`.
+- [X] T012 [P] Write a failing test, `arranger/tests/random.test.js`.
   - `createRandom(1)` and a second `createRandom(1)` give the same 1,000 `uint32()`.
   - Seeds 1 and 2 differ.
   - `float()` is in [0, 1).
@@ -161,18 +161,18 @@ modules (random, genome, chords, lead sheet) that every story uses.
   - A seed outside 0..4,294,967,295 or a non-integer seed throws `RangeError`.
   - The first 4 `uint32()` of seed 1 are pinned. Compute the values once from the reference
     algorithm (splitmix32 seeding, 12 discarded outputs, sfc32) and write them into the test.
-- [ ] T013 Implement `arranger/src/core/random.js` (research R5).
+- [X] T013 Implement `arranger/src/core/random.js` (research R5).
   - Export `createRandom(seed)`, which returns `{uint32, float, integer, pickWeighted}`.
   - Use only `| 0`, `>>>`, `^`, `+` and `Math.imul`.
   - Make T012 pass.
-- [ ] T014 [P] Write a failing test, `arranger/tests/genome.test.js`, porting the doctests of
+- [X] T014 [P] Write a failing test, `arranger/tests/genome.test.js`, porting the doctests of
   `src/ga/genome.py`:
   - `GENE_SIZES` is `[5, 4, 5, 3]`;
   - the names are `P2_TEXTURES`, `TR_TEXTURES`, `NO_PATTERNS` and `P1_OCTAVES = [0, 12, -12]`;
   - `randomPopulation(rng, 3, 2)` returns a `Uint8Array` of 24 values, each below its gene size;
   - `decode(Uint8Array.of(1, 3, 4, 2))` gives
     `[{p2: "arp16", tr: "walking", no: "fill", p1Octave: -12}]`.
-- [ ] T015 Implement `arranger/src/core/genome.js`. The plan layout is data-model.md "Plan":
+- [X] T015 Implement `arranger/src/core/genome.js`. The plan layout is data-model.md "Plan":
   bar `b` holds genes `4b … 4b+3`. Make T014 pass.
 - [ ] T016 [P] Write a failing test, `arranger/tests/chords.test.js`.
   - For every symbol in `fixtures/chords.json`, `chordTones(symbol)` equals the fixture.
@@ -183,14 +183,14 @@ modules (random, genome, chords, lead sheet) that every story uses.
     fifth, seventh, matching music21 on the fixtures.
   - Export `chordTones` and `placeInRegister`.
   - Make T016 pass.
-- [ ] T018 [P] Write a failing test, `arranger/tests/leadsheet.test.js`, porting the doctests:
+- [X] T018 [P] Write a failing test, `arranger/tests/leadsheet.test.js`, porting the doctests:
   - `phraseMarks([1, 1, 1, 1, 1, 1, 2, 2], 4)`;
   - `sectionRole` on `"B"`, `"Chorus 2"` and `"A"`, and with `{A: "chorus"}`;
   - `chordAt`: a C/G bar gives C at 0 and at 1.75, and G at 2.0;
   - `chordSegments([[[2.0, "C"]], [], [[0.0, "F"], [3.0, "G"]]])`, as `_chord_segments` in
     `src/leadsheet/abc_reader.py`;
   - `chordSegments` of bars with no chord at all throws "the tune has no chord symbol".
-- [ ] T019 Implement `arranger/src/core/leadsheet.js` with `phraseMarks`, `sectionRole`,
+- [X] T019 Implement `arranger/src/core/leadsheet.js` with `phraseMarks`, `sectionRole`,
   `chordAt`, `chordSegments` and the JSDoc typedefs `MelodyNote`, `ChordSegment`, `Bar` and
   `LeadSheet` (data-model.md). Make T018 pass.
 
@@ -257,14 +257,14 @@ committed.
     `fitness(tables, population, nBars, weights)`, over a flat `Uint8Array` population.
   - Counts are pooled as in Python; NaN marks a criterion that does not apply.
   - Make T024 pass.
-- [ ] T026 [P] [US1] Write a failing test, `arranger/tests/operators.test.js`.
+- [X] T026 [P] [US1] Write a failing test, `arranger/tests/operators.test.js`.
   - `rouletteSelect` never picks the worst plan of `[0.2, 0.9, 0.9]` in 1,000 draws.
   - With every fitness within 1e-12, it picks each index with similar frequency.
   - `eliteIndices([0.3, 0.9, 0.1, 0.9], 2)` gives `[1, 3]`.
   - `onePointCrossover` keeps the length, cuts between 1 and n − 1, and copies parents of 1 bar.
   - `mutate` at rate 0 changes nothing; at rate 1 it changes every gene to a different valid
     value.
-- [ ] T027 [US1] Implement `arranger/src/core/operators.js` (port of `src/ga/operators.py`).
+- [X] T027 [US1] Implement `arranger/src/core/operators.js` (port of `src/ga/operators.py`).
   - `TIE_TOLERANCE = 1e-12`.
   - Roulette uses windowing over a cumulative sum and `rng.pickWeighted`.
   - The elite sort is stable.
@@ -610,7 +610,7 @@ catalog and drop the file in, with the credit kept (FR-029 to FR-032).
 3. The credit and the page link appear.
 4. Arrange with track 6.
 
-- [ ] T073 [P] [US4] Write a failing test, `tests/test_catalog_pages.py`, on synthetic HTML in
+- [X] T073 [P] [US4] Write a failing test, `tests/test_catalog_pages.py`, on synthetic HTML in
   the structure of research R8. Do not copy the site's pages.
   - `parse_index(html, base_url)` reads a row
     `<a href="mpb_m/mulher-de-fases.html" class="BB"><b>MULHER DE FASES</b></a> &nbsp;Dig&atilde;o e Rodolfo`
@@ -620,11 +620,11 @@ catalog and drop the file in, with the credit kept (FR-029 to FR-032).
     `<title>MULHER DE FASES - Raimundos - MIDI e Letra da M&uacute;sica - Lyric`, and the MIDI
     link `som/mulher-de-fases.mid` as an absolute URL.
   - A page with no `.mid` link gives an empty list.
-- [ ] T074 [US4] Implement `src/catalog/__init__.py` and `src/catalog/pages.py`.
+- [X] T074 [US4] Implement `src/catalog/__init__.py` and `src/catalog/pages.py`.
   - Standard library only: `html.parser` and `html.unescape`.
   - The module docstring explains the catalog and its credit.
   - Make T073 pass.
-- [ ] T075 [P] [US4] Write a failing test, `tests/test_catalog_crawl.py`, with an injected fake
+- [X] T075 [P] [US4] Write a failing test, `tests/test_catalog_crawl.py`, with an injected fake
   `fetch(url)` and `sleep(seconds)`.
   - `crawl(letters, cache_dir, delay, fetch, sleep)` sleeps `delay` between real fetches, and
     never fetches a cached page twice.
@@ -633,7 +633,7 @@ catalog and drop the file in, with the credit kept (FR-029 to FR-032).
   - `delay < 1.0` raises `ValueError`.
   - `write_catalog(entries, path)` writes the JSON of contracts/files.md, sorted by title
     ignoring accents and letter case.
-- [ ] T076 [US4] Implement `src/catalog/crawl.py` and the `catalog` command in `src/main.py`
+- [X] T076 [US4] Implement `src/catalog/crawl.py` and the `catalog` command in `src/main.py`
   (contracts/cli.md).
   - Use `urllib.request` with the `USER_AGENT` from `src/leadsheet/sources.py`.
   - Cache in `data/raw/catalog/`.

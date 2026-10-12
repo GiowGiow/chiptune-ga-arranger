@@ -10,6 +10,8 @@ plan: which texture each channel plays in each bar. Examples:
     uv run src/main.py compare samples/korobeiniki-s1
     uv run src/main.py fetch
     uv run src/main.py abc --all
+    uv run src/main.py fixtures
+    uv run src/main.py catalog
 
 Every hyperparameter comes from `configs/default.json`, an optional `--config` file and `--set`
 overrides; every run needs an explicit `--seed` (constitution, principle I).
@@ -26,12 +28,14 @@ import numpy as np
 
 from arrangement.assemble import assemble
 from arrangement.validation import find_violations
+from catalog.crawl import add_catalog_parser
 from config import load_config
 from export.audio import DEFAULT_SOUNDFONT, render_mp3
 from export.chip_audio import render_chip_mp3
 from export.comparison import render_comparison
 from export.experiments import run_experiments
 from export.figures import plot_evolution, plot_pianoroll
+from export.fixtures import write_fixtures
 from export.input_preview import excerpt_seconds, lead_sheet_to_midi
 from export.input_video import render_input_video
 from export.midi import write_midi
@@ -152,6 +156,16 @@ def build_parser() -> argparse.ArgumentParser:
     abc.add_argument("--sources", type=Path, default=SOURCES_PATH, help="sources manifest")
     abc.add_argument("--samples", type=Path, default=Path("samples"))
     abc.set_defaults(handler=run_abc)
+
+    fixtures = commands.add_parser(
+        "fixtures", help="write the Python reference values the web arranger's tests compare to"
+    )
+    fixtures.add_argument("--out", type=Path, default=Path("arranger/tests/fixtures"))
+    fixtures.add_argument("--samples", type=Path, default=Path("samples"))
+    fixtures.add_argument("--sources", type=Path, default=SOURCES_PATH, help="sources manifest")
+    fixtures.set_defaults(handler=run_fixtures)
+
+    add_catalog_parser(commands)
     return parser
 
 
@@ -378,6 +392,13 @@ def run_sample(args: argparse.Namespace) -> Path:
 def _scores_of(tables, genome: np.ndarray) -> dict[str, float]:
     scores = criterion_scores(tables, genome[np.newaxis])
     return {name: float(values[0]) for name, values in scores.items()}
+
+
+def run_fixtures(args: argparse.Namespace) -> Path:
+    """Write the parity fixtures of the web arranger (spec 002) and return their folder."""
+    write_fixtures(args.out, samples_dir=args.samples, sources_path=args.sources)
+    print(args.out)
+    return args.out
 
 
 def main(argv: list[str] | None = None) -> int:

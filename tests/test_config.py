@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 import pytest
 
 from config import config_hash, load_config
@@ -71,3 +74,45 @@ def test_hash_ignores_key_order_and_follows_values():
     assert config_hash(a) == config_hash(b)
     assert config_hash(a) != config_hash({**a, "x": 2})
     assert len(config_hash(a)) == 8
+
+
+RUN_KEYS = (
+    "seed",
+    "input_path",
+    "input_sha256",
+    "git_commit",
+    "git_dirty",
+    "created",
+    "run_id",
+    "best_fitness",
+    "stop_reason",
+    "generations",
+    "audio",
+    "app",
+)
+
+
+def test_load_config_accepts_a_run_record_and_ignores_its_run_keys():
+    record_path = Path("samples/korobeiniki-s1/config.json")
+    record = json.loads(record_path.read_text())
+    cfg = load_config(record_path)
+    assert not set(RUN_KEYS) & set(cfg)
+    assert cfg["weights"] == record["weights"]
+    assert cfg["max_generations"] == record["max_generations"]
+
+
+def test_load_config_accepts_the_web_app_record_with_an_app_section(tmp_path):
+    record = load_config() | {key: None for key in RUN_KEYS}
+    record |= {"seed": 3, "population_size": 40, "app": {"pace": "watch"}}
+    path = tmp_path / "song-s3-1234abcd.config.json"
+    path.write_text(json.dumps(record))
+    cfg = load_config(path)
+    assert cfg["population_size"] == 40
+    assert "app" not in cfg and "seed" not in cfg
+
+
+def test_load_config_still_rejects_an_unknown_key_in_a_run_record(tmp_path):
+    path = tmp_path / "typo.json"
+    path.write_text(json.dumps({"seed": 1, "populaton_size": 3}))
+    with pytest.raises(ValueError, match="unknown configuration key 'populaton_size'"):
+        load_config(path)

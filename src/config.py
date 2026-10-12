@@ -4,6 +4,11 @@ The defaults live in `configs/default.json`. A run can replace them with its own
 with command-line overrides such as `--set weights.contrast=3`, so no hyperparameter is hidden in
 the code (constitution, principle I). The resolved configuration is hashed to name the run folder:
 the same configuration always gives the same hash.
+
+A run folder's `config.json` is a *run record*: the configuration plus keys that describe the run
+(seed, input hash, git commit, best fitness, ...). The web arranger downloads the same record. A
+record can be passed back as the config file: its run keys are skipped, so the hyperparameters
+rerun as they were. The seed still comes from `--seed`, never from the file.
 """
 
 import copy
@@ -18,12 +23,30 @@ DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "configs" / "defa
 # Sections whose keys are free (part labels), unlike the fixed hyperparameter names.
 FREE_KEY_SECTIONS = ("role_map",)
 
+# Top-level keys of a run record that describe the run, not a hyperparameter. The CLI writes all
+# but "app"; the web arranger adds "app" (its pace and, for a catalog song, the song page).
+RUN_RECORD_KEYS = (
+    "seed",
+    "input_path",
+    "input_sha256",
+    "git_commit",
+    "git_dirty",
+    "created",
+    "run_id",
+    "best_fitness",
+    "stop_reason",
+    "generations",
+    "audio",
+    "app",
+)
+
 
 def load_config(path: Path | str | None = None, overrides: Sequence[str] = ()) -> dict:
     """Return the defaults, updated by an optional JSON file and by `key=value` overrides.
 
     Dotted keys reach nested values (`weights.contrast=3`). Values are parsed as JSON, and a value
-    that is not valid JSON is kept as a string (`role_map.A=chorus`). A ValueError rejects an
+    that is not valid JSON is kept as a string (`role_map.A=chorus`). The file may be a run record
+    (a run folder's `config.json`): its RUN_RECORD_KEYS are skipped. A ValueError rejects an
     unknown key and criterion weights that are not finite numbers of at least 0, or that are all
     0, since the fitness is their weighted mean.
 
@@ -32,7 +55,9 @@ def load_config(path: Path | str | None = None, overrides: Sequence[str] = ()) -
     """
     config = json.loads(DEFAULT_CONFIG_PATH.read_text())
     if path is not None:
-        _merge(config, json.loads(Path(path).read_text()), prefix="")
+        loaded = json.loads(Path(path).read_text())
+        hyperparameters = {k: v for k, v in loaded.items() if k not in RUN_RECORD_KEYS}
+        _merge(config, hyperparameters, prefix="")
     for item in overrides:
         key, sep, raw_value = item.partition("=")
         if not sep or not key:

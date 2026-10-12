@@ -71,3 +71,6 @@ data/raw/
 
 # Superdesign working files (design drafts live on superdesign.dev)
 .superdesign/
+
+# Node (the web app has no npm dependencies; this guards against a stray install)
+node_modules/

@@ -1,0 +1,125 @@
+/* NES Arranger: the page shell.
+   Design: the listening page's visual language (listen/index.html), a dark ground, glass cards and
+   the four NES channel colors, nothing else. The arranger is a workspace, so its aurora stands
+   still: four soft glows painted once, instead of the listening page's drifting blurred blades. */
+
+:root {
+  --bg: #0B0E17;
+  --glass: rgba(20, 26, 42, 0.62);
+  --line: #25304a;
+  --text: #e6e9f0;
+  --muted: #9aa3b5;
+  --p1: #5F9ED1;
+  --p2: #FF800E;
+  --tr: #CFCFCF;
+  --no: #FFBC79;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.6 Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  overflow-x: hidden;
+}
+a { color: var(--p1); text-underline-offset: 3px; }
+a:hover { color: var(--no); }
+:focus-visible { outline: 2px solid var(--no); outline-offset: 3px; border-radius: 6px; }
+.mono { font-family: var(--mono); }
+
+/* Still aurora: the four channel colors as large soft glows, with a vignette on top. */
+.backdrop {
+  position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(ellipse at center, rgba(11, 14, 23, .1) 0%, rgba(11, 14, 23, .8) 100%),
+    radial-gradient(60vw 40vh at 8% 0%, rgba(95, 158, 209, .30), transparent 70%),
+    radial-gradient(55vw 45vh at 100% 100%, rgba(255, 128, 14, .22), transparent 70%),
+    radial-gradient(40vw 30vh at 35% 60%, rgba(255, 188, 121, .10), transparent 70%),
+    radial-gradient(30vw 35vh at 80% 30%, rgba(207, 207, 207, .06), transparent 70%),
+    var(--bg);
+}
+
+main { max-width: 1120px; margin: 0 auto; padding: 56px 16px 64px; }
+
+/* Header */
+.hero { max-width: 760px; margin-bottom: 36px; }
+.eyebrow {
+  display: inline-flex; align-items: center; gap: 10px; padding: 6px 14px; border-radius: 999px;
+  background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(12px);
+  color: var(--muted); font-size: .85rem;
+}
+h1 { font-size: clamp(2.1rem, 5vw, 3.6rem); line-height: 1.08; font-weight: 800; letter-spacing: -.02em; margin: 20px 0 16px; }
+.gradient {
+  background: linear-gradient(90deg, var(--p1), var(--no) 55%, var(--p2));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.lead { color: #c9cfdb; font-size: 1.08rem; margin: 0 0 18px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; border-radius: 999px;
+  background: rgba(11, 14, 23, .55); border: 1px solid var(--line); font-size: .82rem; color: var(--muted);
+}
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c); flex: none; }
+.eq { display: inline-flex; align-items: flex-end; gap: 3px; height: 18px; }
+.eq i { width: 4px; height: 10px; border-radius: 2px 2px 0 0; background: var(--c); animation: eq 1s ease-in-out infinite alternate; }
+.eq i:nth-child(1) { --c: var(--p1); animation-delay: .1s; }
+.eq i:nth-child(2) { --c: var(--p2); animation-delay: .45s; }
+.eq i:nth-child(3) { --c: var(--tr); animation-delay: .25s; }
+.eq i:nth-child(4) { --c: var(--no); animation-delay: .6s; }
+@keyframes eq { from { height: 4px; } to { height: 18px; } }
+
+/* Section links: the four steps of a run, then the catalog and the notes. */
+.steps { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+.steps a {
+  display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px;
+  color: var(--text); text-decoration: none; font-size: .88rem; font-weight: 600;
+  border: 1px solid var(--line); background: var(--glass); backdrop-filter: blur(12px);
+  transition: border-color .2s, transform .2s;
+}
+.steps a:hover { border-color: var(--p1); transform: translateY(-1px); color: var(--text); }
+.step-num { font-family: var(--mono); font-weight: 700; color: var(--p1); }
+
+/* Panels: input and settings side by side on a wide screen, the rest across the page. */
+.panels { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+.card {
+  position: relative; min-width: 0; padding: 20px; border-radius: 16px;
+  background: var(--glass); border: 1px solid var(--line);
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  scroll-margin-top: 16px;
+}
+/* Gradient border in the channel colors while a control inside the card has keyboard focus. */
+.card::before {
+  content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 1px; pointer-events: none;
+  background: linear-gradient(135deg, var(--p1), var(--no), var(--p2));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude; opacity: 0; transition: opacity .35s;
+}
+.card:focus-within::before { opacity: .8; }
+.card h2 { display: flex; align-items: baseline; gap: 12px; font-size: 1.25rem; letter-spacing: -.01em; margin: 0 0 8px; }
+.placeholder { color: var(--muted); margin: 0; }
+.notice { margin: 0 0 20px; }
+
+footer {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 10px;
+  margin-top: 48px; color: var(--muted); font-size: .88rem; text-align: center;
+}
+footer .sep { color: var(--line); }
+#app-version { color: var(--no); }
+
+@media (min-width: 900px) {
+  .panels { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .card.wide { grid-column: 1 / -1; }
+}
+@media (max-width: 640px) {
+  main { padding-top: 36px; }
+  .card { padding: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .eq i { animation: none !important; }
+  .steps a { transition: none; }
+  html { scroll-behavior: auto; }
+}

@@ -13,8 +13,11 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
+      # Vendored files stay byte-for-byte, so their SHA-256 matches arranger/vendor/*/README.md
       - id: trailing-whitespace
+        exclude: ^arranger/vendor/
       - id: end-of-file-fixer
+        exclude: ^arranger/vendor/
       - id: check-yaml
       - id: check-toml
       - id: check-merge-conflict
@@ -46,6 +49,13 @@ repos:
       - id: pytest
         name: pytest
         entry: uv run pytest
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+      - id: node-test
+        name: node --test (arranger)
+        entry: bash -c 'cd arranger && node --test'
         language: system
         pass_filenames: false
         always_run: true

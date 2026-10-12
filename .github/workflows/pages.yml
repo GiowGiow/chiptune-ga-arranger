@@ -1,0 +1,60 @@
+# Test the browser arranger, and on main deploy the whole repository to GitHub Pages.
+#
+# One-time repository setting: Settings -> Pages -> Source must be "GitHub Actions" (not
+# "Deploy from a branch"), or the deploy job fails (specs/002-browser-arranger/quickstart.md,
+# step 7).
+#
+# Pages serves the committed tree as it is (no build step). The only file the deploy writes is
+# arranger/version.json, which holds the deployed commit and time, so the app can record its
+# version in the config.json it downloads (research R9, FR-027). The committed file says "dev".
+
+name: Pages
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: node --test (arranger)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run the JavaScript tests
+        run: cd arranger && node --test
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    # One deploy at a time; a newer push waits instead of cancelling a deploy in progress.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Write the deployed commit into arranger/version.json
+        env:
+          COMMIT: ${{ github.sha }}
+        run: |
+          printf '{"commit": "%s", "date": "%s"}\n' "$COMMIT" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > arranger/version.json
+          cat arranger/version.json
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - id: deployment
+        uses: actions/deploy-pages@v4

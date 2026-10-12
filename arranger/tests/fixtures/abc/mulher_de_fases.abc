@@ -1,0 +1,19 @@
+%abc-2.1
+X:1
+T:Mulher de Fases
+M:4/4
+L:1/16
+Q:1/4=132.500055
+K:none
+P:A
+"Em7"z2 B z B2 G2 B7 z | "D"z2 A z A2 G2 "Am7"A2 B2 A2 G2 | "Em"z4 G2 E z G2 E z G2 E z | "Am"G z G2 G2 E2 "C"G2 ^F2 E3 z |
+"Em7"z2 B z B2 G2 B4 G3 z | "Bm7"z2 A z A2 G2 "Am7"A2 B2 A2 G2 | "Em"z4 G2 E2 G2 E2 G2 E2 | "Am"G2 ^F2 E2 ^F2 G2 ^F2 E3 z |
+P:Chorus
+"C"z4 G2 G2 G2 z2 B2 z2 | "Am"B2 B2 B2 A2 G2 E2 B2 z2 | "Em"B3 z3 B z B2 A2 G2 A2 | "G"B3 G5 z8 |
+"C"G2 E z G2 E2 G2 E2 A2 B z | "Em7"B2 A2 B2 A2 "G"G3 z E4 | "Bm7"D4 A4- "D"A z7 | "D"z2 A z A2 G2 B4 A3 z |
+P:A
+"Em7"z4 B4 G4 D4 | "Bm7"z2 A z A2 G2 "Am7"A2 B2 A2 G2 | "Em"z4 G z G z G2 ^F2 E2 ^F2 | "Am"G2 ^F2 E2 ^F2 "C"G2 ^F2 E3 z |
+"Em7"z4 B3 z B2 z2 B2 z2 | "D"z2 d z d z d2 "Am7"e2 d2 c2 B2 | "Em"z4 B z B z B z B z B z B2 | "Am"c2 B2 A2 B2 c2 B2 A3 z |
+P:Chorus
+"C"z4 c3 z c3 z c3 z | "Em7"B3 G5 "G"B z B z B z B z | "D"c2 B2 A4 z8 | "D"z2 d z d z d2 "Bm7"e2 d2 c2 d2 |
+"Em7"d z7 d3 z d4 | "C"e4 d4 c4 e4 | "Em7"d4 B4 z4 d4 | "D"e4 d4 "Bm7"c4 d4 |
