@@ -352,6 +352,7 @@ def test_fitness_of_a_population_equals_the_fitness_of_each_plan_alone():
 
 
 ROOT = Path(__file__).resolve().parent.parent
+LEADSHEETS = ROOT / "data" / "leadsheets"
 PLAN_FIXTURES = sorted((ROOT / "arranger" / "tests" / "fixtures" / "plans").glob("*.json"))
 
 
@@ -362,9 +363,9 @@ def test_every_committed_plan_keeps_its_scores_and_fitness(path):
     from leadsheet.abc_reader import read_lead_sheet
 
     fixture = json.loads(path.read_text())
-    lead_sheet = read_lead_sheet(ROOT / "data" / "leadsheets" / f"{fixture['leadsheet']}.abc")
-    if any(str(bar.meter) != "4/4" for bar in lead_sheet.bars):
-        pytest.skip("only the 4/4 plans of spec 002 are pinned here")
+    # The meter test tunes (plans/meters-*.json) live with the tests, the samples' in data/.
+    folder = ROOT / "tests" / "data" / "meters" if path.stem.startswith("meters-") else LEADSHEETS
+    lead_sheet = read_lead_sheet(folder / f"{fixture['leadsheet']}.abc")
     tables = build_tables(lead_sheet)
     plan = np.array([fixture["best_plan"]])
 
